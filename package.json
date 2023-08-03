@@ -1,0 +1,12 @@
+{
+  "name": "extism",
+  "version": "0.1.0",
+  "description": "An Extism host for Javascript",
+  "main": "index.js",
+  "scripts": {
+    "test": "node --experimental-wasi-unstable-preview1 example.node.js hello.wasm run_test"
+  },
+  "author": "",
+  "type": "module",
+  "license": "BSD-3-Clause"
+}
