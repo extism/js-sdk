@@ -62,10 +62,27 @@ class PluginWasi {
   }
 
   importObject() {
-    // node: this.wasi.wasiExports
+    // node: this.wasi.wasiImport
     // deno: this.wasi.exports
-    return this.wasi.wasiImports || this.wasi.exports;
+    return this.wasi.wasiImport || this.wasi.exports;
   }
+}
+
+function extismConfigGet(kOffs) {
+  const length = this.memoryLength(kOffs);
+  const keyMem = this.getMemory(kOffs, length);
+  const key = new TextDecoder().decode(keyMem);
+  const value = this.config[key];
+
+  if (!value) {
+    return BigInt(0);
+  }
+
+  const data = new TextEncoder().encode(value);
+  const offs = this.memoryAlloc(data.length);
+  const mem = this.getMemory(offs, data.length);
+  mem.set(data);
+  return offs;
 }
 
 export class Plugin {
@@ -76,57 +93,87 @@ export class Plugin {
     this.instance = null;
     this.opts = opts || new PluginOptions();
     this.wasi = null;
+    this.config = {};
+  }
+
+  withConfig(k, v) {
+    this.config[k] = v;
   }
 
   async initExtism() {
     const extismWasm = this.opts.runtime ||
       (await readFile("extism-runtime.wasm"));
     const module = new WebAssembly.Module(extismWasm);
-    const imports = {};
+    const instance = new WebAssembly.Instance(module, {});
+    const imports = {
+      "env": {},
+    };
+
+    for (const k in instance.exports) {
+      imports.env[k] = instance.exports[k];
+    }
 
     if (this.opts.useWasi) {
       this.wasi = await this.opts.getWasi();
-      imports["wasi_snapshot_preview1"] = this.wasi.importObject();
+
+      const x = {};
+      const f = this.wasi.importObject();
+      for (const k in f) {
+        x[k] = f[k];
+      }
+      imports["wasi_snapshot_preview1"] = x;
     }
 
     for (const f in this.opts.functions) {
-      imports[f] = this.opts.functions[f];
+      imports[f] = imports[f] || {};
+      for (const g in f) {
+        imports[f][g] = this.opts.functions[f][g];
+      }
     }
 
+    imports["env"]["extism_config_get"] = (kOffs) => {
+      return extismConfigGet.call(this, kOffs);
+    };
+
+    this.imports = imports;
     this.extism = {
-      instance: new WebAssembly.Instance(module, {}),
+      instance: instance,
       module: module,
     };
   }
 
   init() {
     this.module = new WebAssembly.Module(this.wasm);
-    this.instance = new WebAssembly.Instance(this.module, {
-      "env": this.extism.instance.exports,
-    });
+    this.instance = new WebAssembly.Instance(this.module, this.imports);
   }
 
-  getMemory() {
+  memoryAlloc(size) {
+    return this.extism.instance.exports.extism_alloc(
+      BigInt(size),
+    );
+  }
+
+  memoryLength(offs) {
+    return this.extism.instance.exports.extism_length(offs);
+  }
+
+  getMemory(index = 0, length = null) {
     return new Uint8Array(
       this.extism.instance.exports.memory.buffer,
-      0,
-      this.extism.instance.exports.memory.buffer.length,
+      Number(index),
+      Number(length) ||
+        (this.extism.instance.exports.memory.buffer.length - Number(index)),
     );
   }
 
   getError() {
-    const memory = this.getMemory();
     const errorOffs = this.extism.instance.exports.extism_error_get();
     if (errorOffs === 0) {
       return null;
     }
-    const errorLen = this.extism.instance.exports.extism_length(errorOffs);
-
-    const output = new Uint8ClampedArray(Number(errorLen));
-    for (let i = 0; i < Number(errorLen); i++) {
-      output[i] = memory[Number(errorOffs) + i];
-    }
-    return new TextDecoder().decode(output.buffer);
+    const errorLen = this.memoryLength(errorOffs);
+    const memory = this.getMemory(errorOffs, errorLen);
+    return new TextDecoder().decode(memory);
   }
 
   setInput(data) {
@@ -135,22 +182,15 @@ export class Plugin {
     );
     this.extism.instance.exports.extism_reset();
     this.extism.instance.exports.extism_input_set(input, BigInt(data.length));
-    const memory = this.getMemory();
-    for (let i = 0; i < data.length; i++) {
-      memory[Number(input) + i] = data[i];
-    }
+    const memory = this.getMemory(input, data.length);
+    memory.set(data);
   }
 
   getOutput() {
-    const memory = this.getMemory();
     const outputOffs = this.extism.instance.exports.extism_output_offset();
     const outputLen = this.extism.instance.exports.extism_output_length();
-
-    const output = new Uint8ClampedArray(Number(outputLen));
-    for (let i = 0; i < Number(outputLen); i++) {
-      output[i] = memory[Number(outputOffs) + i];
-    }
-    return output;
+    const memory = this.getMemory(outputOffs, outputLen);
+    return memory.slice(0, Number(outputLen));
   }
 
   async call(name, input) {
@@ -159,7 +199,7 @@ export class Plugin {
     this.init();
 
     const rc = this.instance.exports[name]();
-    if (rc != 0) {
+    if (Number(rc) != 0) {
       const msg = this.getError() || "Call failed";
       throw new Error(msg);
     }

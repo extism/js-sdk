@@ -12,6 +12,7 @@ const opts = new PluginOptions().withWasi(true).withFunction(
   (x) => x,
 );
 const plugin = new Plugin(wasm, opts);
+plugin.withConfig("thing", "testing");
 const res = await plugin.call(funcname, new TextEncoder().encode(input));
 const s = new TextDecoder().decode(res.buffer);
 console.log(s);
