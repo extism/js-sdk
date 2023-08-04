@@ -6,7 +6,11 @@ const filename = argv[2];
 const funcname = argv[3];
 const input = argv[4] || "this is a test";
 const wasm = readFileSync(filename);
-const opts = new PluginOptions().withWasi(true);
+const opts = new PluginOptions().withWasi(true).withFunction(
+  "env",
+  "testing",
+  (x) => x,
+);
 const plugin = new Plugin(wasm, opts);
 const res = await plugin.call(funcname, new TextEncoder().encode(input));
 const s = new TextDecoder().decode(res.buffer);

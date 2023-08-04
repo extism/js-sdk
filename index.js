@@ -82,11 +82,17 @@ export class Plugin {
     const extismWasm = this.opts.runtime ||
       (await readFile("extism-runtime.wasm"));
     const module = new WebAssembly.Module(extismWasm);
-    const imports = structuredClone(this.opts.functions);
+    const imports = {};
+
     if (this.opts.useWasi) {
       this.wasi = await this.opts.getWasi();
       imports["wasi_snapshot_preview1"] = this.wasi.importObject();
     }
+
+    for (const f in this.opts.functions) {
+      imports[f] = this.opts.functions[f];
+    }
+
     this.extism = {
       instance: new WebAssembly.Instance(module, {}),
       module: module,
