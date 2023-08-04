@@ -55,12 +55,15 @@ export class PluginOptions {
   }
 }
 
+// PluginWasi provides a unified interface for the supported WASI implementations
 class PluginWasi {
   constructor(wasi) {
     this.wasi = wasi;
   }
 
   importObject() {
+    // node: this.wasi.wasiExports
+    // deno: this.wasi.exports
     return this.wasi.wasiImports || this.wasi.exports;
   }
 }
@@ -82,7 +85,7 @@ export class Plugin {
     const imports = structuredClone(this.opts.functions);
     if (this.opts.useWasi) {
       this.wasi = await this.opts.getWasi();
-      imports["wasi_snapshow_preview1"] = this.wasi.importObject();
+      imports["wasi_snapshot_preview1"] = this.wasi.importObject();
     }
     this.extism = {
       instance: new WebAssembly.Instance(module, {}),
