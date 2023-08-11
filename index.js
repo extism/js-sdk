@@ -85,6 +85,47 @@ function extismConfigGet(kOffs) {
   return offs;
 }
 
+function extismVarGet(kOffs) {
+  const length = this.memoryLength(kOffs);
+  const keyMem = this.getMemory(kOffs, length);
+  const key = new TextDecoder().decode(keyMem);
+  const value = this.vars[key];
+
+  if (!value) {
+    return BigInt(0);
+  }
+
+  const data = new TextEncoder().encode(value);
+  const offs = this.memoryAlloc(data.length);
+  const mem = this.getMemory(offs, data.length);
+  mem.set(data);
+  return offs;
+}
+
+function extismVarSet(kOffs, vOffs) {
+  const keyLength = this.memoryLength(kOffs);
+  const valueLength = this.memoryLength(vOffs);
+
+  if (keyLength === 0) {
+    return;
+  }
+
+  // Get the key from memory
+  const keyMem = this.getMemory(kOffs, keyLength);
+  const key = new TextDecoder().decode(keyMem);
+
+  if (valueLength === 0) {
+    delete this.vars[key];
+    return;
+  }
+
+  // Get the value from memory
+  const valueMem = this.getMemory(vOffs, valueLength);
+  const value = new TextDecoder().decode(valueMem);
+
+  this.vars[key] = value;
+}
+
 export class Plugin {
   constructor(wasm, opts = null) {
     this.wasm = wasm;
@@ -94,6 +135,7 @@ export class Plugin {
     this.opts = opts || new PluginOptions();
     this.wasi = null;
     this.config = {};
+    this.vars = {};
   }
 
   withConfig(k, v) {
@@ -133,6 +175,14 @@ export class Plugin {
 
     imports["env"]["extism_config_get"] = (kOffs) => {
       return extismConfigGet.call(this, kOffs);
+    };
+
+    imports["env"]["extism_var_get"] = (kOffs) => {
+      return extismVarGet.call(this, kOffs);
+    };
+
+    imports["env"]["extism_var_set"] = (kOffs, vOffs) => {
+      return extismVarSet.call(this, kOffs, vOffs);
     };
 
     this.imports = imports;
