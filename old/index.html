@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WASM Plugin in Browser</title>
+</head>
+
+<body>
+
+<!-- You can add some basic input fields and a button to trigger the function -->
+<input id="filename" placeholder="Enter WASM file URL" value="http://127.0.0.1:5500/hello.wasm" />
+<input id="funcname" placeholder="Enter function name" value="run_test" />
+<input id="inputText" placeholder="Enter input" value="this is a test" />
+<button id="runButton">Run</button>
+
+<script type="module">
+    import { Plugin, PluginOptions } from "./index.js";
+
+    async function runPlugin() {
+        // Get values from input fields
+        const filename = document.getElementById('filename').value;
+        const funcname = document.getElementById('funcname').value;
+        const input = document.getElementById('inputText').value || "this is a test";
+
+        // Use fetch API to load the WASM file
+        const response = await fetch(filename);
+        const wasm = await response.arrayBuffer();
+
+        const opts = new PluginOptions().withWasi(true).withFunction(
+            "env",
+            "testing",
+            (x) => x,
+        );
+        const plugin = new Plugin(wasm, opts);
+        plugin.withConfig("thing", "testing");
+        const res = await plugin.call(funcname, new TextEncoder().encode(input));
+        const s = new TextDecoder().decode(res.buffer);
+        console.log(s);
+    }
+
+    // Attach the event listener inside the module
+    document.getElementById('runButton').addEventListener('click', runPlugin);
+</script>
+
+</body>
+
+</html>

@@ -1,6 +1,6 @@
 import Allocator from './allocator';
-import { PluginConfig } from './manifest';
-import { WASI, Fd } from '@bjorn3/browser_wasi_shim';
+import { loadWasi } from './platform'
+import { PluginConfig, Manifest, ManifestWasmData, ManifestWasmFile, ManifestWasm, PluginWasi } from './manifest';
 
 export type ExtismFunction = any;
 
@@ -14,14 +14,49 @@ export class ExtismPlugin {
   module?: WebAssembly.WebAssemblyInstantiatedSource;
   functions: Record<string, ExtismFunction>;
 
-  constructor(moduleData: ArrayBuffer, functions: Record<string, ExtismFunction> = {}, config?: PluginConfig) {
+  constructor(extism: WebAssembly.Instance, moduleData: ArrayBuffer, functions: Record<string, ExtismFunction> = {}, config?: PluginConfig) {
     this.moduleData = moduleData;
-    this.allocator = new Allocator();
+    this.allocator = new Allocator(extism);
     this.config = config;
     this.vars = {};
     this.input = new Uint8Array();
     this.output = new Uint8Array();
     this.functions = functions;
+  }
+
+  async fetchData(wasm: ManifestWasm): Promise<ArrayBuffer> {
+
+    let data: ArrayBuffer = (wasm as ManifestWasmData).data;
+
+    if (!data) {
+      const response = await fetch((wasm as ManifestWasmFile).path);
+      data = await response.arrayBuffer();
+    }
+
+    return data;
+  }
+
+  async newPlugin(manifestData: Manifest | ArrayBuffer, extismRuntime: ManifestWasm, functions: Record<string, any> = {}, config?: PluginConfig) {
+    let moduleData: ArrayBuffer | null = null;
+    if (manifestData instanceof ArrayBuffer) {
+      moduleData = manifestData;
+
+    } else if ((manifestData as Manifest).wasm) {
+      const wasmData = (manifestData as Manifest).wasm;
+      if (wasmData.length > 1) throw Error('This runtime only supports one module in Manifest.wasm');
+
+      const wasm = wasmData[0];
+      moduleData = await this.fetchData(wasm);
+    }
+    if (!moduleData) {
+      throw Error(`Unsure how to interpret manifest ${manifestData}`);
+    }
+
+    const extismWasm = await this.fetchData(extismRuntime);
+    const extismModule = new WebAssembly.Module(extismWasm);
+    const extismInstance = new WebAssembly.Instance(extismModule, {});
+
+    return new ExtismPlugin(extismInstance, moduleData, functions, config);
   }
 
   async getExports(): Promise<WebAssembly.Exports> {
@@ -66,16 +101,10 @@ export class ExtismPlugin {
       return this.module;
     }
     const environment = this.makeEnv();
-    const args: Array<string> = [];
-    const envVars: Array<string> = [];
-    let fds: Fd[] = [
-      // new XtermStdio(term), // stdin
-      // new XtermStdio(term), // stdout
-      // new XtermStdio(term), // stderr
-    ];
-    let wasi = new WASI(args, envVars, fds);
+    const wasi = await loadWasi();
+
     let env = {
-      wasi_snapshot_preview1: wasi.wasiImport,
+      wasi_snapshot_preview1: wasi?.importObject(),
       env: environment,
     };
     this.module = await WebAssembly.instantiate(this.moduleData, env);
@@ -100,17 +129,17 @@ export class ExtismPlugin {
         plugin.allocator.free(n);
       },
       extism_load_u8(n: bigint): number {
-        return plugin.allocator.getMemory()[Number(n)];
+        return plugin.allocator.getMemoryBuffer()[Number(n)];
       },
       extism_load_u64(n: bigint): bigint {
-        let cast = new DataView(plugin.allocator.memory.buffer, Number(n));
+        let cast = new DataView(plugin.allocator.getMemory().buffer, Number(n));
         return cast.getBigUint64(0, true);
       },
       extism_store_u8(offset: bigint, n: number) {
-        plugin.allocator.memory[Number(offset)] = Number(n);
+        plugin.allocator.getMemoryBuffer()[Number(offset)] = Number(n);
       },
       extism_store_u64(offset: bigint, n: bigint) {
-        const tmp = new DataView(plugin.allocator.memory.buffer, Number(offset));
+        const tmp = new DataView(plugin.allocator.getMemory().buffer, Number(offset));
         tmp.setBigUint64(0, n, true);
       },
       extism_input_length(): bigint {
@@ -126,7 +155,7 @@ export class ExtismPlugin {
       extism_output_set(offset: bigint, length: bigint) {
         const offs = Number(offset);
         const len = Number(length);
-        plugin.output = plugin.allocator.memory.slice(offs, offs + len);
+        plugin.output = plugin.allocator.getMemoryBuffer().slice(offs, offs + len);
       },
       extism_error_set(i: bigint) {
         throw plugin.allocator.getString(i);

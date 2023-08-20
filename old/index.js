@@ -1,4 +1,15 @@
-import { readFile } from "node:fs/promises";
+const isBrowser =
+  typeof window !== "undefined" && typeof window.document !== "undefined";
+
+const isNode =
+  typeof process !== "undefined" &&
+  process.versions != null &&
+  process.versions.node != null;
+
+const isDeno =
+  typeof Deno !== "undefined" &&
+  typeof Deno.version !== "undefined" &&
+  typeof Deno.version.deno !== "undefined";
 
 export class PluginOptions {
   constructor() {
@@ -31,27 +42,28 @@ export class PluginOptions {
   }
 
   async getWasi() {
-    if (!this.useWasi) {
+    if (!this.useWasi || isBrowser) {
       return null;
-    }
-
-    let wasi;
-    try {
+    } else if (isNode) {
       const pkg = await import("wasi");
-      wasi = new pkg.WASI({
+      const wasi = new pkg.WASI({
         version: "preview1",
         preopens: this.allowedPaths,
       });
-    } catch (_) {
+
+      return new PluginWasi(wasi);
+    } else if (isDeno) {
       const pkgDeno = await import(
         "https://deno.land/std@0.197.0/wasi/snapshot_preview1.ts"
       );
-      wasi = new pkgDeno.default({
+      const wasi = new pkgDeno.default({
         preopens: this.allowedPaths,
       });
+
+      return new PluginWasi(wasi);
     }
 
-    return new PluginWasi(wasi);
+    throw new Error("Unsupported environment.");
   }
 }
 
@@ -64,7 +76,12 @@ class PluginWasi {
   importObject() {
     // node: this.wasi.wasiImport
     // deno: this.wasi.exports
-    return this.wasi.wasiImport || this.wasi.exports;
+
+    if (isBrowser) {
+      return null;
+    } else {
+      return this.wasi.wasiImport || this.wasi.exports;
+    }
   }
 }
 
@@ -126,6 +143,45 @@ function extismVarSet(kOffs, vOffs) {
   this.vars[key] = value;
 }
 
+function extismHttpStatusCode() {
+  return this.lastHttpStatusCode;
+}
+
+
+function extismHttpRequest(rOffs, bOffs) {
+  const requestLength = this.memoryLength(rOffs);
+
+  // Get the key from memory
+  const requestMem = this.getMemory(rOffs, requestLength);
+  const requestJson = new TextDecoder().decode(requestMem);
+  const request = JSON.parse(requestJson);
+
+  // TODO: make sure deserialization is successful
+  // TODO: make sure we're allowed to call host
+
+  let body = null;
+  if (bOffs != 0) {
+    const bodyLength = this.memoryLength(bOffs);
+    body = this.getMemory(bOffs, bodyLength);
+  }
+
+  const options = {
+    method: request.method,
+    headers: request.headers,
+    protocol: request.url.split("://")[0],
+  };
+
+  // TODO: Send request synchronously
+  const data = new TextEncoder().encode("dummy http response");
+  const offs = this.memoryAlloc(data.length);
+  const mem = this.getMemory(offs, data.length);
+  mem.set(data);
+
+  this.lastHttpStatusCode = 200;
+
+  return offs;
+}
+
 export class Plugin {
   constructor(wasm, opts = null) {
     this.wasm = wasm;
@@ -142,9 +198,24 @@ export class Plugin {
     this.config[k] = v;
   }
 
+  async fetchRuntime() {
+    if (isBrowser) {
+      const response = await fetch("/extism-runtime.wasm");
+      return response.arrayBuffer();
+    } else {
+      return await readFile("extism-runtime.wasm");
+    }
+  }
+
   async initExtism() {
-    const extismWasm = this.opts.runtime ||
-      (await readFile("extism-runtime.wasm"));
+    if (this.extism) {
+      return;
+    }
+
+    const extismWasm = this.opts.runtime || await this.fetchRuntime();
+
+    console.log('runtime', extismWasm);
+
     const module = new WebAssembly.Module(extismWasm);
     const instance = new WebAssembly.Instance(module, {});
     const imports = {
@@ -158,12 +229,20 @@ export class Plugin {
     if (this.opts.useWasi) {
       this.wasi = await this.opts.getWasi();
 
-      const x = {};
-      const f = this.wasi.importObject();
-      for (const k in f) {
-        x[k] = f[k];
+      if (this.wasi) {
+        const f = this.wasi.importObject();
+        if (!f) {
+
+        } else {
+          console.log(f)
+        }
+
+        const x = {};
+        for (const k in f) {
+          x[k] = f[k];
+        }
+        imports["wasi_snapshot_preview1"] = x;
       }
-      imports["wasi_snapshot_preview1"] = x;
     }
 
     for (const f in this.opts.functions) {
@@ -185,6 +264,14 @@ export class Plugin {
       return extismVarSet.call(this, kOffs, vOffs);
     };
 
+    imports["env"]["extism_http_request"] = (rOffs, bOffs) => {
+      return rOffs;
+    };
+
+    imports["env"]["extism_http_status_code"] = () => {
+      return extismHttpStatusCode.call(this);
+    };
+
     this.imports = imports;
     this.extism = {
       instance: instance,
@@ -193,8 +280,10 @@ export class Plugin {
   }
 
   init() {
-    this.module = new WebAssembly.Module(this.wasm);
-    this.instance = new WebAssembly.Instance(this.module, this.imports);
+    if (!this.module || !this.instance) {
+      this.module = new WebAssembly.Module(this.wasm);
+      this.instance = new WebAssembly.Instance(this.module, this.imports);
+    }
   }
 
   memoryAlloc(size) {
@@ -207,12 +296,16 @@ export class Plugin {
     return this.extism.instance.exports.extism_length(offs);
   }
 
+  free(offs) {
+    this.extism.instance.exports.extism_free(offs);
+  }
+
   getMemory(index = 0, length = null) {
     return new Uint8Array(
       this.extism.instance.exports.memory.buffer,
       Number(index),
       Number(length) ||
-        (this.extism.instance.exports.memory.buffer.length - Number(index)),
+      (this.extism.instance.exports.memory.buffer.length - Number(index)),
     );
   }
 
@@ -243,10 +336,17 @@ export class Plugin {
     return memory.slice(0, Number(outputLen));
   }
 
+  async functionExsits(name) {
+    await this.initExtism();
+    this.init();
+
+    return name in this.instance.exports;
+  }
+
   async call(name, input) {
     await this.initExtism();
     this.setInput(input);
-    this.init();
+    await this.init();
 
     const rc = this.instance.exports[name]();
     if (Number(rc) != 0) {

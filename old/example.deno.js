@@ -7,6 +7,15 @@ const wasm = Deno.readFileSync(filename);
 const opts = new PluginOptions().withWasi(true);
 const plugin = new Plugin(wasm, opts);
 plugin.withConfig("thing", "testing");
+
+if (await plugin.functionExsits(funcname)) {
+    console.log('It exists!');
+} else {
+    console.log('function not found: %s', funcname);
+}
+
 const res = await plugin.call(funcname, new TextEncoder().encode(input));
 const s = new TextDecoder().decode(res.buffer);
 console.log(s);
+
+console.log(plugin.getError());
