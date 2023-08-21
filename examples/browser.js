@@ -1,10 +1,9 @@
-const { ExtismPlugin, ExtismFunction, ManifestWasmFile } = require("../dist/node/index")
+const { ExtismPlugin, ExtismFunction, ManifestWasmFile } = require("../dist/browser/index")
 const { WASI } = require('wasi');
-const { readFileSync } = require("node:fs");
 const { argv } = require("node:process");
 
 async function main() {
-    const filename = argv[2] || "/wasm/hello.wasm";
+    const filename = argv[2] || "wasm/hello.wasm";
     const funcname = argv[3] || "run_test";
     const input = argv[4] || "this is a test";
     const wasm = {
@@ -12,7 +11,7 @@ async function main() {
     }
     
     const extism = {
-        path: "/wasm/extism-runtime.wasm"
+        path: "wasm/extism-runtime.wasm"
     }
 
     const plugin = await ExtismPlugin.newPlugin(wasm, extism, undefined, new Map([
