@@ -2,7 +2,6 @@ const { build } = require("esbuild");
 const { peerDependencies } = require('./package.json')
 
 const sharedConfig = {
-    entryPoints: ["src/index.ts"],
     bundle: true,
     minify: false,
     drop: [], // preseve debugger statements
@@ -11,20 +10,15 @@ const sharedConfig = {
 
 build({
     ...sharedConfig,
+    entryPoints: ["src/index.node.ts"],
     platform: 'node', // for CJS
     outfile: "dist/node/index.js",
 });
 
 build({
     ...sharedConfig,
-    platform: 'deno', // for CJS
-    outfile: "dist/deno/index.js",
-});
-
-
-build({
-    ...sharedConfig,
-    outfile: "dist/index.esm.js",
+    entryPoints: ["src/index.browser.ts"],
+    outfile: "dist/browser/index.esm.js",
     platform: 'neutral', // for ESM
     format: "esm",
 });

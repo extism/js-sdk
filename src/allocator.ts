@@ -6,11 +6,11 @@ export default class Allocator {
   }
 
   reset() {
-    return (this.extism.exports.extism_reset as Function).call(null);
+    return (this.extism.exports.extism_reset as Function).call(undefined);
   }
 
   alloc(length: bigint): bigint {
-    return (this.extism.exports.extism_alloc as Function).call(length);
+    return (this.extism.exports.extism_alloc as Function).call(undefined, length);
   }
 
   getMemory(): WebAssembly.Memory {
@@ -54,10 +54,10 @@ export default class Allocator {
   }
 
   getLength(offset: bigint): bigint {
-    return (this.extism.exports.extism_length as Function).call(offset);
+    return (this.extism.exports.extism_length as Function).call(undefined, offset);
   }
 
   free(offset: bigint) {
-    (this.extism.exports.extism_free as Function).call(offset);
+    (this.extism.exports.extism_free as Function).call(undefined, offset);
   }
 }

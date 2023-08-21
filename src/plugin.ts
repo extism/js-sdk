@@ -1,10 +1,28 @@
 import Allocator from './allocator';
-import { loadWasi } from './platform'
-import { PluginConfig, Manifest, ManifestWasmData, ManifestWasmFile, ManifestWasm, PluginWasi } from './manifest';
+import { PluginConfig, Manifest, ManifestWasmData, ManifestWasmFile, ManifestWasm } from './manifest';
 
 export type ExtismFunction = any;
 
-export class ExtismPlugin {
+// PluginWasi provides a unified interface for the supported WASI implementations
+export class PluginWasi {
+  wasi: any;
+  imports: any;
+
+  constructor(wasi: any, imports: any) {
+    this.wasi = wasi;
+    this.imports = imports;
+  }
+
+  importObject() {
+    return this.imports;
+  }
+
+  initialize() {
+
+  }
+}
+
+export abstract class ExtismPluginBase {
   moduleData: ArrayBuffer;
   allocator: Allocator;
   config?: PluginConfig;
@@ -14,7 +32,11 @@ export class ExtismPlugin {
   module?: WebAssembly.WebAssemblyInstantiatedSource;
   functions: Record<string, ExtismFunction>;
 
-  constructor(extism: WebAssembly.Instance, moduleData: ArrayBuffer, functions: Record<string, ExtismFunction> = {}, config?: PluginConfig) {
+  constructor(
+    extism: WebAssembly.Instance, 
+    moduleData: ArrayBuffer, 
+    functions: Record<string, ExtismFunction> = {},
+    config?: PluginConfig) {
     this.moduleData = moduleData;
     this.allocator = new Allocator(extism);
     this.config = config;
@@ -24,40 +46,38 @@ export class ExtismPlugin {
     this.functions = functions;
   }
 
-  async fetchData(wasm: ManifestWasm): Promise<ArrayBuffer> {
+  static async fetchData(wasm: ManifestWasm, fetch: (url: string) => Promise<ArrayBuffer>): Promise<ArrayBuffer> {
 
     let data: ArrayBuffer = (wasm as ManifestWasmData).data;
 
     if (!data) {
-      const response = await fetch((wasm as ManifestWasmFile).path);
-      data = await response.arrayBuffer();
+      data = await fetch((wasm as ManifestWasmFile).path);
     }
 
     return data;
   }
+  // async newPlugin(manifestData: Manifest | ArrayBuffer, extismRuntime: ManifestWasm, functions: Record<string, any> = {}, config?: PluginConfig) {
+  //   let moduleData: ArrayBuffer | null = null;
+  //   if (manifestData instanceof ArrayBuffer) {
+  //     moduleData = manifestData;
 
-  async newPlugin(manifestData: Manifest | ArrayBuffer, extismRuntime: ManifestWasm, functions: Record<string, any> = {}, config?: PluginConfig) {
-    let moduleData: ArrayBuffer | null = null;
-    if (manifestData instanceof ArrayBuffer) {
-      moduleData = manifestData;
+  //   } else if ((manifestData as Manifest).wasm) {
+  //     const wasmData = (manifestData as Manifest).wasm;
+  //     if (wasmData.length > 1) throw Error('This runtime only supports one module in Manifest.wasm');
 
-    } else if ((manifestData as Manifest).wasm) {
-      const wasmData = (manifestData as Manifest).wasm;
-      if (wasmData.length > 1) throw Error('This runtime only supports one module in Manifest.wasm');
+  //     const wasm = wasmData[0];
+  //     moduleData = await this.fetchData(wasm);
+  //   }
+  //   if (!moduleData) {
+  //     throw Error(`Unsure how to interpret manifest ${manifestData}`);
+  //   }
 
-      const wasm = wasmData[0];
-      moduleData = await this.fetchData(wasm);
-    }
-    if (!moduleData) {
-      throw Error(`Unsure how to interpret manifest ${manifestData}`);
-    }
+  //   const extismWasm = await this.fetchData(extismRuntime);
+  //   const extismModule = new WebAssembly.Module(extismWasm);
+  //   const extismInstance = new WebAssembly.Instance(extismModule, {});
 
-    const extismWasm = await this.fetchData(extismRuntime);
-    const extismModule = new WebAssembly.Module(extismWasm);
-    const extismInstance = new WebAssembly.Instance(extismModule, {});
-
-    return new ExtismPlugin(extismInstance, moduleData, functions, config);
-  }
+  //   return new ExtismPlugin(extismInstance, moduleData, functions, config);
+  // }
 
   async getExports(): Promise<WebAssembly.Exports> {
     const module = await this._instantiateModule();
@@ -96,25 +116,27 @@ export class ExtismPlugin {
     return this.output;
   }
 
+  abstract loadWasi(): PluginWasi
+
   async _instantiateModule(): Promise<WebAssembly.WebAssemblyInstantiatedSource> {
     if (this.module) {
       return this.module;
     }
     const environment = this.makeEnv();
-    const wasi = await loadWasi();
+    const pluginWasi = this.loadWasi();
 
     let env = {
-      wasi_snapshot_preview1: wasi?.importObject(),
+      wasi_snapshot_preview1: pluginWasi?.importObject(),
       env: environment,
     };
     this.module = await WebAssembly.instantiate(this.moduleData, env);
     // normally we would call wasi.start here but it doesn't respect when there is
     // no _start function
     //@ts-ignore
-    wasi.inst = this.module.instance;
+    pluginWasi.inst = this.module.instance;
     if (this.module.instance.exports._start) {
       //@ts-ignore
-      this.module.instance.exports._start();
+      pluginWasi.wasi.start(this.module.instance);
     }
     return this.module;
   }
@@ -123,7 +145,8 @@ export class ExtismPlugin {
     const plugin = this;
     var env: any = {
       extism_alloc(n: bigint): bigint {
-        return plugin.allocator.alloc(n);
+        const response = plugin.allocator.alloc(n);
+        return response;
       },
       extism_free(n: bigint) {
         plugin.allocator.free(n);

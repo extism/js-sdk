@@ -3,7 +3,7 @@
   "version": "0.3.0",
   "description": "Extism runtime in the browser",
   "scripts": {
-    "build": "node build.js && tsc --emitDeclarationOnly --outDir dist",
+    "build": "node build.es.js && tsc --emitDeclarationOnly --outDir dist",
     "format": "prettier --write \"src/**/*.ts\"",
     "lint": "tslint -p tsconfig.json",
     "test": "jest --config jest.config.js"
@@ -34,6 +34,7 @@
     "typescript": "^4.8.4"
   },
   "dependencies": {
-    "@bjorn3/browser_wasi_shim": "^0.2.7"
+    "@bjorn3/browser_wasi_shim": "^0.2.14",
+    "node-fetch": "^3.3.2"
   }
 }

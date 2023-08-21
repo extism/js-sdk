@@ -38,19 +38,3 @@ export type Manifest = {
   config?: PluginConfig;
   allowed_hosts?: Array<string>;
 };
-
-
-// PluginWasi provides a unified interface for the supported WASI implementations
-export class PluginWasi {
-  wasi: any;
-  imports: any;
-
-  constructor(wasi: any, imports: any) {
-    this.wasi = wasi;
-    this.imports = imports;
-  }
-
-  importObject() {
-    return this.imports;
-  }
-}
