@@ -10,46 +10,32 @@
 <body>
 
     <!-- You can add some basic input fields and a button to trigger the function -->
-    <input id="filename" placeholder="Enter WASM file URL" value="http://127.0.0.1:5500/wasm/hello.wasm" />
+    <input id="url" placeholder="Enter WASM file URL" value="http://127.0.0.1:5500/wasm/hello.wasm" />
     <input id="funcname" placeholder="Enter function name" value="run_test" />
     <input id="inputText" placeholder="Enter input" value="this is a test" />
     <button id="runButton">Run</button>
 
     <script type="module">
-        import { ExtismPlugin } from "/dist/browser/index.esm.js";
+        import { ExtismPlugin, PluginOptions } from "/dist/browser/index.esm.js";
 
         async function runPlugin() {
             // Get values from input fields
-            const filename = document.getElementById('filename').value;
+            const url = document.getElementById('url').value;
             const funcname = document.getElementById('funcname').value;
             const input = document.getElementById('inputText').value || "this is a test";
 
-            // // Use fetch API to load the WASM file
-            // const response = await fetch(filename);
-            // const wasm = await response.arrayBuffer();
-
-            // const opts = new PluginOptions().withWasi(true).withFunction(
-            //     "env",
-            //     "testing",
-            //     (x) => x,
-            // );
-            // const plugin = new Plugin(wasm, opts);
-            // plugin.withConfig("thing", "testing");
-            // const res = await plugin.call(funcname, new TextEncoder().encode(input));
-            // const s = new TextDecoder().decode(res.buffer);
-            // console.log(s);
-
             const wasm = {
-                path: filename
+                url: url
             }
 
-            const extism = {
-                path: "/wasm/extism-runtime.wasm"
-            }
+            const options = new PluginOptions()
+                .withConfig("thing", "testing")
+                .withRuntime({
+                    url: "/wasm/extism-runtime.wasm"
+                })
+                .withWasi();
 
-            const plugin = await ExtismPlugin.newPlugin(wasm, extism, undefined, new Map([
-                ["thing", "testing"]
-            ]));
+            const plugin = await ExtismPlugin.newPlugin(wasm, options);
 
             const res = await plugin.call(funcname, new TextEncoder().encode(input));
             const s = new TextDecoder().decode(res.buffer);

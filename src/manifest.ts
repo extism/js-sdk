@@ -1,5 +1,5 @@
 /**
- * Represents a path or url to a WASM module
+ * Represents a path to a WASM module
  */
 export type ManifestWasmFile = {
   path: string;
@@ -17,14 +17,23 @@ export type ManifestWasmData = {
 };
 
 /**
+ * Represents a url to a WASM module
+ */
+export type ManifestWasmUrl = {
+  url: string;
+  name?: string;
+  hash?: string;
+}
+
+/**
  * {@link ExtismPlugin} Config
  */
 export type PluginConfig = Map<string, string>;
 
 /**
- * The WASM to load as bytes or a path
+ * The WASM to load as bytes, a path, or a url
  */
-export type ManifestWasm = ManifestWasmFile | ManifestWasmData;
+export type ManifestWasm = ManifestWasmUrl | ManifestWasmFile | ManifestWasmData;
 
 /**
  * The manifest which describes the {@link ExtismPlugin} code and

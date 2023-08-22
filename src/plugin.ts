@@ -1,9 +1,9 @@
 import Allocator from './allocator';
-import { PluginConfig, Manifest, ManifestWasmData, ManifestWasmFile, ManifestWasm } from './manifest';
+import { PluginConfig, Manifest, ManifestWasmData, ManifestWasmFile, ManifestWasm, ManifestWasmUrl } from './manifest';
 
 export type ExtismFunction = any;
 
-export class PluginOptions {
+export class ExtismPluginOptions {
   useWasi: boolean;
   functions: Map<string, Map<string, ExtismFunction>>;
   runtime: ManifestWasm | null;
@@ -18,7 +18,7 @@ export class PluginOptions {
     this.config = new Map<string, string>();
   }
 
-  withWasi(value: boolean) {
+  withWasi(value: boolean = true) {
     this.useWasi = value;
     return this;
   }
@@ -84,7 +84,7 @@ export async function fetchModuleData(manifestData: Manifest | ManifestWasm | Bu
 
     const wasm = wasmData[0];
     moduleData = await fetchWasm(wasm);
-  } else if ((manifestData as ManifestWasmData).data || (manifestData as ManifestWasmFile).path) {
+  } else if ((manifestData as ManifestWasmData).data || (manifestData as ManifestWasmFile).path || (manifestData as ManifestWasmUrl).url) {
     moduleData = await fetchWasm(manifestData as ManifestWasm);
   }
 

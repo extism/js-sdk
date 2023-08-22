@@ -1,4 +1,4 @@
-const { ExtismPlugin, ExtismFunction, ManifestWasmFile } = require("../dist/node/index")
+const { ExtismPlugin, PluginOptions } = require("../dist/node/index")
 const { WASI } = require('wasi');
 const { readFileSync } = require("node:fs");
 const { argv } = require("node:process");
@@ -10,14 +10,15 @@ async function main() {
     const wasm = {
         path: filename
     }
-    
-    const extism = {
-        path: "/wasm/extism-runtime.wasm"
-    }
 
-    const plugin = await ExtismPlugin.newPlugin(wasm, extism, undefined, new Map([
-        ["thing", "testing"]
-    ]));
+    const options = new PluginOptions()
+        .withConfig("thing", "testing")
+        .withRuntime({
+            path: "wasm/extism-runtime.wasm"
+        })
+        .withWasi();
+
+    const plugin = await ExtismPlugin.newPlugin(wasm, options);
 
     const res = await plugin.call(funcname, new TextEncoder().encode(input));
     const s = new TextDecoder().decode(res.buffer);
