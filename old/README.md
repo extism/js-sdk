@@ -1,1 +1,0 @@
-# Extism JavaScript SDK
