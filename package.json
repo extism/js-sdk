@@ -3,7 +3,7 @@
   "version": "0.3.0",
   "description": "Extism runtime in the browser",
   "scripts": {
-    "build": "node build.es.js && tsc --emitDeclarationOnly --outDir dist",
+    "build": "node build.es.js && tsc --emitDeclarationOnly --outDir dist && deno bundle ./src/index.deno.js ./dist/deno/extism.js",
     "format": "prettier --write \"src/**/*.ts\"",
     "lint": "tslint -p tsconfig.json",
     "test": "jest --config jest.config.js"
