@@ -1,7 +1,5 @@
-import { ExtismFunction } from "./plugin";
-import { ExtismPluginBase, PluginWasi, ExtismPluginOptions, fetchModuleData, instantiateRuntime } from './plugin'
+import { ExtismPluginBase, PluginWasi, ExtismPluginOptions, fetchModuleData, instantiateRuntime, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl, PluginConfig } from './plugin'
 import wasi from 'wasi'
-import { Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl, PluginConfig } from './manifest';
 import { readFileSync } from "fs"
 
 class ExtismPlugin extends ExtismPluginBase {  
@@ -41,9 +39,8 @@ class ExtismPlugin extends ExtismPluginBase {
 }
 
 export {
-    ExtismFunction,
     ExtismPlugin,
-    ExtismPluginOptions as PluginOptions,
+    ExtismPluginOptions,
     Manifest,
     ManifestWasm,
     ManifestWasmData,

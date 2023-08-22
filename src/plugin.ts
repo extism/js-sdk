@@ -1,18 +1,127 @@
-import Allocator from './allocator';
-import { PluginConfig, Manifest, ManifestWasmData, ManifestWasmFile, ManifestWasm, ManifestWasmUrl } from './manifest';
+/**
+ * Represents a path to a WASM module
+ */
+export type ManifestWasmFile = {
+  path: string;
+  name?: string;
+  hash?: string;
+};
 
-export type ExtismFunction = any;
+/**
+ * Represents the raw bytes of a WASM file loaded into memory
+ */
+export type ManifestWasmData = {
+  data: Uint8Array;
+  name?: string;
+  hash?: string;
+};
+
+/**
+ * Represents a url to a WASM module
+ */
+export type ManifestWasmUrl = {
+  url: string;
+  name?: string;
+  hash?: string;
+}
+
+/**
+ * {@link ExtismPlugin} Config
+ */
+export type PluginConfig = Map<string, string>;
+
+/**
+ * The WASM to load as bytes, a path, or a url
+ */
+export type ManifestWasm = ManifestWasmUrl | ManifestWasmFile | ManifestWasmData;
+
+/**
+ * The manifest which describes the {@link ExtismPlugin} code and
+ * runtime constraints.
+ *
+ * @see [Extism > Concepts > Manifest](https://extism.org/docs/concepts/manifest)
+ */
+export type Manifest = {
+  wasm: Array<ManifestWasm>;
+  //memory?: ManifestMemory;
+  config?: PluginConfig;
+  allowed_hosts?: Array<string>;
+};
+
+export default class Allocator {
+  extism: WebAssembly.Instance;
+
+  constructor(extism: WebAssembly.Instance) {
+    this.extism = extism;
+  }
+
+  reset() {
+    return (this.extism.exports.extism_reset as Function).call(undefined);
+  }
+
+  alloc(length: bigint): bigint {
+    return (this.extism.exports.extism_alloc as Function).call(undefined, length);
+  }
+
+  getMemory(): WebAssembly.Memory {
+    return (this.extism.exports.memory as WebAssembly.Memory);
+  }
+
+  getMemoryBuffer(): Uint8Array {
+    return new Uint8Array(this.getMemory().buffer);
+  }
+
+  getBytes(offset: bigint): Uint8Array {
+    const length = this.getLength(offset)
+
+    return new Uint8Array(this.getMemory().buffer, Number(offset), Number(length));
+  }
+
+  getString(offset: bigint): string | null {
+    const bytes = this.getBytes(offset);
+    if (bytes === null) {
+      return null;
+    }
+
+    return new TextDecoder().decode(bytes);
+  }
+
+  allocBytes(data: Uint8Array): bigint {
+    const offs = this.alloc(BigInt(data.length));
+    const bytes = this.getBytes(offs);
+    if (bytes === null) {
+      this.free(offs);
+      return BigInt(0);
+    }
+
+    bytes.set(data);
+    return offs;
+  }
+
+  allocString(data: string): bigint {
+    const bytes = new TextEncoder().encode(data);
+    return this.allocBytes(bytes);
+  }
+
+  getLength(offset: bigint): bigint {
+    return (this.extism.exports.extism_length as Function).call(undefined, offset);
+  }
+
+  free(offset: bigint) {
+    (this.extism.exports.extism_free as Function).call(undefined, offset);
+  }
+}
 
 export class ExtismPluginOptions {
   useWasi: boolean;
-  functions: Map<string, Map<string, ExtismFunction>>;
+  functions: Map<string, Map<string, any>>;
   runtime: ManifestWasm | null;
   allowedPaths: Map<string, string>;
   config: PluginConfig;
 
   constructor() {
     this.useWasi = false;
-    this.functions = new Map<string, Map<string, ExtismFunction>>();
+    this.functions = new Map<string, Map<string, any>>();
     this.runtime = null;
     this.allowedPaths = new Map<string, string>();
     this.config = new Map<string, string>();
@@ -28,7 +137,7 @@ export class ExtismPluginOptions {
     return this;
   }
 
-  withFunction(moduleName: string, funcName: string, func: ExtismFunction) {
+  withFunction(moduleName: string, funcName: string, func: any) {
     const x = this.functions.get(moduleName) ?? new Map<string, string>();
     x.set(funcName, func);
     this.functions.set(moduleName, x);
@@ -73,7 +182,7 @@ export class PluginWasi {
   initialize() {}
 }
 
-export async function fetchModuleData(manifestData: Manifest | ManifestWasm | Buffer, fetchWasm: (wasm: ManifestWasm) => Promise<ArrayBuffer>) {
+export async function fetchModuleData(manifestData: Manifest | ManifestWasm | ArrayBuffer, fetchWasm: (wasm: ManifestWasm) => Promise<ArrayBuffer>) {
 
   let moduleData: ArrayBuffer | null = null;
   if (manifestData instanceof ArrayBuffer) {
@@ -115,12 +224,12 @@ export abstract class ExtismPluginBase {
   input: Uint8Array;
   output: Uint8Array;
   module?: WebAssembly.WebAssemblyInstantiatedSource;
-  functions: Map<string, Map<string, ExtismFunction>>;
+  functions: Map<string, Map<string, any>>;
 
   constructor(
     extism: WebAssembly.Instance,
     moduleData: ArrayBuffer,
-    functions: Map<string, Map<string, ExtismFunction>>,
+    functions: Map<string, Map<string, any>>,
     config?: PluginConfig,
   ) {
     this.moduleData = moduleData;

@@ -1,12 +1,9 @@
-const { ExtismPlugin, ExtismPluginOptions } = require("../dist/node/index")
-const { WASI } = require('wasi');
-const { readFileSync } = require("node:fs");
-const { argv } = require("node:process");
+import { ExtismPlugin, ExtismPluginOptions } from '../dist/deno/extism.js'
 
 async function main() {
-    const filename = argv[2] || "/wasm/hello.wasm";
-    const funcname = argv[3] || "run_test";
-    const input = argv[4] || "this is a test";
+    const filename = "wasm/config.wasm";
+    const funcname = "run_test";
+    const input = "this is a test";
     const wasm = {
         path: filename
     }
