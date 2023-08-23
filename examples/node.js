@@ -2,7 +2,7 @@ const { ExtismPlugin, ExtismPluginOptions } = require("../dist/node/index")
 const { argv } = require("node:process");
 
 async function main() {
-    const filename = argv[2] || "/wasm/hello.wasm";
+    const filename = argv[2] || "wasm/hello.wasm";
     const funcname = argv[3] || "run_test";
     const input = argv[4] || "this is a test";
     const wasm = {
