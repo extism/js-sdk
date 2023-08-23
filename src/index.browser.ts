@@ -42,12 +42,7 @@ class ExtismPlugin extends ExtismPluginBase {
   }
 }
 
-export {
-    ExtismPlugin,
-    ExtismPluginOptions,
-    Manifest,
-    ManifestWasm,
-    ManifestWasmFile,
-    ManifestWasmData,
-    ManifestWasmUrl,
-}
+// @ts-ignore
+window.ExtismPlugin = ExtismPlugin;
+// @ts-ignore
+window.ExtismPluginOptions = ExtismPluginOptions;

@@ -8,16 +8,14 @@
 </head>
 
 <body>
-
     <!-- You can add some basic input fields and a button to trigger the function -->
     <input id="url" placeholder="Enter WASM file URL" value="http://127.0.0.1:5500/wasm/hello.wasm" />
     <input id="funcname" placeholder="Enter function name" value="run_test" />
     <input id="inputText" placeholder="Enter input" value="this is a test" />
-    <button id="runButton">Run</button>
+    <button id="runButton" onclick="runPlugin()">Run</button>
+    <script src="/dist/browser/index.js"></script>
 
-    <script type="module">
-        import { ExtismPlugin, PluginOptions } from "/dist/browser/index.esm.js";
-
+    <script>
         async function runPlugin() {
             // Get values from input fields
             const url = document.getElementById('url').value;
@@ -28,7 +26,7 @@
                 url: url
             }
 
-            const options = new PluginOptions()
+            const options = new ExtismPluginOptions()
                 .withConfig("thing", "testing")
                 .withRuntime({
                     url: "/wasm/extism-runtime.wasm"
@@ -41,9 +39,6 @@
             const s = new TextDecoder().decode(res.buffer);
             console.log(s)
         }
-
-        // Attach the event listener inside the module
-        document.getElementById('runButton').addEventListener('click', runPlugin);
     </script>
 
 </body>

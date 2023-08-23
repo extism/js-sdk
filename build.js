@@ -20,9 +20,9 @@ build({
 build({
     ...sharedConfig,
     entryPoints: ["src/index.browser.ts"],
-    outfile: "dist/browser/index.esm.js",
+    outfile: "dist/browser/index.js",
     platform: 'neutral', // for ESM
-    format: "esm",
+    format: "iife",
 });
 
 if (!fs.existsSync("dist/deno")) {
