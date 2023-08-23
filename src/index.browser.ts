@@ -7,9 +7,8 @@ class ExtismPlugin extends ExtismPluginBase {
     let moduleData = await fetchModuleData(manifestData, this.fetchWasm);
     let runtime = await instantiateRuntime(options.runtime, this.fetchWasm);
     
-    return new ExtismPlugin(runtime, moduleData, options.functions, options.config);
+    return new ExtismPlugin(runtime, moduleData, options);
   }
-
   
   static async fetchWasm(wasm: ManifestWasm): Promise<ArrayBuffer> {
     let data: ArrayBuffer;
@@ -29,8 +28,7 @@ class ExtismPlugin extends ExtismPluginBase {
     return data;
   }
 
-  loadWasi(): PluginWasi {
-
+  loadWasi(options: ExtismPluginOptions): PluginWasi {
     const args: Array<string> = [];
     const envVars: Array<string> = [];
     let fds: Fd[] = [

@@ -1,0 +1,9 @@
+{
+    "deno.enable": true,
+    "deno.lint": true,
+    "deno.unstable": true,
+    "deno.enablePaths": [
+        "./src/index.deno.ts",
+        "./examples/deno.ts"
+    ]
+}

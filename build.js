@@ -1,5 +1,6 @@
 const { build } = require("esbuild");
 const { peerDependencies } = require('./package.json')
+const fs = require('fs')
 
 const sharedConfig = {
     bundle: true,
@@ -13,6 +14,7 @@ build({
     entryPoints: ["src/index.node.ts"],
     platform: 'node', // for CJS
     outfile: "dist/node/index.js",
+    external: [ './src/index.deno.ts' ]
 });
 
 build({
@@ -22,3 +24,7 @@ build({
     platform: 'neutral', // for ESM
     format: "esm",
 });
+
+if (!fs.existsSync("dist/deno")) {
+    fs.mkdirSync("dist/deno", { recursive: true});
+}

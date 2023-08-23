@@ -1,13 +1,14 @@
-import { ExtismPluginBase, PluginWasi, ExtismPluginOptions, fetchModuleData, instantiateRuntime, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl, PluginConfig } from './plugin'
-import wasi from 'wasi'
-import { readFileSync } from "fs"
+import { ExtismPluginBase, PluginWasi, ExtismPluginOptions, fetchModuleData, instantiateRuntime, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl } from './plugin'
+import { WASI } from 'wasi'
+import { readFile } from "fs"
+import { promisify } from "util"
 
 class ExtismPlugin extends ExtismPluginBase {  
   static async newPlugin(manifestData: Manifest | ManifestWasm | Buffer, options: ExtismPluginOptions) : Promise<ExtismPlugin> {
     let moduleData = await fetchModuleData(manifestData, this.fetchWasm);
     let runtime = await instantiateRuntime(options.runtime, this.fetchWasm);
     
-    return new ExtismPlugin(runtime, moduleData, options.functions, options.config);
+    return new ExtismPlugin(runtime, moduleData, options);
   }
 
   static async fetchWasm(wasm: ManifestWasm): Promise<ArrayBuffer> {
@@ -17,7 +18,9 @@ class ExtismPlugin extends ExtismPluginBase {
         data = (wasm as ManifestWasmData).data;
     }
     else if ((wasm as ManifestWasmFile).path) {
-      data = readFileSync((wasm as ManifestWasmFile).path);
+      const readFileAsync = (path: string) => promisify(readFile)(path);
+
+      data = await readFileAsync((wasm as ManifestWasmFile).path);
     } else if ((wasm as ManifestWasmUrl).url) {
         const response = await fetch((wasm as ManifestWasmUrl).url);
         data = await response.arrayBuffer();
@@ -28,10 +31,9 @@ class ExtismPlugin extends ExtismPluginBase {
     return data;
   }
 
-  loadWasi(): PluginWasi {
-    const w = new wasi.WASI({
-      // version: "preview1",
-      // preopens: this.allowedPaths,
+  loadWasi(options: ExtismPluginOptions): PluginWasi {
+    const w = new WASI({
+      preopens: options.allowedPaths,
     });
 
     return new PluginWasi(w, w.wasiImport);

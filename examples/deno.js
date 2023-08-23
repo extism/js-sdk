@@ -1,9 +1,9 @@
 import { ExtismPlugin, ExtismPluginOptions } from '../dist/deno/extism.js'
 
 async function main() {
-    const filename = "wasm/config.wasm";
-    const funcname = "run_test";
-    const input = "this is a test";
+    const filename = Deno.args[0] || "wasm/hello.wasm";
+    const funcname = Deno.args[1] || "run_test";
+    const input = Deno.args[2] || "this is a test";
     const wasm = {
         path: filename
     }
@@ -21,6 +21,5 @@ async function main() {
     const s = new TextDecoder().decode(res.buffer);
     console.log(s)
 }
-
 
 main();
