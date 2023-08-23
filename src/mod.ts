@@ -32,7 +32,6 @@ class ExtismPlugin extends ExtismPluginBase {
   loadWasi(options: ExtismPluginOptions): PluginWasi {
     const wasi = new WASI({
       preopens: options.allowedPaths,
-      // preopens: this.allowedPaths,
     });
 
     return new PluginWasi(wasi, wasi.exports);
@@ -42,8 +41,11 @@ class ExtismPlugin extends ExtismPluginBase {
 export {
   ExtismPlugin,
   ExtismPluginOptions,
-  // Manifest,
-  // ManifestWasm,
-  // ManifestWasmData,
-  // ManifestWasmFile,
 };
+
+export type {
+  Manifest,
+  ManifestWasm,
+  ManifestWasmData,
+  ManifestWasmFile
+}
