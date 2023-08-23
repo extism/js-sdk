@@ -1,6 +1,4 @@
 const { ExtismPlugin, ExtismPluginOptions } = require("../dist/node/index")
-const { WASI } = require('wasi');
-const { readFileSync } = require("node:fs");
 const { argv } = require("node:process");
 
 async function main() {

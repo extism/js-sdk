@@ -1,4 +1,4 @@
-import { ExtismPlugin, ExtismPluginOptions } from '../dist/deno/extism.js'
+import { ExtismPlugin, ExtismPluginOptions } from '../src/index.deno.ts'
 
 async function main() {
     const filename = Deno.args[0] || "wasm/hello.wasm";
