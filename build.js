@@ -21,7 +21,15 @@ build({
     ...sharedConfig,
     entryPoints: ["src/index.browser.ts"],
     outfile: "dist/browser/index.js",
-    platform: 'neutral', // for ESM
+    platform: 'neutral',
+    format: "esm",
+});
+
+build({
+    ...sharedConfig,
+    entryPoints: ["src/index.browser.ts"],
+    outfile: "dist/browser/estism.js",
+    platform: 'neutral',
     format: "iife",
 });
 

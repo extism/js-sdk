@@ -5,15 +5,54 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>WASM Plugin in Browser</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        input,
+        button,
+        textarea,
+        label {
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        input,
+        textarea {
+            padding: 8px;
+            width: 100%;
+        }
+
+        textarea {
+            height: 150px;
+            resize: vertical;
+        }
+
+        label {
+            font-weight: bold;
+        }
+    </style>
 </head>
 
 <body>
-    <!-- You can add some basic input fields and a button to trigger the function -->
+
+    <label for="url">WASM file URL:</label>
     <input id="url" placeholder="Enter WASM file URL" value="http://127.0.0.1:5500/wasm/hello.wasm" />
+
+    <label for="funcname">Function Name:</label>
     <input id="funcname" placeholder="Enter function name" value="run_test" />
+
+    <label for="inputText">Input:</label>
     <input id="inputText" placeholder="Enter input" value="this is a test" />
+
     <button id="runButton" onclick="runPlugin()">Run</button>
-    <script src="/dist/browser/index.js"></script>
+
+    <label for="outputText">Output:</label>
+    <textarea id="outputText" placeholder="Output will be shown here..." readonly></textarea>
+
+    <script src="/dist/browser/estism.js"></script>
 
     <script>
         async function runPlugin() {
@@ -37,7 +76,7 @@
 
             const res = await plugin.call(funcname, new TextEncoder().encode(input));
             const s = new TextDecoder().decode(res.buffer);
-            console.log(s)
+            document.getElementById('outputText').value = s;
         }
     </script>
 
