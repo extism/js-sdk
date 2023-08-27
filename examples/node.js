@@ -23,5 +23,4 @@ async function main() {
     console.log(s)
 }
 
-
 main();

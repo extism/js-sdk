@@ -14,7 +14,7 @@ build({
     entryPoints: ["src/index.node.ts"],
     platform: 'node', // for CJS
     outfile: "dist/node/index.js",
-    external: [ './src/index.deno.ts' ]
+    external: [ './src/index.deno.ts', "sync-fetch", "child_process" ]
 });
 
 build({
@@ -22,6 +22,7 @@ build({
     entryPoints: ["src/index.browser.ts"],
     outfile: "dist/browser/index.js",
     platform: 'neutral',
+    external: [ './src/index.deno.ts', "sync-fetch", "child_process" ],
     format: "esm",
 });
 
@@ -30,6 +31,7 @@ build({
     entryPoints: ["src/index.browser.ts"],
     outfile: "dist/browser/estism.js",
     platform: 'neutral',
+    external: [ './src/index.deno.ts', "sync-fetch", "child_process" ],
     format: "iife",
 });
 

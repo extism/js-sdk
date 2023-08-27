@@ -161,6 +161,17 @@ export async function instantiateRuntime(
   return extismInstance;
 }
 
+export type HttpResponse = {
+  body: Uint8Array;
+  status: number;
+};
+
+export type HttpRequest = {
+  url: string;
+  headers: { [key: string]: string };
+  method: string;
+};
+
 export abstract class ExtismPluginBase {
   moduleData: ArrayBuffer;
   allocator: Allocator;
@@ -170,6 +181,7 @@ export abstract class ExtismPluginBase {
   module?: WebAssembly.WebAssemblyInstantiatedSource;
   functions: { [key: string]: { [key: string]: any } };
   options: ExtismPluginOptions;
+  lastStatusCode: number = 0;
 
   constructor(extism: WebAssembly.Instance, moduleData: ArrayBuffer, options: ExtismPluginOptions) {
     this.moduleData = moduleData;
@@ -229,6 +241,9 @@ export abstract class ExtismPluginBase {
   }
 
   abstract loadWasi(options: ExtismPluginOptions): PluginWasi;
+
+  abstract supportsHttpRequests(): boolean;
+  abstract httpRequest(request: HttpRequest, body: Uint8Array | null): HttpResponse;
 
   async _instantiateModule(): Promise<WebAssembly.WebAssemblyInstantiatedSource> {
     if (this.module) {
@@ -342,9 +357,35 @@ export abstract class ExtismPluginBase {
         }
         plugin.vars[key] = value;
       },
-      extism_http_request(n: bigint, i: bigint): number {
-        debugger;
-        return 0;
+      extism_http_request(requestOffset: bigint, bodyOffset: bigint): bigint {
+        if (!plugin.supportsHttpRequests()) {
+          plugin.allocator.free(bodyOffset);
+          plugin.allocator.free(requestOffset);
+          return BigInt(0);
+        }
+
+        const requestJson = plugin.allocator.getString(requestOffset);
+        if (requestJson == null) {
+          throw new Error('Invalid request.');
+        }
+
+        var request: HttpRequest = JSON.parse(requestJson);
+
+        // TODO: take allowed hosts into account
+        // TODO: limit number of bytes read to 50 MiB
+        const body = plugin.allocator.getBytes(bodyOffset);
+        plugin.allocator.free(bodyOffset);
+        plugin.allocator.free(requestOffset);
+
+        const response = plugin.httpRequest(request, body);
+        plugin.lastStatusCode = response.status;
+
+        const offset = plugin.allocator.allocBytes(response.body);
+
+        return offset;
+      },
+      extism_http_status_code(): number {
+        return plugin.lastStatusCode;
       },
       extism_length(i: bigint): bigint {
         return plugin.allocator.getLength(i);
@@ -387,15 +428,19 @@ class Allocator {
   }
 
   getMemory(): WebAssembly.Memory {
-    return (this.extism.exports.memory as WebAssembly.Memory);
+    return this.extism.exports.memory as WebAssembly.Memory;
   }
 
   getMemoryBuffer(): Uint8Array {
     return new Uint8Array(this.getMemory().buffer);
   }
 
-  getBytes(offset: bigint): Uint8Array {
-    const length = this.getLength(offset)
+  getBytes(offset: bigint): Uint8Array | null {
+    if (offset == BigInt(0)) {
+      return null;
+    }
+
+    const length = this.getLength(offset);
 
     return new Uint8Array(this.getMemory().buffer, Number(offset), Number(length));
   }
@@ -431,6 +476,10 @@ class Allocator {
   }
 
   free(offset: bigint) {
+    if (offset == BigInt(0)) {
+      return;
+    }
+
     (this.extism.exports.extism_free as Function).call(undefined, offset);
   }
 }

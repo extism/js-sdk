@@ -1,7 +1,26 @@
-import { ExtismPluginBase, PluginWasi, ExtismPluginOptions, fetchModuleData, instantiateRuntime, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl } from './plugin.ts';
+import {
+  ExtismPluginBase,
+  PluginWasi,
+  ExtismPluginOptions,
+  fetchModuleData,
+  instantiateRuntime,
+  Manifest,
+  ManifestWasm,
+  ManifestWasmData,
+  ManifestWasmFile,
+  ManifestWasmUrl,
+  HttpRequest,
+  HttpResponse,
+} from './plugin.ts';
 import WASI from 'https://deno.land/std@0.197.0/wasi/snapshot_preview1.ts';
 
 class ExtismPlugin extends ExtismPluginBase {
+  supportsHttpRequests(): boolean {
+    return false;
+  }
+  httpRequest(_: HttpRequest, __: Uint8Array | null): HttpResponse {
+    throw new Error('Method not implemented.');
+  }
   static async newPlugin(
     manifestData: Manifest | ManifestWasm | ArrayBuffer,
     options: ExtismPluginOptions,
@@ -38,14 +57,6 @@ class ExtismPlugin extends ExtismPluginBase {
   }
 }
 
-export {
-  ExtismPlugin,
-  ExtismPluginOptions,
-};
+export { ExtismPlugin, ExtismPluginOptions };
 
-export type {
-  Manifest,
-  ManifestWasm,
-  ManifestWasmData,
-  ManifestWasmFile
-}
+export type { Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile };

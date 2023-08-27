@@ -1,28 +1,88 @@
-import { ExtismPluginBase, PluginWasi, ExtismPluginOptions, fetchModuleData, instantiateRuntime, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl } from './plugin'
+import {
+  ExtismPluginBase,
+  PluginWasi,
+  ExtismPluginOptions,
+  fetchModuleData,
+  instantiateRuntime,
+  Manifest,
+  ManifestWasm,
+  ManifestWasmData,
+  ManifestWasmFile,
+  ManifestWasmUrl,
+  HttpRequest,
+  HttpResponse,
+} from './plugin';
 import { WASI, Fd } from '@bjorn3/browser_wasi_shim';
 
 class ExtismPlugin extends ExtismPluginBase {
+  supportsHttpRequests(): boolean {
+    return true;
+  }
 
-  static async newPlugin(manifestData: Manifest | ManifestWasm | Buffer, options: ExtismPluginOptions) : Promise<ExtismPlugin> {
+  httpRequest(request: HttpRequest, body: Uint8Array | null): HttpResponse {
+    if (request.method == 'GET' || request.method == 'HEAD') {
+      body = null;
+    }
+
+    const xhr = new XMLHttpRequest();
+    
+    // Open the request synchronously
+    xhr.open(request.method, request.url, false);
+  
+    // Set headers
+    for (const key in request.headers) {
+      xhr.setRequestHeader(key, request.headers[key]);
+    }
+
+    xhr.send(body);
+  
+    let responseBody: Uint8Array;
+  
+    switch (xhr.responseType) {
+      case "arraybuffer":
+        responseBody = new Uint8Array(xhr.response);
+        break;
+      case "blob":
+        throw new Error("Blob response type is not supported in a synchronous context.");
+      case "document":
+      case "json":
+      case "text":
+      case "":
+        const encoder = new TextEncoder();
+        responseBody = encoder.encode(String(xhr.response));
+        break;
+      default:
+        throw new Error(`Unknown response type: ${xhr.responseType}`);
+    }
+  
+    return {
+      body: responseBody,
+      status: xhr.status,
+    };
+  }
+
+  static async newPlugin(
+    manifestData: Manifest | ManifestWasm | Buffer,
+    options: ExtismPluginOptions,
+  ): Promise<ExtismPlugin> {
     let moduleData = await fetchModuleData(manifestData, this.fetchWasm);
     let runtime = await instantiateRuntime(options.runtime, this.fetchWasm);
-    
+
     return new ExtismPlugin(runtime, moduleData, options);
   }
-  
+
   static async fetchWasm(wasm: ManifestWasm): Promise<ArrayBuffer> {
     let data: ArrayBuffer;
 
     if ((wasm as ManifestWasmData).data) {
-        data = (wasm as ManifestWasmData).data;
-    }
-    else if ((wasm as ManifestWasmFile).path) {
-        throw new Error(`Unsupported wasm source: ${wasm}`);
+      data = (wasm as ManifestWasmData).data;
+    } else if ((wasm as ManifestWasmFile).path) {
+      throw new Error(`Unsupported wasm source: ${wasm}`);
     } else if ((wasm as ManifestWasmUrl).url) {
-        const response = await fetch((wasm as ManifestWasmUrl).url);
-        data = await response.arrayBuffer();
+      const response = await fetch((wasm as ManifestWasmUrl).url);
+      data = await response.arrayBuffer();
     } else {
-        throw new Error(`Unrecognized wasm source: ${wasm}`);
+      throw new Error(`Unrecognized wasm source: ${wasm}`);
     }
 
     return data;

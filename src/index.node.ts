@@ -1,9 +1,38 @@
-import { ExtismPluginBase, PluginWasi, ExtismPluginOptions, fetchModuleData, instantiateRuntime, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl } from './plugin'
+import { ExtismPluginBase, PluginWasi, ExtismPluginOptions, fetchModuleData, instantiateRuntime, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl, HttpRequest, HttpResponse } from './plugin'
 import { WASI } from 'wasi'
 import { readFile } from "fs"
 import { promisify } from "util"
+import fetch from 'sync-fetch'
 
-class ExtismPlugin extends ExtismPluginBase {  
+class ExtismPlugin extends ExtismPluginBase {
+
+  supportsHttpRequests(): boolean {
+    return true;
+  }
+
+  httpRequest(request: HttpRequest, body: Uint8Array | null): HttpResponse {
+    let b = body ? {
+      buffer: body,
+      byteLength: body.length,
+      byteOffset: 0,
+    } : undefined;
+
+    if (request.method == "GET" || request.method == "HEAD") {
+      b = undefined;
+    }
+
+    const response = fetch(request.url, {
+      headers: request.headers,
+      method: request.method,
+      body: b
+    });
+
+    return {
+      body: new Uint8Array(response.arrayBuffer()),
+      status: response.status
+    }
+  }
+
   static async newPlugin(manifestData: Manifest | ManifestWasm | Buffer, options: ExtismPluginOptions) : Promise<ExtismPlugin> {
     let moduleData = await fetchModuleData(manifestData, this.fetchWasm);
     let runtime = await instantiateRuntime(options.runtime, this.fetchWasm);
