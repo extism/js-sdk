@@ -53,6 +53,7 @@ export class ExtismPluginOptions {
   functions: { [key: string]: { [key: string]: any } };
   runtime: ManifestWasm | null;
   allowedPaths: { [key: string]: string };
+  allowedHosts: string[];
   config: PluginConfig;
 
   constructor() {
@@ -61,6 +62,7 @@ export class ExtismPluginOptions {
     this.runtime = null;
     this.allowedPaths = {};
     this.config = {};
+    this.allowedHosts = [];
   }
 
   withWasi(value: boolean = true) {
@@ -95,6 +97,20 @@ export class ExtismPluginOptions {
   withConfigs(configs: { [key: string]: string }) {
     for (let key in configs) {
       this.config[key] = configs[key];
+    }
+
+    return this;
+  }
+
+  withAllowedHost(pattern: string) {
+    this.allowedHosts.push(pattern.trim());
+
+    return this;
+  }
+
+  withAllowedHosts(patterns: string[]) {
+    for (const pattern of patterns) {
+      this.withAllowedHost(pattern);
     }
 
     return this;
@@ -241,9 +257,9 @@ export abstract class ExtismPluginBase {
   }
 
   abstract loadWasi(options: ExtismPluginOptions): PluginWasi;
-
   abstract supportsHttpRequests(): boolean;
   abstract httpRequest(request: HttpRequest, body: Uint8Array | null): HttpResponse;
+  abstract matches(text: string, pattern: string): boolean;
 
   async _instantiateModule(): Promise<WebAssembly.WebAssemblyInstantiatedSource> {
     if (this.module) {
@@ -370,6 +386,27 @@ export abstract class ExtismPluginBase {
         }
 
         var request: HttpRequest = JSON.parse(requestJson);
+
+        // The actual code starts here
+        const url = new URL(request.url)
+        let hostMatches = false;
+        for (const allowedHost of plugin.options.allowedHosts) {
+          if (allowedHost === url.hostname) {
+            hostMatches = true;
+            break;
+          }
+
+          // Using minimatch for pattern matching
+          const patternMatches = plugin.matches(url.hostname, allowedHost);
+          if (patternMatches) {
+            hostMatches = true;
+            break;
+          }
+        }
+
+        if (!hostMatches) {
+          throw new Error(`HTTP request to '${request.url}' is not allowed`);
+        }
 
         // TODO: take allowed hosts into account
         // TODO: limit number of bytes read to 50 MiB

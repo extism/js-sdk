@@ -13,10 +13,15 @@ import {
   HttpResponse,
 } from './plugin';
 import { WASI, Fd } from '@bjorn3/browser_wasi_shim';
+import { minimatch } from 'minimatch'
 
 class ExtismPlugin extends ExtismPluginBase {
   supportsHttpRequests(): boolean {
     return true;
+  }
+
+  matches(text: string, pattern: string): boolean {
+    return minimatch(text, pattern);
   }
 
   httpRequest(request: HttpRequest, body: Uint8Array | null): HttpResponse {

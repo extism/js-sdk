@@ -47,6 +47,9 @@
     <label for="inputText">Input:</label>
     <input id="inputText" placeholder="Enter input" value="this is a test" />
 
+    <label for="hostsText">Output:</label>
+    <textarea id="hostsText" placeholder="Allowed hosts, one per line" readonly>*.typicode.com</textarea>
+
     <button id="runButton" onclick="runPlugin()">Run</button>
 
     <label for="outputText">Output:</label>
@@ -60,6 +63,7 @@
             const url = document.getElementById('url').value;
             const funcname = document.getElementById('funcname').value;
             const input = document.getElementById('inputText').value || "this is a test";
+            const hosts = (document.getElementById('hostsText').value || "").split(/\r?\n|\r|\n/g)
 
             const wasm = {
                 url: url
@@ -70,7 +74,8 @@
                 .withRuntime({
                     url: "/wasm/extism-runtime.wasm"
                 })
-                .withWasi();
+                .withWasi()
+                .withAllowedHosts(hosts);
 
             const plugin = await ExtismPlugin.newPlugin(wasm, options);
 

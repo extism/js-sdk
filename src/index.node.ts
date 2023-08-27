@@ -3,8 +3,12 @@ import { WASI } from 'wasi'
 import { readFile } from "fs"
 import { promisify } from "util"
 import fetch from 'sync-fetch'
+import { minimatch } from 'minimatch'
 
 class ExtismPlugin extends ExtismPluginBase {
+  matches(text: string, pattern: string): boolean {
+    return minimatch(text, pattern);
+  }
 
   supportsHttpRequests(): boolean {
     return true;

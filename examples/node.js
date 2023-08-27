@@ -14,7 +14,8 @@ async function main() {
         .withRuntime({
             path: "wasm/extism-runtime.wasm"
         })
-        .withWasi();
+        .withWasi()
+        .withAllowedHost("*.typicode.com");
 
     const plugin = await ExtismPlugin.newPlugin(wasm, options);
 

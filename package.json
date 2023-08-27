@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@bjorn3/browser_wasi_shim": "^0.2.14",
+    "minimatch": "^9.0.3",
     "node-fetch": "^3.3.2",
     "sync-fetch": "^0.5.2"
   }

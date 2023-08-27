@@ -13,6 +13,7 @@ import {
   HttpResponse,
 } from './plugin.ts';
 import WASI from 'https://deno.land/std@0.197.0/wasi/snapshot_preview1.ts';
+import minimatch from "https://deno.land/x/minimatch@v3.0.4/index.js";
 
 class ExtismPlugin extends ExtismPluginBase {
   supportsHttpRequests(): boolean {
@@ -20,6 +21,9 @@ class ExtismPlugin extends ExtismPluginBase {
   }
   httpRequest(_: HttpRequest, __: Uint8Array | null): HttpResponse {
     throw new Error('Method not implemented.');
+  }
+  matches(text: string, pattern: string): boolean {
+    return minimatch(text, pattern);
   }
   static async newPlugin(
     manifestData: Manifest | ManifestWasm | ArrayBuffer,
