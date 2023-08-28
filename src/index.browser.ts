@@ -12,6 +12,7 @@ import {
   HttpRequest,
   HttpResponse,
 } from './plugin';
+
 import { WASI, Fd } from '@bjorn3/browser_wasi_shim';
 import { minimatch } from 'minimatch'
 
@@ -111,3 +112,12 @@ class ExtismPlugin extends ExtismPluginBase {
 window.ExtismPlugin = ExtismPlugin;
 // @ts-ignore
 window.ExtismPluginOptions = ExtismPluginOptions;
+
+export {
+  ExtismPlugin,
+  ExtismPluginOptions,
+  Manifest,
+  ManifestWasm,
+  ManifestWasmData,
+  ManifestWasmFile,
+}

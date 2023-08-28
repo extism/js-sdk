@@ -4,6 +4,7 @@
     "deno.unstable": true,
     "deno.enablePaths": [
         "./src/mod.ts",
-        "./examples/deno.ts"
+        "./examples/deno.ts",
+        "./tests/index.deno.test.ts"
     ]
 }

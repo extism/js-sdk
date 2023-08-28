@@ -1,10 +1,4 @@
 import { ExtismPlugin, ExtismPluginOptions } from '../src/index.node';
-import { readFileSync } from 'fs';
-import { join } from 'path';
-
-function wasmBuffer(): Buffer {
-  return readFileSync(join(__dirname, '/../../wasm/code.wasm'));
-}
 
 async function newPlugin(
   name: string,
@@ -62,7 +56,7 @@ describe('test extism', () => {
     await expect(plugin.call('i_dont_exist', 'example-input')).rejects.toThrow();
   });
 
-  test('host functions work', async () => {
+  test('host functions works', async () => {
     const plugin = await newPlugin('code-functions.wasm', options => {
       options.withFunction("env", "hello_world", (off: bigint) => {
         let result = JSON.parse(plugin.allocator.getString(off) ?? "");
