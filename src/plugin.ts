@@ -195,7 +195,6 @@ export abstract class ExtismPluginBase {
   input: Uint8Array;
   output: Uint8Array;
   module?: WebAssembly.WebAssemblyInstantiatedSource;
-  functions: { [key: string]: { [key: string]: any } };
   options: ExtismPluginOptions;
   lastStatusCode: number = 0;
 
@@ -205,7 +204,6 @@ export abstract class ExtismPluginBase {
     this.vars = {};
     this.input = new Uint8Array();
     this.output = new Uint8Array();
-    this.functions = options.functions;
     this.options = options;
   }
 
@@ -234,6 +232,11 @@ export abstract class ExtismPluginBase {
     return module.instance;
   }
 
+  async functionExists(name: string): Promise<boolean> {
+    const module = await this._instantiateModule();
+    return module.instance.exports[name] ? true : false;
+  }
+
   async call(func_name: string, input: Uint8Array | string): Promise<Uint8Array> {
     const module = await this._instantiateModule();
 
@@ -242,14 +245,14 @@ export abstract class ExtismPluginBase {
     } else if (input instanceof Uint8Array) {
       this.input = input;
     } else {
-      throw new Error('input should be string or Uint8Array');
+      throw new Error('Plugin error: input should be string or Uint8Array');
     }
 
     this.allocator.reset();
 
     let func = module.instance.exports[func_name];
     if (!func) {
-      throw Error(`function does not exist ${func_name}`);
+      throw Error(`Plugin error: function does not exist ${func_name}`);
     }
     //@ts-ignore
     func();
@@ -265,6 +268,7 @@ export abstract class ExtismPluginBase {
     if (this.module) {
       return this.module;
     }
+
     const environment = this.makeEnv();
     const pluginWasi = this.loadWasi(this.options);
 
@@ -273,17 +277,16 @@ export abstract class ExtismPluginBase {
       env: environment,
     };
 
-    this.module = await WebAssembly.instantiate(this.moduleData, imports);
-
-    for (const m in this.functions) {
+    for (const m in this.options.functions) {
       imports[m] = imports[m] || {};
-      const map = this.functions[m];
+      const map = this.options.functions[m];
 
       for (const f in map) {
-        imports[m][f] = this.functions[m][f];
+        imports[m][f] = this.options.functions[m][f];
       }
     }
 
+    this.module = await WebAssembly.instantiate(this.moduleData, imports);
     // normally we would call wasi.start here but it doesn't respect when there is
     // no _start function
     //@ts-ignore

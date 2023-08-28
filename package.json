@@ -6,7 +6,7 @@
     "build": "node build.js && tsc src/index.node.ts --emitDeclarationOnly --declaration --outDir dist/node && tsc src/index.browser.ts --emitDeclarationOnly --declaration --outDir dist/browser",
     "format": "prettier --write \"src/**/*.ts\"",
     "lint": "tslint -p tsconfig.json",
-    "test": "jest --config jest.config.js"
+    "test": "cross-env NODE_OPTIONS='--experimental-wasi-unstable-preview1' jest --coverage --config jest.config.js"
   },
   "private": false,
   "publishConfig": {
@@ -25,7 +25,7 @@
     "@types/sync-fetch": "^0.4.0",
     "esbuild": "^0.15.13",
     "esbuild-jest": "^0.5.0",
-    "jest": "^29.2.2",
+    "jest": "^29.6.4",
     "jest-environment-jsdom": "^29.3.1",
     "prettier": "^2.7.1",
     "ts-jest": "^29.0.3",
@@ -36,6 +36,7 @@
   },
   "dependencies": {
     "@bjorn3/browser_wasi_shim": "^0.2.14",
+    "cross-env": "^7.0.3",
     "minimatch": "^9.0.3",
     "node-fetch": "^3.3.2",
     "sync-fetch": "^0.5.2"
