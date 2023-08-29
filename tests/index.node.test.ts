@@ -173,10 +173,19 @@ describe('test extism', () => {
       options.withConfig("greeting", "Howdy");
     });
 
-    const output = await plugin.call("testing", "John");
-    const result = decode(output);
+    {
+      const output = await plugin.call("testing", "John");
+      const result = decode(output);
 
-    expect(result).toBe("Howdy, John")
+      expect(result).toBe("Howdy, John")
+    }
+
+    {
+      const output = await plugin.call("testing", "Ben");
+      const result = decode(output);
+
+      expect(result).toBe("Howdy, Ben")
+    }
 
     expect(console.trace).toHaveBeenCalledWith("Haskell (normal) runtime detected.");
   });
