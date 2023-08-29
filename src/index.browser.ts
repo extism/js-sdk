@@ -67,11 +67,18 @@ class ExtismPlugin extends ExtismPluginBase {
     };
   }
 
+  static async calculateHash(data: ArrayBuffer) {
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+  }
+
   static async newPlugin(
     manifestData: Manifest | ManifestWasm | Buffer,
     options: ExtismPluginOptions,
   ): Promise<ExtismPlugin> {
-    let moduleData = await fetchModuleData(manifestData, this.fetchWasm);
+    let moduleData = await fetchModuleData(manifestData, this.fetchWasm, this.calculateHash);
     let runtime = await instantiateRuntime(options.runtime, this.fetchWasm);
 
     return new ExtismPlugin(runtime, moduleData, options);

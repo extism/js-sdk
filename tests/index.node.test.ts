@@ -1,9 +1,8 @@
-import { ExtismPlugin, ExtismPluginOptions } from '../src/index.node';
+import { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/index.node';
 
 async function newPlugin(
-  name: string,
-  optionsConfig?: (opts: ExtismPluginOptions) => void,
-): Promise<ExtismPlugin> {
+  moduleName: string | Manifest | ManifestWasm | Buffer,
+  optionsConfig?: (opts: ExtismPluginOptions) => void): Promise<ExtismPlugin> {
   let options = new ExtismPluginOptions()
     .withRuntime({
       path: 'wasm/extism-runtime.wasm',
@@ -14,9 +13,14 @@ async function newPlugin(
     optionsConfig(options);
   }
 
-  const module = {
-    path: `wasm/${name}`,
-  };
+  let module : Manifest | ManifestWasm | Buffer;
+  if (typeof moduleName == 'string') {
+    module = {
+      path: `wasm/${moduleName}`,
+    };
+  } else {
+    module = moduleName;
+  }
 
   const plugin = await ExtismPlugin.newPlugin(module, options);
   return plugin;
@@ -28,6 +32,23 @@ function decode(buffer: Uint8Array) {
 }
 
 describe('test extism', () => {
+  test('can create plugin from url', async () => {
+    const plugin = await newPlugin({
+      url: "https://raw.githubusercontent.com/extism/extism/main/wasm/code.wasm",
+      hash: "7def5bb4aa3843a5daf5d6078f1e8540e5ef10b035a9d9387e9bd5156d2b2565"
+    });
+
+    expect(await plugin.functionExists('count_vowels')).toBe(true);
+  });
+
+  test('fails on hash mismatch', async () => {
+    await expect(newPlugin({
+      path: "wasm/code.wasm",
+      name: "code",
+      hash: "-----------"
+    })).rejects.toThrow(/Plugin error/);
+  });
+
   test('can create and call a plugin', async () => {
     const plugin = await newPlugin('code.wasm');
     let output = await plugin.call('count_vowels', 'this is a test');

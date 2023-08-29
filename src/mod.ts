@@ -13,23 +13,35 @@ import {
   HttpResponse,
 } from './plugin.ts';
 import WASI from 'https://deno.land/std@0.197.0/wasi/snapshot_preview1.ts';
-import minimatch from "https://deno.land/x/minimatch@v3.0.4/index.js";
+import minimatch from 'https://deno.land/x/minimatch@v3.0.4/index.js';
+import { createHash } from 'https://deno.land/std@0.108.0/hash/mod.ts';
 
 class ExtismPlugin extends ExtismPluginBase {
   supportsHttpRequests(): boolean {
     return false;
   }
+
   httpRequest(_: HttpRequest, __: Uint8Array | null): HttpResponse {
     throw new Error('Method not implemented.');
   }
+
   matches(text: string, pattern: string): boolean {
     return minimatch(text, pattern);
   }
+
+  static calculateHash(data: ArrayBuffer): Promise<string> {
+    return new Promise<string>((resolve) => {
+      const hasher = createHash('sha256');
+      hasher.update(data);
+      resolve(hasher.toString('hex'));
+    });
+  }
+
   static async newPlugin(
     manifestData: Manifest | ManifestWasm | ArrayBuffer,
     options: ExtismPluginOptions,
   ): Promise<ExtismPlugin> {
-    const moduleData = await fetchModuleData(manifestData, this.fetchWasm);
+    const moduleData = await fetchModuleData(manifestData, this.fetchWasm, this.calculateHash);
     const runtime = await instantiateRuntime(options.runtime, this.fetchWasm);
 
     return new ExtismPlugin(runtime, moduleData, options);

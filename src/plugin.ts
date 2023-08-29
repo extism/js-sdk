@@ -137,8 +137,10 @@ export class PluginWasi {
 export async function fetchModuleData(
   manifestData: Manifest | ManifestWasm | ArrayBuffer,
   fetchWasm: (wasm: ManifestWasm) => Promise<ArrayBuffer>,
+  calculateHash: (buffer: ArrayBuffer) => Promise<string>,
 ) {
   let moduleData: ArrayBuffer | null = null;
+
   if (manifestData instanceof ArrayBuffer) {
     moduleData = manifestData;
   } else if ((manifestData as Manifest).wasm) {
@@ -153,6 +155,15 @@ export async function fetchModuleData(
     (manifestData as ManifestWasmUrl).url
   ) {
     moduleData = await fetchWasm(manifestData as ManifestWasm);
+
+    const expected = (manifestData as ManifestWasm).hash;
+
+    if (expected) {
+      const actual = await calculateHash(moduleData);
+      if (actual != expected) {
+        throw new Error('Plugin error: hash mismatch');
+      }
+    }
   }
 
   if (!moduleData) {
@@ -188,6 +199,13 @@ export type HttpRequest = {
   method: string;
 };
 
+async function calculateHash(data: BufferSource) {
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return hashHex;
+}
+
 export abstract class ExtismPluginBase {
   moduleData: ArrayBuffer;
   allocator: Allocator;
@@ -205,16 +223,6 @@ export abstract class ExtismPluginBase {
     this.input = new Uint8Array();
     this.output = new Uint8Array();
     this.options = options;
-  }
-
-  static async fetchData(wasm: ManifestWasm, fetch: (url: string) => Promise<ArrayBuffer>): Promise<ArrayBuffer> {
-    let data: ArrayBuffer = (wasm as ManifestWasmData).data;
-
-    if (!data) {
-      data = await fetch((wasm as ManifestWasmFile).path);
-    }
-
-    return data;
   }
 
   async getExports(): Promise<WebAssembly.Exports> {
@@ -391,7 +399,7 @@ export abstract class ExtismPluginBase {
         var request: HttpRequest = JSON.parse(requestJson);
 
         // The actual code starts here
-        const url = new URL(request.url)
+        const url = new URL(request.url);
         let hostMatches = false;
         for (const allowedHost of plugin.options.allowedHosts) {
           if (allowedHost === url.hostname) {

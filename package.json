@@ -38,8 +38,8 @@
   "dependencies": {
     "@bjorn3/browser_wasi_shim": "^0.2.14",
     "cross-env": "^7.0.3",
+    "crypto": "^1.0.1",
     "minimatch": "^9.0.3",
-    "node-fetch": "^3.3.2",
     "sync-fetch": "^0.5.2"
   }
 }

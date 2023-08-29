@@ -1,13 +1,11 @@
-import { assertEquals, assertThrows } from "https://deno.land/std@0.200.0/assert/mod.ts";
-import { ExtismPlugin, ExtismPluginOptions } from '../src/mod.ts'
-import { assertRejects } from "https://deno.land/std@0.200.0/assert/assert_rejects.ts";
-
+import { assertEquals, assertRejects } from "https://deno.land/std@0.200.0/assert/mod.ts";
+import { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/mod.ts'
 
 async function newPlugin(
-  name: string,
+  moduleName: string | Manifest | ManifestWasm,
   optionsConfig?: (opts: ExtismPluginOptions) => void,
 ): Promise<ExtismPlugin> {
-  let options = new ExtismPluginOptions()
+  const options = new ExtismPluginOptions()
     .withRuntime({
       path: 'wasm/extism-runtime.wasm',
     })
@@ -17,9 +15,14 @@ async function newPlugin(
     optionsConfig(options);
   }
 
-  const module = {
-    path: `wasm/${name}`,
-  };
+  let module : Manifest | ManifestWasm;
+  if (typeof moduleName == 'string') {
+    module = {
+      path: `wasm/${moduleName}`,
+    };
+  } else {
+    module = moduleName;
+  }
 
   const plugin = await ExtismPlugin.newPlugin(module, options);
   return plugin;
@@ -30,7 +33,22 @@ function decode(buffer: Uint8Array) {
   return decoder.decode(buffer);
 }
 
-// 2. Changing `describe` and `test` functions to match Deno's testing API
+Deno.test('can create plugin from url', async () => {
+  const plugin = await newPlugin({
+    url: "https://raw.githubusercontent.com/extism/extism/main/wasm/code.wasm",
+    hash: "7def5bb4aa3843a5daf5d6078f1e8540e5ef10b035a9d9387e9bd5156d2b2565"
+  });
+
+  assertEquals(await plugin.functionExists('count_vowels'), true);
+});
+
+Deno.test('fails on hash mismatch', async () => {
+  await assertRejects(() => newPlugin({
+    path: "wasm/code.wasm",
+    hash: "----"
+  }), Error, "hash mismatch");
+});
+
 Deno.test('can create and call a plugin', async () => {
   const plugin = await newPlugin('code.wasm');
   let output = await plugin.call('count_vowels', 'this is a test');
@@ -48,6 +66,12 @@ Deno.test('can create and call a plugin', async () => {
   output = await plugin.call('count_vowels', '🌎hello🌎world🌎');
   result = JSON.parse(decode(output));
   assertEquals(result['count'], 3);
+});
+
+Deno.test('can detect if function exists or not', async () => {
+  const plugin = await newPlugin('code.wasm');
+  assertEquals(await plugin.functionExists('count_vowels'), true);
+  assertEquals(await plugin.functionExists('i_dont_extist'), false);
 });
 
 Deno.test('can detect if function exists or not', async () => {
