@@ -3,7 +3,7 @@
   "version": "0.3.0",
   "description": "Extism runtime in the browser",
   "scripts": {
-    "build": "node build.js && tsc src/index.node.ts --emitDeclarationOnly --declaration --outDir dist/node && tsc src/index.browser.ts --emitDeclarationOnly --declaration --outDir dist/browser",
+    "build": "node build.js && tsc --emitDeclarationOnly --project ./tsconfig.node.json --declaration --outDir dist/node && tsc --emitDeclarationOnly --project ./tsconfig.browser.json --declaration --outDir dist/browser",
     "format": "prettier --write \"src/**/*.ts\"",
     "lint": "tslint -p tsconfig.json",
     "test": "cross-env NODE_OPTIONS='--experimental-wasi-unstable-preview1' jest --coverage --config jest.config.js",
