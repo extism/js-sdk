@@ -3,7 +3,7 @@ import {
   PluginWasi,
   ExtismPluginOptions,
   fetchModuleData,
-  instantiateRuntime,
+  instantiateExtismRuntime,
   Manifest,
   ManifestWasm,
   ManifestWasmData,
@@ -79,7 +79,7 @@ class ExtismPlugin extends ExtismPluginBase {
     options: ExtismPluginOptions,
   ): Promise<ExtismPlugin> {
     let moduleData = await fetchModuleData(manifestData, this.fetchWasm, this.calculateHash);
-    let runtime = await instantiateRuntime(options.runtime, this.fetchWasm);
+    let runtime = await instantiateExtismRuntime(options.runtime, this.fetchWasm);
 
     return new ExtismPlugin(runtime, moduleData, options);
   }

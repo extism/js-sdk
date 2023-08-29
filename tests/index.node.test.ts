@@ -140,10 +140,10 @@ describe('test extism', () => {
     
     const _ = await plugin.call("run_test", "");
     
-    expect(console.log).toHaveBeenCalledTimes(1);
-    expect(console.warn).toHaveBeenCalledTimes(1);
-    expect(console.error).toHaveBeenCalledTimes(1);
-    expect(console.debug).toHaveBeenCalledTimes(1);
+    expect(console.log).toHaveBeenCalledWith("this is an info log");
+    expect(console.warn).toHaveBeenCalledWith("this is a warning log");
+    expect(console.error).toHaveBeenCalledWith("this is an erorr log");
+    expect(console.debug).toHaveBeenCalledWith("this is a debug log");
   });
 
   test('can get and set vars', async () => {
@@ -166,14 +166,18 @@ describe('test extism', () => {
   //   expect(result).toBe("hello world!");
   // });
 
-  // test('can initialize haskell runtime', async () => {
-  //   const plugin = await newPlugin('hello_haskell.wasm', options => {
-  //     options.withConfig("greeting", "Howdy");
-  //   });
+  test('can initialize haskell runtime', async () => {
+    console.trace = jest.fn();
 
-  //   const output = await plugin.call("testing", "John");
-  //   const result = decode(output);
+    const plugin = await newPlugin('hello_haskell.wasm', options => {
+      options.withConfig("greeting", "Howdy");
+    });
 
-  //   expect(result).toBe("Howdy, John")
-  // });
+    const output = await plugin.call("testing", "John");
+    const result = decode(output);
+
+    expect(result).toBe("Howdy, John")
+
+    expect(console.trace).toHaveBeenCalledWith("Haskell (normal) runtime detected.");
+  });
 });

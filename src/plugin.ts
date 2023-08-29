@@ -134,6 +134,18 @@ export class PluginWasi {
   initialize() {}
 }
 
+enum GuestRuntimeType {
+  None,
+  Haskell,
+  Wasi,
+}
+
+type GuestRuntime = {
+  init: () => void;
+  initialized: boolean;
+  type: GuestRuntimeType;
+};
+
 export async function fetchModuleData(
   manifestData: Manifest | ManifestWasm | ArrayBuffer,
   fetchWasm: (wasm: ManifestWasm) => Promise<ArrayBuffer>,
@@ -173,7 +185,61 @@ export async function fetchModuleData(
   return moduleData;
 }
 
-export async function instantiateRuntime(
+function haskellRuntime(module: WebAssembly.WebAssemblyInstantiatedSource): GuestRuntime | null {
+  const haskellInit = module.instance.exports.hs_init;
+
+  if (!haskellInit) {
+    return null;
+  }
+
+  const reactorInit = module.instance.exports._initialize;
+
+  let init: () => void;
+  if (reactorInit) {
+    //@ts-ignore
+    init = () => reactorInit();
+  } else {
+    //@ts-ignore
+    init = () => haskellInit();
+  }
+
+  const kind = reactorInit ? "reactor" : "normal";
+  console.trace(`Haskell (${kind}) runtime detected.`);
+
+  return { type: GuestRuntimeType.Haskell, init: init, initialized: false };
+}
+
+function wasiRuntime(module: WebAssembly.WebAssemblyInstantiatedSource): GuestRuntime | null {
+  const reactorInit = module.instance.exports._initialize;
+  const commandInit = module.instance.exports.__wasm_call_ctors;
+
+  // WASI supports two modules: Reactors and Commands
+	// we prioritize Reactors over Commands
+	// see: https://github.com/WebAssembly/WASI/blob/main/legacy/application-abi.md
+
+  let init: () => void;
+  if (reactorInit) {
+    //@ts-ignore
+    init = () => reactorInit();
+  } else if (commandInit) {
+    //@ts-ignore
+    init = () => haskellInit();
+  } else {
+    return null;
+  }
+
+  const kind = reactorInit ? "reactor" : "command";
+  console.trace(`WASI (${kind}) runtime detected.`);
+
+  return { type: GuestRuntimeType.Wasi, init: init, initialized: false };
+}
+
+function detectGuestRuntime(module: WebAssembly.WebAssemblyInstantiatedSource): GuestRuntime {
+  const none = { init: () => {}, type: GuestRuntimeType.None, initialized: true };
+  return haskellRuntime(module) ?? wasiRuntime(module) ?? none;
+}
+
+export async function instantiateExtismRuntime(
   runtime: ManifestWasm | null,
   fetchWasm: (wasm: ManifestWasm) => Promise<ArrayBuffer>,
 ) {
@@ -215,6 +281,7 @@ export abstract class ExtismPluginBase {
   module?: WebAssembly.WebAssemblyInstantiatedSource;
   options: ExtismPluginOptions;
   lastStatusCode: number = 0;
+  guestRuntime: GuestRuntime | null;
 
   constructor(extism: WebAssembly.Instance, moduleData: ArrayBuffer, options: ExtismPluginOptions) {
     this.moduleData = moduleData;
@@ -223,6 +290,7 @@ export abstract class ExtismPluginBase {
     this.input = new Uint8Array();
     this.output = new Uint8Array();
     this.options = options;
+    this.guestRuntime = null;
   }
 
   setVar(name: string, value: Uint8Array | string | number): void {
@@ -233,14 +301,14 @@ export abstract class ExtismPluginBase {
     } else if (typeof value === 'number') {
       this.vars[name] = this.uintToLEBytes(value);
     } else {
-      throw new Error("Unsupported value type");
+      throw new Error('Unsupported value type');
     }
   }
-  
+
   getStringVar(name: string): string {
     return new TextDecoder().decode(this.getVar(name));
   }
-  
+
   getNumberVar(name: string): number {
     const value = this.getVar(name);
     if (value.length < 4) {
@@ -249,7 +317,7 @@ export abstract class ExtismPluginBase {
 
     return this.uintFromLEBytes(value);
   }
-  
+
   getVar(name: string): Uint8Array {
     const value = this.vars[name];
     if (!value) {
@@ -261,18 +329,15 @@ export abstract class ExtismPluginBase {
 
   uintToLEBytes(num: number): Uint8Array {
     const bytes = new Uint8Array(4);
-    bytes[0] = num & 0xFF;
-    bytes[1] = (num >> 8) & 0xFF;
-    bytes[2] = (num >> 16) & 0xFF;
-    bytes[3] = (num >> 24) & 0xFF;
+    bytes[0] = num & 0xff;
+    bytes[1] = (num >> 8) & 0xff;
+    bytes[2] = (num >> 16) & 0xff;
+    bytes[3] = (num >> 24) & 0xff;
     return bytes;
   }
 
   uintFromLEBytes(bytes: Uint8Array): number {
-    return (bytes[0]) | 
-           (bytes[1] << 8) | 
-           (bytes[2] << 16) | 
-           (bytes[3] << 24);
+    return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
   }
 
   async getExports(): Promise<WebAssembly.Exports> {
@@ -312,6 +377,12 @@ export abstract class ExtismPluginBase {
     if (!func) {
       throw Error(`Plugin error: function does not exist ${func_name}`);
     }
+
+    if (func_name != "_start" && this.guestRuntime?.init && !this.guestRuntime.initialized) {
+      this.guestRuntime.init();
+      this.guestRuntime.initialized = true;
+    }
+
     //@ts-ignore
     func();
     return this.output;
@@ -353,6 +424,9 @@ export abstract class ExtismPluginBase {
       //@ts-ignore
       pluginWasi.wasi.start(this.module.instance);
     }
+    
+    this.guestRuntime = detectGuestRuntime(this.module);
+
     return this.module;
   }
 
