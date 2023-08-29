@@ -225,6 +225,56 @@ export abstract class ExtismPluginBase {
     this.options = options;
   }
 
+  setVar(name: string, value: Uint8Array | string | number): void {
+    if (value instanceof Uint8Array) {
+      this.vars[name] = value;
+    } else if (typeof value === 'string') {
+      this.vars[name] = new TextEncoder().encode(value);
+    } else if (typeof value === 'number') {
+      this.vars[name] = this.uintToLEBytes(value);
+    } else {
+      throw new Error("Unsupported value type");
+    }
+  }
+  
+  getStringVar(name: string): string {
+    return new TextDecoder().decode(this.getVar(name));
+  }
+  
+  getNumberVar(name: string): number {
+    const value = this.getVar(name);
+    if (value.length < 4) {
+      throw new Error(`Variable ${name} has incorrect length`);
+    }
+
+    return this.uintFromLEBytes(value);
+  }
+  
+  getVar(name: string): Uint8Array {
+    const value = this.vars[name];
+    if (!value) {
+      throw new Error(`Variable ${name} not found`);
+    }
+
+    return value;
+  }
+
+  uintToLEBytes(num: number): Uint8Array {
+    const bytes = new Uint8Array(4);
+    bytes[0] = num & 0xFF;
+    bytes[1] = (num >> 8) & 0xFF;
+    bytes[2] = (num >> 16) & 0xFF;
+    bytes[3] = (num >> 24) & 0xFF;
+    return bytes;
+  }
+
+  uintFromLEBytes(bytes: Uint8Array): number {
+    return (bytes[0]) | 
+           (bytes[1] << 8) | 
+           (bytes[2] << 16) | 
+           (bytes[3] << 24);
+  }
+
   async getExports(): Promise<WebAssembly.Exports> {
     const module = await this._instantiateModule();
     return module.instance.exports;
@@ -346,7 +396,7 @@ export abstract class ExtismPluginBase {
         plugin.output = plugin.allocator.getMemoryBuffer().slice(offs, offs + len);
       },
       extism_error_set(i: bigint) {
-        throw plugin.allocator.getString(i);
+        throw new Error(`Call error: ${plugin.allocator.getString(i)}`);
       },
       extism_config_get(i: bigint): bigint {
         if (typeof plugin.options.config === 'undefined') {
@@ -393,7 +443,7 @@ export abstract class ExtismPluginBase {
 
         const requestJson = plugin.allocator.getString(requestOffset);
         if (requestJson == null) {
-          throw new Error('Invalid request.');
+          throw new Error('Call error: Invalid request.');
         }
 
         var request: HttpRequest = JSON.parse(requestJson);
@@ -416,7 +466,7 @@ export abstract class ExtismPluginBase {
         }
 
         if (!hostMatches) {
-          throw new Error(`HTTP request to '${request.url}' is not allowed`);
+          throw new Error(`Call error: HTTP request to '${request.url}' is not allowed`);
         }
 
         // TODO: take allowed hosts into account

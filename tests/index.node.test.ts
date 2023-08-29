@@ -31,6 +31,12 @@ function decode(buffer: Uint8Array) {
   return decoder.decode(buffer);
 }
 
+process.on('uncaughtException', function (exception) {
+  console.log(exception); // to see your exception details in the console
+  // if you are on production, maybe you can send the exception details to your
+  // email as well ?
+});
+
 describe('test extism', () => {
   test('can create plugin from url', async () => {
     const plugin = await newPlugin({
@@ -77,6 +83,16 @@ describe('test extism', () => {
     await expect(plugin.call('i_dont_exist', 'example-input')).rejects.toThrow();
   });
 
+  test('plugin can allocate memory', async () => {
+    const plugin = await newPlugin('alloc.wasm');
+    await plugin.call("run_test", "")
+  });
+
+  test('plugin can fail gracefuly', async () => {
+    const plugin = await newPlugin('fail.wasm');
+    await expect(() => plugin.call("run_test", "")).rejects.toThrowError(/Call error/);
+  });
+
   test('host functions works', async () => {
     const plugin = await newPlugin('code-functions.wasm', options => {
       options.withFunction("env", "hello_world", (off: bigint) => {
@@ -87,8 +103,6 @@ describe('test extism', () => {
       });
     });
 
-    console.log("plugin options: ", plugin.options.functions);
-
     const output = await plugin.call('count_vowels', 'aaa');
     const result = JSON.parse(decode(output));
 
@@ -97,4 +111,69 @@ describe('test extism', () => {
       message: "hello from host!"
     })
   });
+
+  test('can deny http requests', async () => {
+    const plugin = await newPlugin('http.wasm');
+    await expect(() => plugin.call("run_test", "")).rejects.toThrowError(/Call error/);
+  });
+
+  test('can allow http requests', async () => {
+    const plugin = await newPlugin('http.wasm', options => {
+      options.withAllowedHost("*.typicode.com");
+    });
+    
+    const output = await plugin.call("run_test", "");
+    const result = JSON.parse(decode(output));
+    
+    expect(result.id).toBe(1);
+  });
+
+  test('can log messages', async () => {
+    console.log = jest.fn();
+    console.warn = jest.fn();
+    console.error = jest.fn();
+    console.debug = jest.fn();
+    
+    const plugin = await newPlugin('log.wasm', options => {
+      options.withAllowedHost("*.typicode.com");
+    });
+    
+    const _ = await plugin.call("run_test", "");
+    
+    expect(console.log).toHaveBeenCalledTimes(1);
+    expect(console.warn).toHaveBeenCalledTimes(1);
+    expect(console.error).toHaveBeenCalledTimes(1);
+    expect(console.debug).toHaveBeenCalledTimes(1);
+  });
+
+  test('can get and set vars', async () => {
+    const plugin = await newPlugin('var.wasm');
+    plugin.setVar("a", 10);
+    
+    const _ = await plugin.call("run_test", "");
+
+    expect(plugin.getNumberVar("a")).toBe(20);
+  });
+
+  // test('can read file', async () => {
+  //   const plugin = await newPlugin('fs.wasm', options => {
+  //     options.withAllowedPath("/mnt", "tests/data")
+  //   });
+
+  //   const output = await plugin.call("run_test", "");
+  //   const result = decode(output);
+
+  //   expect(result).toBe("hello world!");
+  // });
+
+  // test('can initialize haskell runtime', async () => {
+  //   const plugin = await newPlugin('hello_haskell.wasm', options => {
+  //     options.withConfig("greeting", "Howdy");
+  //   });
+
+  //   const output = await plugin.call("testing", "John");
+  //   const result = decode(output);
+
+  //   expect(result).toBe("Howdy, John")
+  // });
 });

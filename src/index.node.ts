@@ -90,6 +90,8 @@ class ExtismPlugin extends ExtismPluginBase {
 
   loadWasi(options: ExtismPluginOptions): PluginWasi {
     const w = new WASI({
+      //@ts-ignore
+      version: 'preview1',
       preopens: options.allowedPaths,
     });
 
