@@ -1,5 +1,6 @@
-import { assertEquals, assertRejects } from "https://deno.land/std@0.200.0/assert/mod.ts";
-import { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/mod.ts'
+import { assertEquals, assertRejects } from 'https://deno.land/std@0.200.0/assert/mod.ts';
+import { assertSpyCall, assertSpyCalls, spy } from 'https://deno.land/std@0.200.0/testing/mock.ts';
+import { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/mod.ts';
 
 async function newPlugin(
   moduleName: string | Manifest | ManifestWasm,
@@ -15,7 +16,7 @@ async function newPlugin(
     optionsConfig(options);
   }
 
-  let module : Manifest | ManifestWasm;
+  let module: Manifest | ManifestWasm;
   if (typeof moduleName == 'string') {
     module = {
       path: `wasm/${moduleName}`,
@@ -35,18 +36,23 @@ function decode(buffer: Uint8Array) {
 
 Deno.test('can create plugin from url', async () => {
   const plugin = await newPlugin({
-    url: "https://raw.githubusercontent.com/extism/extism/main/wasm/code.wasm",
-    hash: "7def5bb4aa3843a5daf5d6078f1e8540e5ef10b035a9d9387e9bd5156d2b2565"
+    url: 'https://raw.githubusercontent.com/extism/extism/main/wasm/code.wasm',
+    hash: '7def5bb4aa3843a5daf5d6078f1e8540e5ef10b035a9d9387e9bd5156d2b2565',
   });
 
   assertEquals(await plugin.functionExists('count_vowels'), true);
 });
 
 Deno.test('fails on hash mismatch', async () => {
-  await assertRejects(() => newPlugin({
-    path: "wasm/code.wasm",
-    hash: "----"
-  }), Error, "hash mismatch");
+  await assertRejects(
+    () =>
+      newPlugin({
+        path: 'wasm/code.wasm',
+        hash: '----',
+      }),
+    Error,
+    'hash mismatch',
+  );
 });
 
 Deno.test('can create and call a plugin', async () => {
@@ -82,14 +88,14 @@ Deno.test('can detect if function exists or not', async () => {
 
 Deno.test('errors when function is not known', async () => {
   const plugin = await newPlugin('code.wasm');
-  await assertRejects(() => plugin.call('i_dont_exist', 'example-input'), Error, "Plugin error");
+  await assertRejects(() => plugin.call('i_dont_exist', 'example-input'), Error, 'Plugin error');
 });
 
 Deno.test('host functions works', async () => {
-  const plugin = await newPlugin('code-functions.wasm', options => {
-    options.withFunction("env", "hello_world", (off: bigint) => {
-      const result = JSON.parse(plugin.allocator.getString(off) ?? "");
-      result['message'] = "hello from host!";
+  const plugin = await newPlugin('code-functions.wasm', (options) => {
+    options.withFunction('env', 'hello_world', (off: bigint) => {
+      const result = JSON.parse(plugin.allocator.getString(off) ?? '');
+      result['message'] = 'hello from host!';
       return plugin.allocator.allocString(JSON.stringify(result));
     });
   });
@@ -99,6 +105,77 @@ Deno.test('host functions works', async () => {
 
   assertEquals(result, {
     count: 3,
-    message: "hello from host!"
+    message: 'hello from host!',
   });
 });
+
+Deno.env.set('NO_COLOR', '1');
+
+Deno.test('plugin can allocate memory', async () => {
+  const plugin = await newPlugin('alloc.wasm');
+  await plugin.call('run_test', '');
+});
+
+Deno.test('plugin can fail gracefully', async () => {
+  const plugin = await newPlugin('fail.wasm');
+  await assertRejects(() => plugin.call('run_test', ''), Error, 'Call error');
+});
+
+Deno.test('can deny http requests', async () => {
+  const plugin = await newPlugin('http.wasm');
+  await assertRejects(() => plugin.call('run_test', ''), Error, 'http');
+});
+
+Deno.test('can allow http requests', async () => {
+  const plugin = await newPlugin('http.wasm', (options) => {
+    options.withAllowedHost('*.typicode.com');
+  });
+
+  // http is not supported in Deno
+  await assertRejects(() => plugin.call('run_test', ''), Error, 'http');
+});
+
+Deno.test('can log messages', async () => {
+  const logSpy = spy(console, "log");
+  const warnSpy = spy(console, "warn");
+  const errorSpy = spy(console, "error");
+  const debugSpy = spy(console, "debug");
+
+  try {
+    const plugin = await newPlugin('log.wasm');
+    const _ = await plugin.call('run_test', '');
+  } finally {
+    logSpy.restore();
+    warnSpy.restore();
+    errorSpy.restore();
+    debugSpy.restore();
+  }
+
+  assertSpyCalls(logSpy, 1);
+  assertSpyCalls(warnSpy, 1);
+  assertSpyCalls(errorSpy, 1);
+  assertSpyCalls(debugSpy, 1);
+});
+
+Deno.test('can get and set vars', async () => {
+  const plugin = await newPlugin('var.wasm');
+  plugin.setVar('a', 10);
+
+  const _ = await plugin.call('run_test', '');
+
+  assertEquals(plugin.getNumberVar('a'), 20);
+});
+
+// Deno.test('can initialize Haskell runtime', async () => {
+//   const plugin = await newPlugin('hello_haskell.wasm', (options) => {
+//     options.withConfig('greeting', 'Howdy');
+//   });
+
+//   let output = await plugin.call('testing', 'John');
+//   let result = decode(output);
+//   assertEquals(result, 'Howdy, John');
+
+//   output = await plugin.call('testing', 'Ben');
+//   result = decode(output);
+//   assertEquals(result, 'Howdy, Ben');
+// });

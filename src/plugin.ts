@@ -185,14 +185,14 @@ export async function fetchModuleData(
   return moduleData;
 }
 
-function haskellRuntime(module: WebAssembly.WebAssemblyInstantiatedSource): GuestRuntime | null {
-  const haskellInit = module.instance.exports.hs_init;
+function haskellRuntime(module: WebAssembly.Instance): GuestRuntime | null {
+  const haskellInit = module.exports.hs_init;
 
   if (!haskellInit) {
     return null;
   }
 
-  const reactorInit = module.instance.exports._initialize;
+  const reactorInit = module.exports._initialize;
 
   let init: () => void;
   if (reactorInit) {
@@ -203,19 +203,19 @@ function haskellRuntime(module: WebAssembly.WebAssemblyInstantiatedSource): Gues
     init = () => haskellInit();
   }
 
-  const kind = reactorInit ? "reactor" : "normal";
-  console.trace(`Haskell (${kind}) runtime detected.`);
+  const kind = reactorInit ? 'reactor' : 'normal';
+  console.debug(`Haskell (${kind}) runtime detected.`);
 
   return { type: GuestRuntimeType.Haskell, init: init, initialized: false };
 }
 
-function wasiRuntime(module: WebAssembly.WebAssemblyInstantiatedSource): GuestRuntime | null {
-  const reactorInit = module.instance.exports._initialize;
-  const commandInit = module.instance.exports.__wasm_call_ctors;
+function wasiRuntime(module: WebAssembly.Instance): GuestRuntime | null {
+  const reactorInit = module.exports._initialize;
+  const commandInit = module.exports.__wasm_call_ctors;
 
   // WASI supports two modules: Reactors and Commands
-	// we prioritize Reactors over Commands
-	// see: https://github.com/WebAssembly/WASI/blob/main/legacy/application-abi.md
+  // we prioritize Reactors over Commands
+  // see: https://github.com/WebAssembly/WASI/blob/main/legacy/application-abi.md
 
   let init: () => void;
   if (reactorInit) {
@@ -228,13 +228,13 @@ function wasiRuntime(module: WebAssembly.WebAssemblyInstantiatedSource): GuestRu
     return null;
   }
 
-  const kind = reactorInit ? "reactor" : "command";
+  const kind = reactorInit ? 'reactor' : 'command';
   console.trace(`WASI (${kind}) runtime detected.`);
 
   return { type: GuestRuntimeType.Wasi, init: init, initialized: false };
 }
 
-function detectGuestRuntime(module: WebAssembly.WebAssemblyInstantiatedSource): GuestRuntime {
+function detectGuestRuntime(module: WebAssembly.Instance): GuestRuntime {
   const none = { init: () => {}, type: GuestRuntimeType.None, initialized: true };
   return haskellRuntime(module) ?? wasiRuntime(module) ?? none;
 }
@@ -281,7 +281,7 @@ export abstract class ExtismPluginBase {
   module?: WebAssembly.WebAssemblyInstantiatedSource;
   options: ExtismPluginOptions;
   lastStatusCode: number = 0;
-  guestRuntime: GuestRuntime | null;
+  guestRuntime: GuestRuntime;
 
   constructor(extism: WebAssembly.Instance, moduleData: ArrayBuffer, options: ExtismPluginOptions) {
     this.moduleData = moduleData;
@@ -290,7 +290,7 @@ export abstract class ExtismPluginBase {
     this.input = new Uint8Array();
     this.output = new Uint8Array();
     this.options = options;
-    this.guestRuntime = null;
+    this.guestRuntime = { type: GuestRuntimeType.None, init: () => {}, initialized: true };
   }
 
   setVar(name: string, value: Uint8Array | string | number): void {
@@ -378,7 +378,7 @@ export abstract class ExtismPluginBase {
       throw Error(`Plugin error: function does not exist ${func_name}`);
     }
 
-    if (func_name != "_start" && this.guestRuntime?.init && !this.guestRuntime.initialized) {
+    if (func_name != '_start' && this.guestRuntime?.init && !this.guestRuntime.initialized) {
       this.guestRuntime.init();
       this.guestRuntime.initialized = true;
     }
@@ -415,17 +415,15 @@ export abstract class ExtismPluginBase {
       }
     }
 
-    this.module = await WebAssembly.instantiate(this.moduleData, imports);
+   this.module = await WebAssembly.instantiate(this.moduleData, imports);
     // normally we would call wasi.start here but it doesn't respect when there is
     // no _start function
-    //@ts-ignore
-    pluginWasi.inst = this.module.instance;
     if (this.module.instance.exports._start) {
       //@ts-ignore
       pluginWasi.wasi.start(this.module.instance);
     }
-    
-    this.guestRuntime = detectGuestRuntime(this.module);
+
+    this.guestRuntime = detectGuestRuntime(this.module.instance);
 
     return this.module;
   }
@@ -512,7 +510,7 @@ export abstract class ExtismPluginBase {
         if (!plugin.supportsHttpRequests()) {
           plugin.allocator.free(bodyOffset);
           plugin.allocator.free(requestOffset);
-          return BigInt(0);
+          throw new Error('Call error: http requests are not supported.');
         }
 
         const requestJson = plugin.allocator.getString(requestOffset);

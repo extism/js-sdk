@@ -12,7 +12,7 @@ import {
   HttpRequest,
   HttpResponse,
 } from './plugin.ts';
-import WASI from 'https://deno.land/std@0.197.0/wasi/snapshot_preview1.ts';
+import Context from 'https://deno.land/std@0.200.0/wasi/snapshot_preview1.ts';
 import minimatch from 'https://deno.land/x/minimatch@v3.0.4/index.js';
 import { createHash } from 'https://deno.land/std@0.108.0/hash/mod.ts';
 
@@ -65,11 +65,11 @@ class ExtismPlugin extends ExtismPluginBase {
   }
 
   loadWasi(options: ExtismPluginOptions): PluginWasi {
-    const wasi = new WASI({
-      preopens: options.allowedPaths,
+    const context = new Context({
+      preopens: options.allowedPaths
     });
 
-    return new PluginWasi(wasi, wasi.exports);
+    return new PluginWasi(context, context.exports);
   }
 }
 

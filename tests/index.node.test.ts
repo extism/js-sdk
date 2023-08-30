@@ -187,6 +187,6 @@ describe('test extism', () => {
       expect(result).toBe("Howdy, Ben")
     }
 
-    expect(console.trace).toHaveBeenCalledWith("Haskell (normal) runtime detected.");
+    expect(console.debug).toHaveBeenCalledWith("Haskell (normal) runtime detected.");
   });
 });
