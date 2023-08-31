@@ -154,39 +154,39 @@ describe('test extism', () => {
 
     expect(plugin.getNumberVar("a")).toBe(20);
   });
-
-  // test('can read file', async () => {
-  //   const plugin = await newPlugin('fs.wasm', options => {
-  //     options.withAllowedPath("/mnt", "tests/data")
-  //   });
-
-  //   const output = await plugin.call("run_test", "");
-  //   const result = decode(output);
-
-  //   expect(result).toBe("hello world!");
-  // });
-
+  
   test('can initialize haskell runtime', async () => {
     console.trace = jest.fn();
-
+    
     const plugin = await newPlugin('hello_haskell.wasm', options => {
       options.withConfig("greeting", "Howdy");
     });
-
+    
     {
       const output = await plugin.call("testing", "John");
       const result = decode(output);
-
+      
       expect(result).toBe("Howdy, John")
     }
-
+    
     {
       const output = await plugin.call("testing", "Ben");
       const result = decode(output);
-
+      
       expect(result).toBe("Howdy, Ben")
     }
-
+    
     expect(console.debug).toHaveBeenCalledWith("Haskell (normal) runtime detected.");
+  });
+
+  test('can read file', async () => {
+    const plugin = await newPlugin('fs.wasm', options => {
+      options.withAllowedPath("/mnt", "tests/data")
+    });
+  
+    const output = await plugin.call("run_test", "");
+    const result = decode(output);
+  
+    expect(result).toBe("hello world!");
   });
 });

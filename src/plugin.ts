@@ -233,7 +233,7 @@ function wasiRuntime(module: WebAssembly.Instance): GuestRuntime | null {
   }
 
   const kind = reactorInit ? 'reactor' : 'command';
-  console.trace(`WASI (${kind}) runtime detected.`);
+  console.debug(`WASI (${kind}) runtime detected.`);
 
   return { type: GuestRuntimeType.Wasi, init: init, initialized: false };
 }

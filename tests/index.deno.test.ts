@@ -179,3 +179,13 @@ Deno.test('can initialize Haskell runtime', async () => {
   result = decode(output);
   assertEquals(result, 'Howdy, Ben');
 });
+
+Deno.test('can access fs', async () => {
+  const plugin = await newPlugin('fs.wasm', (options) => {
+    options.withAllowedPath("/mnt", "tests/data");
+  });
+
+  const output = await plugin.call('run_test', '');
+  const result = decode(output);
+  assertEquals(result, 'hello world!');
+});
