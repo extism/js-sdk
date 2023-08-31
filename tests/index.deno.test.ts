@@ -166,16 +166,16 @@ Deno.test('can get and set vars', async () => {
   assertEquals(plugin.getNumberVar('a'), 20);
 });
 
-// Deno.test('can initialize Haskell runtime', async () => {
-//   const plugin = await newPlugin('hello_haskell.wasm', (options) => {
-//     options.withConfig('greeting', 'Howdy');
-//   });
+Deno.test('can initialize Haskell runtime', async () => {
+  const plugin = await newPlugin('hello_haskell.wasm', (options) => {
+    options.withConfig('greeting', 'Howdy');
+  });
 
-//   let output = await plugin.call('testing', 'John');
-//   let result = decode(output);
-//   assertEquals(result, 'Howdy, John');
+  let output = await plugin.call('testing', 'John');
+  let result = decode(output);
+  assertEquals(result, 'Howdy, John');
 
-//   output = await plugin.call('testing', 'Ben');
-//   result = decode(output);
-//   assertEquals(result, 'Howdy, Ben');
-// });
+  output = await plugin.call('testing', 'Ben');
+  result = decode(output);
+  assertEquals(result, 'Howdy, Ben');
+});

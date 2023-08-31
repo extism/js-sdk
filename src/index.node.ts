@@ -95,7 +95,7 @@ class ExtismPlugin extends ExtismPluginBase {
       preopens: options.allowedPaths,
     });
 
-    return new PluginWasi(w, w.wasiImport);
+    return new PluginWasi(w, w.wasiImport, instance => w.start(instance));
   }
 }
 

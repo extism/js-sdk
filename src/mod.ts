@@ -66,10 +66,25 @@ class ExtismPlugin extends ExtismPluginBase {
 
   loadWasi(options: ExtismPluginOptions): PluginWasi {
     const context = new Context({
-      preopens: options.allowedPaths
+      preopens: options.allowedPaths,
     });
 
-    return new PluginWasi(context, context.exports);
+    return new PluginWasi(context, context.exports, instance => this.initialize(context, instance));
+  }
+
+  initialize(context: Context, instance: WebAssembly.Instance) {
+    const memory = instance.exports.memory as WebAssembly.Memory;
+
+    if (!memory) {
+      throw new Error("The module has to export a default memory.")
+    }
+
+    context.start({
+      exports: {
+        memory,
+        _start: () => {},
+      },
+    });
   }
 }
 

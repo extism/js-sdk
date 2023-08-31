@@ -121,17 +121,21 @@ export class ExtismPluginOptions {
 export class PluginWasi {
   wasi: any;
   imports: any;
+  #initialize: (instance: WebAssembly.Instance) => void;
 
-  constructor(wasi: any, imports: any) {
+  constructor(wasi: any, imports: any, init: (instance: WebAssembly.Instance) => void) {
     this.wasi = wasi;
     this.imports = imports;
+    this.#initialize = init;
   }
 
   importObject() {
     return this.imports;
   }
 
-  initialize() {}
+  initialize(instance: WebAssembly.Instance) {
+    this.#initialize(instance);
+  }
 }
 
 enum GuestRuntimeType {
@@ -415,12 +419,10 @@ export abstract class ExtismPluginBase {
       }
     }
 
-   this.module = await WebAssembly.instantiate(this.moduleData, imports);
-    // normally we would call wasi.start here but it doesn't respect when there is
-    // no _start function
+    this.module = await WebAssembly.instantiate(this.moduleData, imports);
+
     if (this.module.instance.exports._start) {
-      //@ts-ignore
-      pluginWasi.wasi.start(this.module.instance);
+      pluginWasi.initialize(this.module.instance);
     }
 
     this.guestRuntime = detectGuestRuntime(this.module.instance);

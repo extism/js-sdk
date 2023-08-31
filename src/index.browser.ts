@@ -14,7 +14,7 @@ import {
 } from './plugin';
 
 import { WASI, Fd } from '@bjorn3/browser_wasi_shim';
-import { minimatch } from 'minimatch'
+import { minimatch } from 'minimatch';
 
 class ExtismPlugin extends ExtismPluginBase {
   supportsHttpRequests(): boolean {
@@ -31,36 +31,36 @@ class ExtismPlugin extends ExtismPluginBase {
     }
 
     const xhr = new XMLHttpRequest();
-    
+
     // Open the request synchronously
     xhr.open(request.method, request.url, false);
-  
+
     // Set headers
     for (const key in request.headers) {
       xhr.setRequestHeader(key, request.headers[key]);
     }
 
     xhr.send(body);
-  
+
     let responseBody: Uint8Array;
-  
+
     switch (xhr.responseType) {
-      case "arraybuffer":
+      case 'arraybuffer':
         responseBody = new Uint8Array(xhr.response);
         break;
-      case "blob":
-        throw new Error("Blob response type is not supported in a synchronous context.");
-      case "document":
-      case "json":
-      case "text":
-      case "":
+      case 'blob':
+        throw new Error('Blob response type is not supported in a synchronous context.');
+      case 'document':
+      case 'json':
+      case 'text':
+      case '':
         const encoder = new TextEncoder();
         responseBody = encoder.encode(String(xhr.response));
         break;
       default:
         throw new Error(`Unknown response type: ${xhr.responseType}`);
     }
-  
+
     return {
       body: responseBody,
       status: xhr.status,
@@ -70,7 +70,7 @@ class ExtismPlugin extends ExtismPluginBase {
   static async calculateHash(data: ArrayBuffer) {
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map(byte => byte.toString(16).padStart(2, '0')).join('');
+    const hashHex = hashArray.map((byte) => byte.toString(16).padStart(2, '0')).join('');
     return hashHex;
   }
 
@@ -111,7 +111,22 @@ class ExtismPlugin extends ExtismPluginBase {
     ];
 
     const wasi = new WASI(args, envVars, fds);
-    return new PluginWasi(wasi, wasi.wasiImport);
+    const start = (instance: WebAssembly.Instance) => {
+      const wrapper = {
+        exports: {
+          memory: instance.exports.memory as WebAssembly.Memory,
+          _start() {},
+        },
+      };
+
+      if (!wrapper.exports.memory) {
+        throw new Error('The module has to export a default memory.');
+      }
+
+      wasi.start(wrapper);
+    };
+
+    return new PluginWasi(wasi, wasi.wasiImport, start);
   }
 }
 
@@ -120,11 +135,4 @@ window.ExtismPlugin = ExtismPlugin;
 // @ts-ignore
 window.ExtismPluginOptions = ExtismPluginOptions;
 
-export {
-  ExtismPlugin,
-  ExtismPluginOptions,
-  Manifest,
-  ManifestWasm,
-  ManifestWasmData,
-  ManifestWasmFile,
-}
+export { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile };
