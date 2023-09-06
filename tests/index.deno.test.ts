@@ -55,6 +55,20 @@ Deno.test('fails on hash mismatch', async () => {
   );
 });
 
+Deno.test('can use embedded runtime', async () => {
+  const options = new ExtismPluginOptions().withWasi();
+
+  let module = {
+    path: `wasm/code.wasm`,
+  };
+
+  const plugin = await ExtismPlugin.newPlugin(module, options);
+
+  let output = await plugin.call('count_vowels', 'this is a test');
+  let result = JSON.parse(decode(output));
+  assertEquals(result['count'], 4);
+});
+
 Deno.test('can create and call a plugin', async () => {
   const plugin = await newPlugin('code.wasm');
   let output = await plugin.call('count_vowels', 'this is a test');
@@ -136,10 +150,10 @@ Deno.test('can allow http requests', async () => {
 });
 
 Deno.test('can log messages', async () => {
-  const logSpy = spy(console, "log");
-  const warnSpy = spy(console, "warn");
-  const errorSpy = spy(console, "error");
-  const debugSpy = spy(console, "debug");
+  const logSpy = spy(console, 'log');
+  const warnSpy = spy(console, 'warn');
+  const errorSpy = spy(console, 'error');
+  const debugSpy = spy(console, 'debug');
 
   try {
     const plugin = await newPlugin('log.wasm');
@@ -182,7 +196,7 @@ Deno.test('can initialize Haskell runtime', async () => {
 
 Deno.test('can access fs', async () => {
   const plugin = await newPlugin('fs.wasm', (options) => {
-    options.withAllowedPath("/mnt", "tests/data");
+    options.withAllowedPath('/mnt', 'tests/data');
   });
 
   const output = await plugin.call('run_test', '');

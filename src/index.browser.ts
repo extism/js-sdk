@@ -11,6 +11,7 @@ import {
   ManifestWasmUrl,
   HttpRequest,
   HttpResponse,
+  embeddedRuntime
 } from './plugin';
 
 import { WASI, Fd } from '@bjorn3/browser_wasi_shim';
@@ -71,6 +72,7 @@ class ExtismPlugin extends ExtismPluginBase {
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    console.log('hash', hashHex);
     return hashHex;
   }
 
@@ -79,7 +81,13 @@ class ExtismPlugin extends ExtismPluginBase {
     options: ExtismPluginOptions,
   ): Promise<ExtismPlugin> {
     let moduleData = await fetchModuleData(manifestData, this.fetchWasm, this.calculateHash);
-    let runtime = await instantiateExtismRuntime(options.runtime, this.fetchWasm);
+
+    const runtimeWasm = options.runtime ?? {
+      data: toBytes(embeddedRuntime),
+      hash: 'f8219993be45b8f589d78b2fdd8064d3798a34d05fb9eea3a5e985919d88daa7'
+    };
+
+    let runtime = await instantiateExtismRuntime(runtimeWasm, this.fetchWasm, this.calculateHash);
 
     return new ExtismPlugin(runtime, moduleData, options);
   }
@@ -129,6 +137,18 @@ class ExtismPlugin extends ExtismPluginBase {
 
     wasi.start(wrapper);
   }
+}
+
+function toBytes(base64: string): Uint8Array {
+  const binaryString = window.atob(base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+
+  return bytes;
 }
 
 // @ts-ignore

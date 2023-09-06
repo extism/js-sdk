@@ -71,9 +71,6 @@
 
             const options = new ExtismPluginOptions()
                 .withConfig("thing", "testing")
-                .withRuntime({
-                    url: "/wasm/extism-runtime.wasm"
-                })
                 .withWasi()
                 .withAllowedHosts(hosts);
 

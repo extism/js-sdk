@@ -55,6 +55,21 @@ describe('test extism', () => {
     })).rejects.toThrow(/Plugin error/);
   });
 
+  test('can use embedded runtime', async () => {
+    const options = new ExtismPluginOptions().withWasi();
+
+    let module = {
+      path: `wasm/code.wasm`,
+    };
+  
+    const plugin = await ExtismPlugin.newPlugin(module, options);
+  
+    let output = await plugin.call('count_vowels', 'this is a test');
+
+    let result = JSON.parse(decode(output));
+    expect(result['count']).toBe(4);
+  });
+
   test('can create and call a plugin', async () => {
     const plugin = await newPlugin('code.wasm');
     let output = await plugin.call('count_vowels', 'this is a test');

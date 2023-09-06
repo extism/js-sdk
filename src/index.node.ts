@@ -11,6 +11,7 @@ import {
   ManifestWasmUrl,
   HttpRequest,
   HttpResponse,
+  embeddedRuntime,
 } from './plugin';
 import { WASI } from 'wasi';
 import { readFile } from 'fs';
@@ -64,7 +65,13 @@ class ExtismPlugin extends ExtismPluginBase {
     options: ExtismPluginOptions,
   ): Promise<ExtismPlugin> {
     let moduleData = await fetchModuleData(manifestData, this.fetchWasm, this.calculateHash);
-    let runtime = await instantiateExtismRuntime(options.runtime, this.fetchWasm);
+
+    const runtimeWasm = options.runtime ?? {
+      data: toBytes(embeddedRuntime),
+      hash: 'f8219993be45b8f589d78b2fdd8064d3798a34d05fb9eea3a5e985919d88daa7'
+    };
+
+    let runtime = await instantiateExtismRuntime(runtimeWasm, this.fetchWasm, this.calculateHash);
 
     return new ExtismPlugin(runtime, moduleData, options);
   }
@@ -112,6 +119,11 @@ class ExtismPlugin extends ExtismPluginBase {
       },
     });
   }
+}
+
+function toBytes(base64: string): Uint8Array {
+  const buffer = Buffer.from(base64, 'base64');
+  return new Uint8Array(buffer);
 }
 
 export { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile };
