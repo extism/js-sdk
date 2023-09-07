@@ -29,7 +29,7 @@ build({
 build({
     ...sharedConfig,
     entryPoints: ["src/index.browser.ts"],
-    outfile: "dist/browser/estism.js",
+    outfile: "dist/browser/extism.js",
     platform: 'neutral',
     external: [ './src/index.deno.ts', "sync-fetch", "child_process" ],
     format: "iife",

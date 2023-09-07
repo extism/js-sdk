@@ -21,15 +21,33 @@ import { minimatch } from 'minimatch';
 import { createHash } from 'crypto';
 
 class ExtismPlugin extends ExtismPluginBase {
-  matches(text: string, pattern: string): boolean {
-    return minimatch(text, pattern);
+  /**
+   * Create a new plugin.
+   * @param manifestData An Extism manifest {@link Manifest} or a Wasm module.
+   * @param options Options for initializing the plugin.
+   * @returns {ExtismPlugin} An initialized plugin.
+   */
+  static async newPlugin(
+    manifestData: Manifest | ManifestWasm | Buffer,
+    options: ExtismPluginOptions,
+  ): Promise<ExtismPlugin> {
+    let moduleData = await fetchModuleData(manifestData, this.fetchWasm, this.calculateHash);
+
+    const runtimeWasm = options.runtime ?? {
+      data: this.toBytes(embeddedRuntime),
+      hash: 'f8219993be45b8f589d78b2fdd8064d3798a34d05fb9eea3a5e985919d88daa7'
+    };
+
+    let runtime = await instantiateExtismRuntime(runtimeWasm, this.fetchWasm, this.calculateHash);
+
+    return new ExtismPlugin(runtime, moduleData, options);
   }
 
-  supportsHttpRequests(): boolean {
+  protected supportsHttpRequests(): boolean {
     return true;
   }
 
-  httpRequest(request: HttpRequest, body: Uint8Array | null): HttpResponse {
+  protected httpRequest(request: HttpRequest, body: Uint8Array | null): HttpResponse {
     let b = body
       ? {
           buffer: body,
@@ -54,29 +72,36 @@ class ExtismPlugin extends ExtismPluginBase {
     };
   }
 
-  static async calculateHash(data: ArrayBuffer) {
-    const hasher = createHash('sha256');
-    hasher.update(new Uint8Array(data));
-    return new Promise<string>((resolve, _) => resolve(hasher.digest('hex')));
+  protected matches(text: string, pattern: string): boolean {
+    return minimatch(text, pattern);
   }
 
-  static async newPlugin(
-    manifestData: Manifest | ManifestWasm | Buffer,
-    options: ExtismPluginOptions,
-  ): Promise<ExtismPlugin> {
-    let moduleData = await fetchModuleData(manifestData, this.fetchWasm, this.calculateHash);
+  protected loadWasi(options: ExtismPluginOptions): PluginWasi {
+    const wasi = new WASI({
+      //@ts-ignore
+      version: 'preview1',
+      preopens: options.allowedPaths,
+    });
 
-    const runtimeWasm = options.runtime ?? {
-      data: toBytes(embeddedRuntime),
-      hash: 'f8219993be45b8f589d78b2fdd8064d3798a34d05fb9eea3a5e985919d88daa7'
-    };
+    return new PluginWasi(wasi, wasi.wasiImport, instance => this.initialize(wasi, instance));
+  }
+  
+  private initialize(wasi: WASI, instance: WebAssembly.Instance) {
+    const memory = instance.exports.memory as WebAssembly.Memory;
 
-    let runtime = await instantiateExtismRuntime(runtimeWasm, this.fetchWasm, this.calculateHash);
+    if (!memory) {
+      throw new Error("The module has to export a default memory.")
+    }
 
-    return new ExtismPlugin(runtime, moduleData, options);
+    wasi.start({
+      exports: {
+        memory,
+        _start: () => {},
+      },
+    });
   }
 
-  static async fetchWasm(wasm: ManifestWasm): Promise<ArrayBuffer> {
+  private static async fetchWasm(wasm: ManifestWasm): Promise<ArrayBuffer> {
     let data: ArrayBuffer;
 
     if ((wasm as ManifestWasmData).data) {
@@ -94,36 +119,17 @@ class ExtismPlugin extends ExtismPluginBase {
 
     return data;
   }
-
-  loadWasi(options: ExtismPluginOptions): PluginWasi {
-    const wasi = new WASI({
-      //@ts-ignore
-      version: 'preview1',
-      preopens: options.allowedPaths,
-    });
-
-    return new PluginWasi(wasi, wasi.wasiImport, instance => this.initialize(wasi, instance));
-  }
   
-  initialize(wasi: WASI, instance: WebAssembly.Instance) {
-    const memory = instance.exports.memory as WebAssembly.Memory;
-
-    if (!memory) {
-      throw new Error("The module has to export a default memory.")
-    }
-
-    wasi.start({
-      exports: {
-        memory,
-        _start: () => {},
-      },
-    });
+  private static async calculateHash(data: ArrayBuffer) {
+    const hasher = createHash('sha256');
+    hasher.update(new Uint8Array(data));
+    return new Promise<string>((resolve, _) => resolve(hasher.digest('hex')));
   }
-}
 
-function toBytes(base64: string): Uint8Array {
-  const buffer = Buffer.from(base64, 'base64');
-  return new Uint8Array(buffer);
+  private static toBytes(base64: string): Uint8Array {
+    const buffer = Buffer.from(base64, 'base64');
+    return new Uint8Array(buffer);
+  }
 }
 
 export { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile };
