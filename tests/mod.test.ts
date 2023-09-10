@@ -1,6 +1,6 @@
 import { assertEquals, assertRejects } from 'https://deno.land/std@0.200.0/assert/mod.ts';
-import { assertSpyCall, assertSpyCalls, spy } from 'https://deno.land/std@0.200.0/testing/mock.ts';
-import { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/mod.ts';
+import { assertSpyCalls, spy } from 'https://deno.land/std@0.200.0/testing/mock.ts';
+import { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/deno/mod.ts';
 
 async function newPlugin(
   moduleName: string | Manifest | ManifestWasm,

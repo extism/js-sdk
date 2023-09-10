@@ -9,32 +9,21 @@ const sharedConfig = {
     external: Object.keys(peerDependencies || {}),
 };
 
+// NodeJS CSJ
 build({
     ...sharedConfig,
-    entryPoints: ["src/index.node.ts"],
+    entryPoints: ["src/node/index.ts"],
     platform: 'node', // for CJS
     outfile: "dist/node/index.js",
-    external: [ './src/index.deno.ts', "sync-fetch", "child_process" ]
+    external: [ './src/mod.ts', "sync-fetch", "child_process" ]
 });
 
+// Browser ESM
 build({
     ...sharedConfig,
-    entryPoints: ["src/index.browser.ts"],
-    outfile: "dist/browser/index.js",
+    entryPoints: ["src/browser/index.ts"],
+    outfile: "dist/browser/index.mjs",
     platform: 'neutral',
-    external: [ './src/index.deno.ts', "sync-fetch", "child_process" ],
+    external: [ './src/mod.ts', "sync-fetch", "child_process" ],
     format: "esm",
 });
-
-build({
-    ...sharedConfig,
-    entryPoints: ["src/index.browser.ts"],
-    outfile: "dist/browser/extism.js",
-    platform: 'neutral',
-    external: [ './src/index.deno.ts', "sync-fetch", "child_process" ],
-    format: "iife",
-});
-
-if (!fs.existsSync("dist/deno")) {
-    fs.mkdirSync("dist/deno", { recursive: true});
-}

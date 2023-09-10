@@ -12,7 +12,7 @@ import {
   HttpRequest,
   HttpResponse,
   embeddedRuntime
-} from './plugin';
+} from '../plugin';
 
 import { WASI, Fd } from '@bjorn3/browser_wasi_shim';
 import { minimatch } from 'minimatch';
@@ -94,9 +94,6 @@ class ExtismPlugin extends ExtismPluginBase {
     const args: Array<string> = [];
     const envVars: Array<string> = [];
     let fds: Fd[] = [
-      // new XtermStdio(term), // stdin
-      // new XtermStdio(term), // stdout
-      // new XtermStdio(term), // stderr
     ];
 
     const wasi = new WASI(args, envVars, fds);
@@ -140,7 +137,6 @@ class ExtismPlugin extends ExtismPluginBase {
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map((byte) => byte.toString(16).padStart(2, '0')).join('');
-    console.log('hash', hashHex);
     return hashHex;
   }
 
@@ -164,4 +160,4 @@ if (window) {
   window.ExtismPluginOptions = ExtismPluginOptions;
 }
 
-export { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile };
+export { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl };

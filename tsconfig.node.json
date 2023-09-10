@@ -1,6 +1,6 @@
 {
   "extends": "./tsconfig.json",
   "files": [
-    "./src/index.node.ts"
+    "./src/node/index.ts"
   ]
 }

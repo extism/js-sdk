@@ -12,7 +12,7 @@ import {
   HttpRequest,
   HttpResponse,
   embeddedRuntime,
-} from './plugin';
+} from '../plugin';
 import { WASI } from 'wasi';
 import { readFile } from 'fs';
 import { promisify } from 'util';
@@ -132,4 +132,4 @@ class ExtismPlugin extends ExtismPluginBase {
   }
 }
 
-export { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile };
+export { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl };

@@ -3,8 +3,8 @@
     "deno.lint": true,
     "deno.unstable": true,
     "deno.enablePaths": [
-        "./src/mod.ts",
+        "./src/deno/mod.ts",
         "./examples/deno.ts",
-        "./tests/index.deno.test.ts"
+        "./tests/mod.test.ts"
     ]
 }

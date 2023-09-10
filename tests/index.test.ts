@@ -1,4 +1,4 @@
-import { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/index.node';
+import { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/node/index';
 
 async function newPlugin(
   moduleName: string | Manifest | ManifestWasm | Buffer,

@@ -50,14 +50,14 @@
     <label for="hostsText">Output:</label>
     <textarea id="hostsText" placeholder="Allowed hosts, one per line" readonly>*.typicode.com</textarea>
 
-    <button id="runButton" onclick="runPlugin()">Run</button>
+    <button id="runButton">Run</button>
 
     <label for="outputText">Output:</label>
     <textarea id="outputText" placeholder="Output will be shown here..." readonly></textarea>
 
-    <script src="/dist/browser/extism.js"></script>
+    <script type="module" src="/dist/browser/index.mjs"></script>
 
-    <script>
+    <script type="module">
         async function runPlugin() {
             // Get values from input fields
             const url = document.getElementById('url').value;
@@ -80,6 +80,8 @@
             const s = new TextDecoder().decode(res.buffer);
             document.getElementById('outputText').value = s;
         }
+
+        document.getElementById('runButton').addEventListener('click', runPlugin);
     </script>
 
 </body>
