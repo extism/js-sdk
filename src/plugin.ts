@@ -604,7 +604,7 @@ function wasiRuntime(module: WebAssembly.Instance): GuestRuntime | null {
     init = () => reactorInit();
   } else if (commandInit) {
     //@ts-ignore
-    init = () => haskellInit();
+    init = () => commandInit();
   } else {
     return null;
   }
