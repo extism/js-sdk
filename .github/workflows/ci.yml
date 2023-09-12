@@ -1,4 +1,4 @@
-name: Go CI
+name: JS CI
 
 on:
   push:
@@ -35,4 +35,4 @@ jobs:
       run: npm run test
       
     - name: Deno Test
-      run: deno test -A .\tests\mod.test.ts
+      run: deno test -A ./tests/mod.test.ts
