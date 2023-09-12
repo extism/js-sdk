@@ -26,7 +26,7 @@ jobs:
       uses: denoland/setup-deno@v1.1.2
     
     - name: NPM install with caching
-      uses: bahmutov/npm-install@v1.6.0
+      run: npm install
 
     - name: Build
       run: npm run build
