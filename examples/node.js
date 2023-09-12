@@ -11,13 +11,10 @@ async function main() {
 
     const options = new ExtismPluginOptions()
         .withConfig("thing", "testing")
-        .withRuntime({
-            path: "wasm/extism-runtime.wasm"
-        })
         .withWasi()
         .withAllowedHost("*.typicode.com");
 
-    const plugin = await ExtismPlugin.newPlugin(wasm, options);
+    const plugin = await ExtismPlugin.new(wasm, options);
 
     const res = await plugin.call(funcname, new TextEncoder().encode(input));
     const s = new TextDecoder().decode(res.buffer);

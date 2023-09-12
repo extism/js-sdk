@@ -4,7 +4,7 @@ const fs = require('fs')
 
 const sharedConfig = {
     bundle: true,
-    minify: false,
+    minify: true,
     drop: [], // preseve debugger statements
     external: Object.keys(peerDependencies || {}),
 };

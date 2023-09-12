@@ -25,7 +25,7 @@ async function newPlugin(
     module = moduleName;
   }
 
-  const plugin = await ExtismPlugin.newPlugin(module, options);
+  const plugin = await ExtismPlugin.new(module, options);
   return plugin;
 }
 
@@ -62,7 +62,7 @@ Deno.test('can use embedded runtime', async () => {
     path: `wasm/code.wasm`,
   };
 
-  const plugin = await ExtismPlugin.newPlugin(module, options);
+  const plugin = await ExtismPlugin.new(module, options);
 
   let output = await plugin.call('count_vowels', 'this is a test');
   let result = JSON.parse(decode(output));

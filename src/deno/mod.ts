@@ -25,7 +25,7 @@ class ExtismPlugin extends ExtismPluginBase {
    * @param options Options for initializing the plugin.
    * @returns {ExtismPlugin} An initialized plugin.
    */
-  static async newPlugin(
+  static async new(
     manifestData: Manifest | ManifestWasm | ArrayBuffer,
     options: ExtismPluginOptions,
   ): Promise<ExtismPlugin> {
