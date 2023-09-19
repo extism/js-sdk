@@ -48,7 +48,7 @@
     <input id="inputText" placeholder="Enter input" value="this is a test" />
 
     <label for="hostsText">Output:</label>
-    <textarea id="hostsText" placeholder="Allowed hosts, one per line" readonly>*.typicode.com</textarea>
+    <textarea id="hostsText" placeholder="Allowed hosts, one per line">*.typicode.com</textarea>
 
     <button id="runButton">Run</button>
 
@@ -70,7 +70,8 @@
             }
 
             const options = new ExtismPluginOptions()
-                .withConfig("thing", "testing")
+                .withConfig("thing", "Charles")
+                .withConfig("name", "Charles")
                 .withWasi()
                 .withAllowedHosts(hosts);
 

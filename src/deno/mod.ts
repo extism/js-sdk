@@ -12,6 +12,7 @@ import {
   HttpRequest,
   HttpResponse,
   embeddedRuntime,
+  embeddedRuntimeHash
 } from '../plugin.ts';
 import Context from 'https://deno.land/std@0.200.0/wasi/snapshot_preview1.ts';
 import minimatch from 'https://deno.land/x/minimatch@v3.0.4/index.js';
@@ -33,7 +34,7 @@ class ExtismPlugin extends ExtismPluginBase {
 
     const runtimeWasm = options.runtime ?? {
       data: decode(embeddedRuntime),
-      hash: 'f8219993be45b8f589d78b2fdd8064d3798a34d05fb9eea3a5e985919d88daa7',
+      hash: embeddedRuntimeHash,
     };
 
     const runtime = await instantiateExtismRuntime(runtimeWasm, this.fetchWasm, this.calculateHash);

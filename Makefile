@@ -8,6 +8,7 @@ build:
 
 test: prepare
 	npm run test
+	deno test -A .\tests\mod.test.ts
 
 clean:
 	echo "No clean implemented"
@@ -26,3 +27,6 @@ docs:
 
 show-docs: docs
 	open doc/index.html
+
+update-kernel:
+	node update-kernel.js

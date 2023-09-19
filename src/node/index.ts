@@ -12,6 +12,7 @@ import {
   HttpRequest,
   HttpResponse,
   embeddedRuntime,
+  embeddedRuntimeHash,
 } from '../plugin';
 import { WASI } from 'wasi';
 import { readFile } from 'fs';
@@ -35,7 +36,7 @@ class ExtismPlugin extends ExtismPluginBase {
 
     const runtimeWasm = options.runtime ?? {
       data: this.toBytes(embeddedRuntime),
-      hash: 'f8219993be45b8f589d78b2fdd8064d3798a34d05fb9eea3a5e985919d88daa7'
+      hash: embeddedRuntimeHash
     };
 
     let runtime = await instantiateExtismRuntime(runtimeWasm, this.fetchWasm, this.calculateHash);
