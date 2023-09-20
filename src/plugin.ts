@@ -245,7 +245,7 @@ export abstract class ExtismPluginBase {
         if (value === null) {
           return;
         }
-        plugin.vars[key] = new Uint8Array(value);
+        plugin.vars[key] = value;
       },
       extism_http_request(requestOffset: bigint, bodyOffset: bigint): bigint {
         if (!plugin.supportsHttpRequests()) {
@@ -697,7 +697,7 @@ class Allocator {
   }
 
   /**
-   * Gets bytes from a specific memory offset. This returns a view of the underlying memory.
+   * Gets bytes from a specific memory offset.
    * @param {bigint} offset - Memory offset.
    * @returns {Uint8Array | null} Byte array or null if offset is zero.
    */
@@ -708,7 +708,10 @@ class Allocator {
 
     const length = this.getLength(offset);
 
-    return new Uint8Array(this.getMemory().buffer, Number(offset), Number(length));
+    const buffer = new Uint8Array(this.getMemory().buffer, Number(offset), Number(length));
+    
+    // Copy the buffer because `this.getMemory().buffer` returns a write-through view
+    return new Uint8Array(buffer);
   }
 
   /**
@@ -732,13 +735,8 @@ class Allocator {
    */
   allocBytes(data: Uint8Array): bigint {
     const offs = this.alloc(BigInt(data.length));
-    const bytes = this.getBytes(offs);
-    if (bytes === null) {
-      this.free(offs);
-      return BigInt(0);
-    }
-
-    bytes.set(data);
+    const buffer = new Uint8Array(this.getMemory().buffer, Number(offs), data.length);
+    buffer.set(data);
     return offs;
   }
 
