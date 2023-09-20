@@ -245,7 +245,7 @@ export abstract class ExtismPluginBase {
         if (value === null) {
           return;
         }
-        plugin.vars[key] = value;
+        plugin.vars[key] = new Uint8Array(value);
       },
       extism_http_request(requestOffset: bigint, bodyOffset: bigint): bigint {
         if (!plugin.supportsHttpRequests()) {
@@ -697,7 +697,7 @@ class Allocator {
   }
 
   /**
-   * Gets bytes from a specific memory offset.
+   * Gets bytes from a specific memory offset. This returns a view of the underlying memory.
    * @param {bigint} offset - Memory offset.
    * @returns {Uint8Array | null} Byte array or null if offset is zero.
    */

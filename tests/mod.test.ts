@@ -178,6 +178,10 @@ Deno.test('can get and set vars', async () => {
   const _ = await plugin.call('run_test', '');
 
   assertEquals(plugin.getNumberVar('a'), 20);
+
+  const __ = await plugin.call('run_test', '');
+
+  assertEquals(plugin.getNumberVar('a'), 40);
 });
 
 Deno.test('can initialize Haskell runtime', async () => {

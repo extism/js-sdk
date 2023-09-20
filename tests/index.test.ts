@@ -162,6 +162,10 @@ describe('test extism', () => {
     const _ = await plugin.call("run_test", "");
 
     expect(plugin.getNumberVar("a")).toBe(20);
+
+    const __ = await plugin.call("run_test", "");
+
+    expect(plugin.getNumberVar("a")).toBe(40);
   });
   
   test('can initialize haskell runtime', async () => {
