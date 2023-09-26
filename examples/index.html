@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WASM Plugin in Browser</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+
+        input,
+        button,
+        textarea,
+        label {
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        input,
+        textarea {
+            padding: 8px;
+            width: 100%;
+        }
+
+        textarea {
+            height: 150px;
+            resize: vertical;
+        }
+
+        label {
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+
+    <label for="url">WASM file URL:</label>
+    <input id="url" placeholder="Enter WASM file URL" value="http://127.0.0.1:5500/wasm/hello.wasm" />
+
+    <label for="funcname">Function Name:</label>
+    <input id="funcname" placeholder="Enter function name" value="run_test" />
+
+    <label for="inputText">Input:</label>
+    <input id="inputText" placeholder="Enter input" value="this is a test" />
+
+    <label for="hostsText">Output:</label>
+    <textarea id="hostsText" placeholder="Allowed hosts, one per line">*.typicode.com</textarea>
+
+    <button id="runButton">Run</button>
+
+    <label for="outputText">Output:</label>
+    <textarea id="outputText" placeholder="Output will be shown here..." readonly></textarea>
+
+    <script type="module" src="/dist/browser/index.mjs"></script>
+
+    <script type="module">
+        async function runPlugin() {
+            // Get values from input fields
+            const url = document.getElementById('url').value;
+            const funcname = document.getElementById('funcname').value;
+            const input = document.getElementById('inputText').value || "this is a test";
+            const hosts = (document.getElementById('hostsText').value || "").split(/\r?\n|\r|\n/g)
+
+            const wasm = {
+                url: url
+            }
+
+            const options = new ExtismPluginOptions()
+                .withConfig("thing", "Charles")
+                .withConfig("name", "Charles")
+                .withWasi()
+                .withAllowedHosts(hosts);
+
+            const plugin = await ExtismPlugin.new(wasm, options);
+
+            const res = await plugin.call(funcname, new TextEncoder().encode(input));
+            const s = new TextDecoder().decode(res.buffer);
+            document.getElementById('outputText').value = s;
+        }
+
+        document.getElementById('runButton').addEventListener('click', runPlugin);
+    </script>
+
+</body>
+
+</html>

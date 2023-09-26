@@ -1,0 +1,38 @@
+name: JS CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        rust:
+          - stable
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js environment
+      uses: actions/setup-node@v3.8.1
+    
+    - name: Setup Deno
+      uses: denoland/setup-deno@v1.1.2
+    
+    - name: NPM install with caching
+      run: npm install
+
+    - name: Build
+      run: npm run build
+
+    - name: Node Test
+      run: npm run test
+      
+    - name: Deno Test
+      run: deno test -A ./tests/mod.test.ts
