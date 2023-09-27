@@ -8,7 +8,7 @@ async function main() {
   const kernelPath = 'wasm/extism-runtime.wasm'
   const wasmContents = await fs.promises.readFile(kernelPath);
   const kernelBase64 = wasmContents.toString('base64');
-  const kernelHash = await crypto.createHash('sha256').update(pluginContents).digest('hex');
+  const kernelHash = await crypto.createHash('sha256').update(wasmContents).digest('hex');
 
   pluginContents = pluginContents.replace(/embeddedRuntime =\s*'.*'/, `embeddedRuntime =\n\t'${kernelBase64}'`);
   pluginContents = pluginContents.replace(/embeddedRuntimeHash =\s*'.*''/, `embeddedRuntimeHash = '${kernelHash}'`);
