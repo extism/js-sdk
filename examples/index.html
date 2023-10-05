@@ -58,6 +58,8 @@
     <script type="module" src="/dist/browser/index.mjs"></script>
 
     <script type="module">
+        import { createPlugin } from '/dist/browser/index.mjs';
+
         async function runPlugin() {
             // Get values from input fields
             const url = document.getElementById('url').value;
@@ -70,12 +72,11 @@
             }
 
             const options = new ExtismPluginOptions()
-                .withConfig("thing", "Charles")
-                .withConfig("name", "Charles")
+                .withConfig("thing", "testing")
                 .withWasi()
                 .withAllowedHosts(hosts);
 
-            const plugin = await ExtismPlugin.new(wasm, options);
+            const plugin = await createPlugin(wasm, options);
 
             const res = await plugin.call(funcname, new TextEncoder().encode(input));
             const s = new TextDecoder().decode(res.buffer);

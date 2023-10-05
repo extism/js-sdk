@@ -22,28 +22,6 @@ import { minimatch } from 'minimatch';
 import { createHash } from 'crypto';
 
 class ExtismPlugin extends ExtismPluginBase {
-  /**
-   * Create a new plugin.
-   * @param manifestData An Extism manifest {@link Manifest} or a Wasm module.
-   * @param options Options for initializing the plugin.
-   * @returns {ExtismPlugin} An initialized plugin.
-   */
-  static async new(
-    manifestData: Manifest | ManifestWasm | Buffer,
-    options: ExtismPluginOptions,
-  ): Promise<ExtismPlugin> {
-    let moduleData = await fetchModuleData(manifestData, this.fetchWasm, this.calculateHash);
-
-    const runtimeWasm = options.runtime ?? {
-      data: this.toBytes(embeddedRuntime),
-      hash: embeddedRuntimeHash
-    };
-
-    let runtime = await instantiateExtismRuntime(runtimeWasm, this.fetchWasm, this.calculateHash);
-
-    return new ExtismPlugin(runtime, moduleData, options);
-  }
-
   protected supportsHttpRequests(): boolean {
     return true;
   }
@@ -51,10 +29,10 @@ class ExtismPlugin extends ExtismPluginBase {
   protected httpRequest(request: HttpRequest, body: Uint8Array | null): HttpResponse {
     let b = body
       ? {
-          buffer: body,
-          byteLength: body.length,
-          byteOffset: 0,
-        }
+        buffer: body,
+        byteLength: body.length,
+        byteOffset: 0,
+      }
       : undefined;
 
     if (request.method == 'GET' || request.method == 'HEAD') {
@@ -86,7 +64,7 @@ class ExtismPlugin extends ExtismPluginBase {
 
     return new PluginWasi(wasi, wasi.wasiImport, instance => this.initialize(wasi, instance));
   }
-  
+
   private initialize(wasi: WASI, instance: WebAssembly.Instance) {
     const memory = instance.exports.memory as WebAssembly.Memory;
 
@@ -97,12 +75,34 @@ class ExtismPlugin extends ExtismPluginBase {
     wasi.start({
       exports: {
         memory,
-        _start: () => {},
+        _start: () => { },
       },
     });
   }
+}
 
-  private static async fetchWasm(wasm: ManifestWasm): Promise<ArrayBuffer> {
+/**
+ * Create a new plugin.
+ * @param manifestData An Extism manifest {@link Manifest} or a Wasm module.
+ * @param options Options for initializing the plugin.
+ * @returns {ExtismPlugin} An initialized plugin.
+ */
+async function createPlugin(
+  manifestData: Manifest | ManifestWasm | Buffer,
+  options: ExtismPluginOptions,
+): Promise<ExtismPlugin> {
+  let moduleData = await fetchModuleData(manifestData, fetchWasm, calculateHash);
+
+  const runtimeWasm = options.runtime ?? {
+    data: toBytes(embeddedRuntime),
+    hash: embeddedRuntimeHash
+  };
+
+  let runtime = await instantiateExtismRuntime(runtimeWasm, fetchWasm, calculateHash);
+
+  return new ExtismPlugin(runtime, moduleData, options);
+
+  async function fetchWasm(wasm: ManifestWasm): Promise<ArrayBuffer> {
     let data: ArrayBuffer;
 
     if ((wasm as ManifestWasmData).data) {
@@ -120,17 +120,23 @@ class ExtismPlugin extends ExtismPluginBase {
 
     return data;
   }
-  
-  private static async calculateHash(data: ArrayBuffer) {
+
+  async function calculateHash(data: ArrayBuffer) {
     const hasher = createHash('sha256');
     hasher.update(new Uint8Array(data));
     return new Promise<string>((resolve, _) => resolve(hasher.digest('hex')));
   }
 
-  private static toBytes(base64: string): Uint8Array {
+  function toBytes(base64: string): Uint8Array {
     const buffer = Buffer.from(base64, 'base64');
     return new Uint8Array(buffer);
   }
 }
 
-export { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl };
+export {
+  createPlugin,
+  ExtismPlugin,
+  ExtismPluginOptions,
+}
+
+export type { Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl };

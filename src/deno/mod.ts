@@ -20,28 +20,6 @@ import { createHash } from 'https://deno.land/std@0.108.0/hash/mod.ts';
 import { decode } from 'https://deno.land/std@0.201.0/encoding/base64.ts';
 
 class ExtismPlugin extends ExtismPluginBase {
-  /**
-   * Create a new plugin.
-   * @param manifestData An Extism manifest {@link Manifest} or a Wasm module.
-   * @param options Options for initializing the plugin.
-   * @returns {ExtismPlugin} An initialized plugin.
-   */
-  static async new(
-    manifestData: Manifest | ManifestWasm | ArrayBuffer,
-    options: ExtismPluginOptions,
-  ): Promise<ExtismPlugin> {
-    const moduleData = await fetchModuleData(manifestData, this.fetchWasm, this.calculateHash);
-
-    const runtimeWasm = options.runtime ?? {
-      data: decode(embeddedRuntime),
-      hash: embeddedRuntimeHash,
-    };
-
-    const runtime = await instantiateExtismRuntime(runtimeWasm, this.fetchWasm, this.calculateHash);
-
-    return new ExtismPlugin(runtime, moduleData, options);
-  }
-
   protected supportsHttpRequests(): boolean {
     return false;
   }
@@ -76,8 +54,31 @@ class ExtismPlugin extends ExtismPluginBase {
       },
     });
   }
+}
 
-  private static async fetchWasm(wasm: ManifestWasm): Promise<ArrayBuffer> {
+/**
+   * Create a new plugin.
+   * @param manifestData An Extism manifest {@link Manifest} or a Wasm module.
+   * @param options Options for initializing the plugin.
+   * @returns {ExtismPlugin} An initialized plugin.
+   */
+async function createPlugin(
+  manifestData: Manifest | ManifestWasm | ArrayBuffer,
+  options: ExtismPluginOptions,
+): Promise<ExtismPlugin> {
+  const moduleData = await fetchModuleData(manifestData, fetchWasm, calculateHash);
+
+  const runtimeWasm = options.runtime ?? {
+    data: decode(embeddedRuntime),
+    hash: embeddedRuntimeHash,
+  };
+
+  const runtime = await instantiateExtismRuntime(runtimeWasm, fetchWasm, calculateHash);
+
+  return new ExtismPlugin(runtime, moduleData, options);
+
+  
+  async function fetchWasm(wasm: ManifestWasm): Promise<ArrayBuffer> {
     let data: ArrayBuffer;
 
     if ((wasm as ManifestWasmData).data) {
@@ -94,7 +95,7 @@ class ExtismPlugin extends ExtismPluginBase {
     return data;
   }
 
-  private static calculateHash(data: ArrayBuffer): Promise<string> {
+  function calculateHash(data: ArrayBuffer): Promise<string> {
     return new Promise<string>((resolve) => {
       const hasher = createHash('sha256');
       hasher.update(data);
@@ -103,6 +104,9 @@ class ExtismPlugin extends ExtismPluginBase {
   }
 }
 
-export { ExtismPlugin, ExtismPluginOptions };
+export {
+  createPlugin,
+  ExtismPluginOptions
+}
 
 export type { Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl };

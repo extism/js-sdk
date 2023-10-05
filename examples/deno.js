@@ -1,4 +1,4 @@
-import { ExtismPlugin, ExtismPluginOptions } from '../src/deno/mod.ts'
+import { createPlugin, ExtismPluginOptions } from '../src/deno/mod.ts'
 
 async function main() {
     const filename = Deno.args[0] || "wasm/hello.wasm";
@@ -12,7 +12,7 @@ async function main() {
         .withConfig("thing", "testing")
         .withWasi();
 
-    const plugin = await ExtismPlugin.new(wasm, options);
+    const plugin = await createPlugin(wasm, options);
 
     const res = await plugin.call(funcname, new TextEncoder().encode(input));
     const s = new TextDecoder().decode(res.buffer);
