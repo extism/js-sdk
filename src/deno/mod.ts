@@ -106,6 +106,7 @@ async function createPlugin(
 
 export {
   createPlugin,
+  ExtismPlugin,
   ExtismPluginOptions
 }
 

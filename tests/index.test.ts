@@ -1,4 +1,4 @@
-import { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/node/index';
+import { createPlugin, ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/node/index';
 
 async function newPlugin(
   moduleName: string | Manifest | ManifestWasm | Buffer,
@@ -22,7 +22,7 @@ async function newPlugin(
     module = moduleName;
   }
 
-  const plugin = await ExtismPlugin.new(module, options);
+  const plugin = await createPlugin(module, options);
   return plugin;
 }
 
@@ -56,7 +56,7 @@ describe('test extism', () => {
       path: `wasm/code.wasm`,
     };
   
-    const plugin = await ExtismPlugin.new(module, options);
+    const plugin = await createPlugin(module, options);
   
     let output = await plugin.call('count_vowels', 'this is a test');
 

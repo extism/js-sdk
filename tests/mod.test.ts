@@ -1,6 +1,6 @@
 import { assertEquals, assertRejects } from 'https://deno.land/std@0.200.0/assert/mod.ts';
 import { assertSpyCalls, spy } from 'https://deno.land/std@0.200.0/testing/mock.ts';
-import { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/deno/mod.ts';
+import { createPlugin, ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/deno/mod.ts';
 
 async function newPlugin(
   moduleName: string | Manifest | ManifestWasm,
@@ -25,7 +25,7 @@ async function newPlugin(
     module = moduleName;
   }
 
-  const plugin = await ExtismPlugin.new(module, options);
+  const plugin = await createPlugin(module, options);
   return plugin;
 }
 
@@ -62,7 +62,7 @@ Deno.test('can use embedded runtime', async () => {
     path: `wasm/code.wasm`,
   };
 
-  const plugin = await ExtismPlugin.new(module, options);
+  const plugin = await createPlugin(module, options);
 
   let output = await plugin.call('count_vowels', 'this is a test');
   let result = JSON.parse(decode(output));
