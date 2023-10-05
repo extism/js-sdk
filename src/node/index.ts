@@ -13,6 +13,7 @@ import {
   HttpResponse,
   embeddedRuntime,
   embeddedRuntimeHash,
+  CurrentPlugin,
 } from '../plugin';
 import { WASI } from 'wasi';
 import { readFile } from 'fs';
@@ -136,6 +137,7 @@ async function createPlugin(
 export {
   createPlugin,
   ExtismPlugin,
+  CurrentPlugin,
   ExtismPluginOptions,
 }
 

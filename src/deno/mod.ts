@@ -12,7 +12,8 @@ import {
   HttpRequest,
   HttpResponse,
   embeddedRuntime,
-  embeddedRuntimeHash
+  embeddedRuntimeHash,
+  CurrentPlugin
 } from '../plugin.ts';
 import Context from 'https://deno.land/std@0.200.0/wasi/snapshot_preview1.ts';
 import minimatch from 'https://deno.land/x/minimatch@v3.0.4/index.js';
@@ -107,6 +108,7 @@ async function createPlugin(
 export {
   createPlugin,
   ExtismPlugin,
+  CurrentPlugin,
   ExtismPluginOptions
 }
 

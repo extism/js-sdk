@@ -12,7 +12,8 @@ import {
   HttpRequest,
   HttpResponse,
   embeddedRuntime,
-  embeddedRuntimeHash
+  embeddedRuntimeHash,
+  CurrentPlugin
 } from '../plugin';
 
 import { WASI, Fd, File, OpenFile } from '@bjorn3/browser_wasi_shim';
@@ -159,7 +160,7 @@ async function createPlugin(
 
 if (window) {
   // @ts-ignore
-  window.ExtismPlugin = ExtismPlugin;
+  window.createPlugin = createPlugin;
   // @ts-ignore
   window.ExtismPluginOptions = ExtismPluginOptions;
 }
@@ -167,6 +168,7 @@ if (window) {
 export {
   createPlugin,
   ExtismPlugin,
+  CurrentPlugin,
   ExtismPluginOptions,
 }
 

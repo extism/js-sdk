@@ -1,175 +1,3 @@
-export class CurrentPlugin {
-  vars: Record<string, Uint8Array>;
-  plugin: ExtismPluginBase;
-  #extism: WebAssembly.Instance;
-
-  constructor(plugin: ExtismPluginBase, extism: WebAssembly.Instance) {
-    this.vars = {};
-    this.plugin = plugin;
-    this.#extism = extism;
-  }
-
-  setVar(name: string, value: Uint8Array | string | number): void {
-    if (value instanceof Uint8Array) {
-      this.vars[name] = value;
-    } else if (typeof value === 'string') {
-      this.vars[name] = new TextEncoder().encode(value);
-    } else if (typeof value === 'number') {
-      this.vars[name] = this.uintToLEBytes(value);
-    } else {
-      throw new Error('Unsupported value type');
-    }
-  }
-
-  readStringVar(name: string): string {
-    return new TextDecoder().decode(this.getVar(name));
-  }
-
-  getNumberVar(name: string): number {
-    const value = this.getVar(name);
-    if (value.length < 4) {
-      throw new Error(`Variable ${name} has incorrect length`);
-    }
-
-    return this.uintFromLEBytes(value);
-  }
-
-  getVar(name: string): Uint8Array {
-    const value = this.vars[name];
-    if (!value) {
-      throw new Error(`Variable ${name} not found`);
-    }
-
-    return value;
-  }
-
-  private uintToLEBytes(num: number): Uint8Array {
-    const bytes = new Uint8Array(4);
-    bytes[0] = num & 0xff;
-    bytes[1] = (num >> 8) & 0xff;
-    bytes[2] = (num >> 16) & 0xff;
-    bytes[3] = (num >> 24) & 0xff;
-    return bytes;
-  }
-
-  private uintFromLEBytes(bytes: Uint8Array): number {
-    return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
-  }
-
-  /**
-   * Resets Extism memory.
-   * @returns {void}
-   */
-  reset() {
-    return (this.#extism.exports.extism_reset as Function).call(undefined);
-  }
-
-  /**
-   * Allocates a block of memory.
-   * @param {bigint} length - Size of the memory block.
-   * @returns {bigint} Offset in the memory.
-   */
-  alloc(length: bigint): bigint {
-    return (this.#extism.exports.extism_alloc as Function).call(undefined, length);
-  }
-
-  /**
-   * Retrieves Extism memory.
-   * @returns {WebAssembly.Memory} The memory object.
-   */
-  getMemory(): WebAssembly.Memory {
-    return this.#extism.exports.memory as WebAssembly.Memory;
-  }
-
-  /**
-   * Retrieves Extism memory buffer as Uint8Array.
-   * @returns {Uint8Array} The buffer view.
-   */
-  getMemoryBuffer(): Uint8Array {
-    return new Uint8Array(this.getMemory().buffer);
-  }
-
-  /**
-   * Gets bytes from a specific memory offset.
-   * @param {bigint} offset - Memory offset.
-   * @returns {Uint8Array | null} Byte array or null if offset is zero.
-   */
-  readBytes(offset: bigint): Uint8Array | null {
-    if (offset == BigInt(0)) {
-      return null;
-    }
-
-    const length = this.getLength(offset);
-
-    const buffer = new Uint8Array(this.getMemory().buffer, Number(offset), Number(length));
-
-    // Copy the buffer because `this.getMemory().buffer` returns a write-through view
-    return new Uint8Array(buffer);
-  }
-
-  /**
-   * Retrieves a string from a specific memory offset.
-   * @param {bigint} offset - Memory offset.
-   * @returns {string | null} Decoded string or null if offset is zero.
-   */
-  readString(offset: bigint): string | null {
-    const bytes = this.readBytes(offset);
-    if (bytes === null) {
-      return null;
-    }
-
-    return new TextDecoder().decode(bytes);
-  }
-
-  /**
-   * Allocates bytes to the WebAssembly memory.
-   * @param {Uint8Array} data - Byte array to allocate.
-   * @returns {bigint} Memory offset.
-   */
-  writeBytes(data: Uint8Array): bigint {
-    const offs = this.alloc(BigInt(data.length));
-    const buffer = new Uint8Array(this.getMemory().buffer, Number(offs), data.length);
-    buffer.set(data);
-    return offs;
-  }
-
-  /**
-   * Allocates a string to the WebAssembly memory.
-   * @param {string} data - String to allocate.
-   * @returns {bigint} Memory offset.
-   */
-  writeString(data: string): bigint {
-    const bytes = new TextEncoder().encode(data);
-    return this.writeBytes(bytes);
-  }
-
-  /**
-   * Retrieves the length of a memory block from a specific offset.
-   * @param {bigint} offset - Memory offset.
-   * @returns {bigint} Length of the memory block.
-   */
-  getLength(offset: bigint): bigint {
-    return (this.#extism.exports.extism_length as Function).call(undefined, offset);
-  }
-
-  inputLength(): bigint {
-    return (this.#extism.exports.extism_input_length as Function).call(undefined);
-  }
-
-  /**
-   * Frees a block of memory from a specific offset.
-   * @param {bigint} offset - Memory offset to free.
-   * @returns {void}
-   */
-  free(offset: bigint) {
-    if (offset == BigInt(0)) {
-      return;
-    }
-
-    (this.#extism.exports.extism_free as Function).call(undefined, offset);
-  }
-}
-
 export abstract class ExtismPluginBase {
   moduleData: ArrayBuffer;
   currentPlugin: CurrentPlugin;
@@ -784,3 +612,175 @@ export const embeddedRuntime =
   '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EHJBAEGQARCCgICAABoMAgsgAUEUakIANwIAIAFBATYCDCABQaCAwIAANgIIIAFBkIDAgAA2AhAgAUEIakG0gMCAABCEgICAAAALQQAoAvSAwIAAQRB0IQMLIACnQXRqIgRFDQAgAykDCCADQRBqrXwgAFgNACAENQIIIQILIAFBIGokgICAgAAgAgsIACAApy0AAAsIACAApykDAAsSAEEAKQPIgMCAACAAfKctAAALEgBBACkDyIDAgAAgAHynKQMACwoAIACnIAE6AAALCgAgAKcgATcDAAsYAEEAIAE3A9CAwIAAQQAgADcDyIDAgAALGABBACABNwPggMCAAEEAIAA3A9iAwIAACwsAQQApA9CAwIAACwsAQQApA8iAwIAACwsAQQApA+CAwIAACwsAQQApA9iAwIAAC/ABAQJ/I4CAgIAAQSBrIgAkgICAgABBAEIANwPogMCAAEEAQQAtAPCAwIAAIgFBASABGzoA8IDAgAACQAJAIAENAEEAQQFAACIBNgL0gMCAAAJAIAFBf0YNACABQRB0IgFCADcDACABQvD/AzcDCCABQRByQQBBkAEQgoCAgAAaDAILIABBFGpCADcCACAAQQE2AgwgAEGggMCAADYCCCAAQZCAwIAANgIQIABBCGpBtIDAgAAQhICAgAAAC0EAKAL0gMCAAEEQdCEBCyABQRBqQQAgASgCCBCCgICAABogAUIANwMAIABBIGokgICAgAALDQBBACAANwPogMCAAAsLAEEAKQPogMCAAAvWAQICfwF+I4CAgIAAQSBrIgAkgICAgABBAEEALQDwgMCAACIBQQEgARs6APCAwIAAAkACQCABDQBBAEEBQAAiATYC9IDAgAACQCABQX9GDQAgAUEQdCIBQgA3AwAgAULw/wM3AwggAUEQckEAQZABEIKAgIAAGgwCCyAAQRRqQgA3AgAgAEEBNgIMIABBoIDAgAA2AgggAEGQgMCAADYCECAAQQhqQbSAwIAAEISAgIAAAAtBACgC9IDAgABBEHQhAQsgASkDACECIABBIGokgICAgAAgAgsLTQEAQYCAwAALRAEAAAAAAAAAAQAAAAIAAABPdXQgb2YgbWVtb3J5AAAAEAAQAA0AAABzcmMvbGliLnJzAAAoABAACgAAAJsAAAANAAAA';
 
 export const embeddedRuntimeHash = '1a8172a36acc75aa49c35663c1bb5d89c6ae681863540c7d0afc9e0b93727c59'
+
+export class CurrentPlugin {
+  vars: Record<string, Uint8Array>;
+  plugin: ExtismPluginBase;
+  #extism: WebAssembly.Instance;
+
+  constructor(plugin: ExtismPluginBase, extism: WebAssembly.Instance) {
+    this.vars = {};
+    this.plugin = plugin;
+    this.#extism = extism;
+  }
+
+  setVar(name: string, value: Uint8Array | string | number): void {
+    if (value instanceof Uint8Array) {
+      this.vars[name] = value;
+    } else if (typeof value === 'string') {
+      this.vars[name] = new TextEncoder().encode(value);
+    } else if (typeof value === 'number') {
+      this.vars[name] = this.uintToLEBytes(value);
+    } else {
+      throw new Error('Unsupported value type');
+    }
+  }
+
+  readStringVar(name: string): string {
+    return new TextDecoder().decode(this.getVar(name));
+  }
+
+  getNumberVar(name: string): number {
+    const value = this.getVar(name);
+    if (value.length < 4) {
+      throw new Error(`Variable ${name} has incorrect length`);
+    }
+
+    return this.uintFromLEBytes(value);
+  }
+
+  getVar(name: string): Uint8Array {
+    const value = this.vars[name];
+    if (!value) {
+      throw new Error(`Variable ${name} not found`);
+    }
+
+    return value;
+  }
+
+  private uintToLEBytes(num: number): Uint8Array {
+    const bytes = new Uint8Array(4);
+    bytes[0] = num & 0xff;
+    bytes[1] = (num >> 8) & 0xff;
+    bytes[2] = (num >> 16) & 0xff;
+    bytes[3] = (num >> 24) & 0xff;
+    return bytes;
+  }
+
+  private uintFromLEBytes(bytes: Uint8Array): number {
+    return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
+  }
+
+  /**
+   * Resets Extism memory.
+   * @returns {void}
+   */
+  reset() {
+    return (this.#extism.exports.extism_reset as Function).call(undefined);
+  }
+
+  /**
+   * Allocates a block of memory.
+   * @param {bigint} length - Size of the memory block.
+   * @returns {bigint} Offset in the memory.
+   */
+  alloc(length: bigint): bigint {
+    return (this.#extism.exports.extism_alloc as Function).call(undefined, length);
+  }
+
+  /**
+   * Retrieves Extism memory.
+   * @returns {WebAssembly.Memory} The memory object.
+   */
+  getMemory(): WebAssembly.Memory {
+    return this.#extism.exports.memory as WebAssembly.Memory;
+  }
+
+  /**
+   * Retrieves Extism memory buffer as Uint8Array.
+   * @returns {Uint8Array} The buffer view.
+   */
+  getMemoryBuffer(): Uint8Array {
+    return new Uint8Array(this.getMemory().buffer);
+  }
+
+  /**
+   * Gets bytes from a specific memory offset.
+   * @param {bigint} offset - Memory offset.
+   * @returns {Uint8Array | null} Byte array or null if offset is zero.
+   */
+  readBytes(offset: bigint): Uint8Array | null {
+    if (offset == BigInt(0)) {
+      return null;
+    }
+
+    const length = this.getLength(offset);
+
+    const buffer = new Uint8Array(this.getMemory().buffer, Number(offset), Number(length));
+
+    // Copy the buffer because `this.getMemory().buffer` returns a write-through view
+    return new Uint8Array(buffer);
+  }
+
+  /**
+   * Retrieves a string from a specific memory offset.
+   * @param {bigint} offset - Memory offset.
+   * @returns {string | null} Decoded string or null if offset is zero.
+   */
+  readString(offset: bigint): string | null {
+    const bytes = this.readBytes(offset);
+    if (bytes === null) {
+      return null;
+    }
+
+    return new TextDecoder().decode(bytes);
+  }
+
+  /**
+   * Allocates bytes to the WebAssembly memory.
+   * @param {Uint8Array} data - Byte array to allocate.
+   * @returns {bigint} Memory offset.
+   */
+  writeBytes(data: Uint8Array): bigint {
+    const offs = this.alloc(BigInt(data.length));
+    const buffer = new Uint8Array(this.getMemory().buffer, Number(offs), data.length);
+    buffer.set(data);
+    return offs;
+  }
+
+  /**
+   * Allocates a string to the WebAssembly memory.
+   * @param {string} data - String to allocate.
+   * @returns {bigint} Memory offset.
+   */
+  writeString(data: string): bigint {
+    const bytes = new TextEncoder().encode(data);
+    return this.writeBytes(bytes);
+  }
+
+  /**
+   * Retrieves the length of a memory block from a specific offset.
+   * @param {bigint} offset - Memory offset.
+   * @returns {bigint} Length of the memory block.
+   */
+  getLength(offset: bigint): bigint {
+    return (this.#extism.exports.extism_length as Function).call(undefined, offset);
+  }
+
+  inputLength(): bigint {
+    return (this.#extism.exports.extism_input_length as Function).call(undefined);
+  }
+
+  /**
+   * Frees a block of memory from a specific offset.
+   * @param {bigint} offset - Memory offset to free.
+   * @returns {void}
+   */
+  free(offset: bigint) {
+    if (offset == BigInt(0)) {
+      return;
+    }
+
+    (this.#extism.exports.extism_free as Function).call(undefined, offset);
+  }
+}
