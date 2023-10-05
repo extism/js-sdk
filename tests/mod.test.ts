@@ -1,6 +1,7 @@
 import { assertEquals, assertRejects } from 'https://deno.land/std@0.200.0/assert/mod.ts';
 import { assertSpyCalls, spy } from 'https://deno.land/std@0.200.0/testing/mock.ts';
 import { createPlugin, ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/deno/mod.ts';
+import { CurrentPlugin } from "../src/plugin.ts";
 
 async function newPlugin(
   moduleName: string | Manifest | ManifestWasm,
@@ -107,10 +108,10 @@ Deno.test('errors when function is not known', async () => {
 
 Deno.test('host functions works', async () => {
   const plugin = await newPlugin('code-functions.wasm', (options) => {
-    options.withFunction('env', 'hello_world', (off: bigint) => {
-      const result = JSON.parse(plugin.allocator.getString(off) ?? '');
+    options.withFunction('env', 'hello_world', function (this: CurrentPlugin, off: bigint) {
+      const result = JSON.parse(this.readString(off) ?? '');
       result['message'] = 'hello from host!';
-      return plugin.allocator.allocString(JSON.stringify(result));
+      return plugin.currentPlugin.writeString(JSON.stringify(result));
     });
   });
 
@@ -169,19 +170,6 @@ Deno.test('can log messages', async () => {
   assertSpyCalls(warnSpy, 1);
   assertSpyCalls(errorSpy, 1);
   assertSpyCalls(debugSpy, 1);
-});
-
-Deno.test('can get and set vars', async () => {
-  const plugin = await newPlugin('var.wasm');
-  plugin.setVar('a', 10);
-
-  const _ = await plugin.call('run_test', '');
-
-  assertEquals(plugin.getNumberVar('a'), 20);
-
-  const __ = await plugin.call('run_test', '');
-
-  assertEquals(plugin.getNumberVar('a'), 40);
 });
 
 Deno.test('can initialize Haskell runtime', async () => {

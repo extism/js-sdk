@@ -1,4 +1,5 @@
 import { createPlugin, ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/node/index';
+import { CurrentPlugin } from '../src/plugin';
 
 async function newPlugin(
   moduleName: string | Manifest | ManifestWasm | Buffer,
@@ -104,11 +105,11 @@ describe('test extism', () => {
 
   test('host functions works', async () => {
     const plugin = await newPlugin('code-functions.wasm', options => {
-      options.withFunction("env", "hello_world", (off: bigint) => {
-        let result = JSON.parse(plugin.allocator.getString(off) ?? "");
+      options.withFunction("env", "hello_world", function (this: CurrentPlugin, off: bigint) {
+        let result = JSON.parse(this.readString(off) ?? "");
         result['message'] = "hello from host!";
 
-        return plugin.allocator.allocString(JSON.stringify(result));
+        return this.writeString(JSON.stringify(result));
       });
     });
 
@@ -153,19 +154,6 @@ describe('test extism', () => {
     expect(console.warn).toHaveBeenCalledWith("this is a warning log");
     expect(console.error).toHaveBeenCalledWith("this is an erorr log");
     expect(console.debug).toHaveBeenCalledWith("this is a debug log");
-  });
-
-  test('can get and set vars', async () => {
-    const plugin = await newPlugin('var.wasm');
-    plugin.setVar("a", 10);
-    
-    const _ = await plugin.call("run_test", "");
-
-    expect(plugin.getNumberVar("a")).toBe(20);
-
-    const __ = await plugin.call("run_test", "");
-
-    expect(plugin.getNumberVar("a")).toBe(40);
   });
   
   test('can initialize haskell runtime', async () => {

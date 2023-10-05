@@ -1,23 +1,12 @@
-
-export abstract class ExtismPluginBase {
-  moduleData: ArrayBuffer;
-  allocator: Allocator;
+export class CurrentPlugin {
   vars: Record<string, Uint8Array>;
-  input: Uint8Array;
-  output: Uint8Array;
-  module?: WebAssembly.WebAssemblyInstantiatedSource;
-  options: ExtismPluginOptions;
-  lastStatusCode: number = 0;
-  guestRuntime: GuestRuntime;
+  plugin: ExtismPluginBase;
+  #extism: WebAssembly.Instance;
 
-  constructor(extism: WebAssembly.Instance, moduleData: ArrayBuffer, options: ExtismPluginOptions) {
-    this.moduleData = moduleData;
-    this.allocator = new Allocator(extism);
+  constructor(plugin: ExtismPluginBase, extism: WebAssembly.Instance) {
     this.vars = {};
-    this.input = new Uint8Array();
-    this.output = new Uint8Array();
-    this.options = options;
-    this.guestRuntime = { type: GuestRuntimeType.None, init: () => {}, initialized: true };
+    this.plugin = plugin;
+    this.#extism = extism;
   }
 
   setVar(name: string, value: Uint8Array | string | number): void {
@@ -32,7 +21,7 @@ export abstract class ExtismPluginBase {
     }
   }
 
-  getStringVar(name: string): string {
+  readStringVar(name: string): string {
     return new TextDecoder().decode(this.getVar(name));
   }
 
@@ -65,6 +54,139 @@ export abstract class ExtismPluginBase {
 
   private uintFromLEBytes(bytes: Uint8Array): number {
     return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
+  }
+
+  /**
+   * Resets Extism memory.
+   * @returns {void}
+   */
+  reset() {
+    return (this.#extism.exports.extism_reset as Function).call(undefined);
+  }
+
+  /**
+   * Allocates a block of memory.
+   * @param {bigint} length - Size of the memory block.
+   * @returns {bigint} Offset in the memory.
+   */
+  alloc(length: bigint): bigint {
+    return (this.#extism.exports.extism_alloc as Function).call(undefined, length);
+  }
+
+  /**
+   * Retrieves Extism memory.
+   * @returns {WebAssembly.Memory} The memory object.
+   */
+  getMemory(): WebAssembly.Memory {
+    return this.#extism.exports.memory as WebAssembly.Memory;
+  }
+
+  /**
+   * Retrieves Extism memory buffer as Uint8Array.
+   * @returns {Uint8Array} The buffer view.
+   */
+  getMemoryBuffer(): Uint8Array {
+    return new Uint8Array(this.getMemory().buffer);
+  }
+
+  /**
+   * Gets bytes from a specific memory offset.
+   * @param {bigint} offset - Memory offset.
+   * @returns {Uint8Array | null} Byte array or null if offset is zero.
+   */
+  readBytes(offset: bigint): Uint8Array | null {
+    if (offset == BigInt(0)) {
+      return null;
+    }
+
+    const length = this.getLength(offset);
+
+    const buffer = new Uint8Array(this.getMemory().buffer, Number(offset), Number(length));
+
+    // Copy the buffer because `this.getMemory().buffer` returns a write-through view
+    return new Uint8Array(buffer);
+  }
+
+  /**
+   * Retrieves a string from a specific memory offset.
+   * @param {bigint} offset - Memory offset.
+   * @returns {string | null} Decoded string or null if offset is zero.
+   */
+  readString(offset: bigint): string | null {
+    const bytes = this.readBytes(offset);
+    if (bytes === null) {
+      return null;
+    }
+
+    return new TextDecoder().decode(bytes);
+  }
+
+  /**
+   * Allocates bytes to the WebAssembly memory.
+   * @param {Uint8Array} data - Byte array to allocate.
+   * @returns {bigint} Memory offset.
+   */
+  writeBytes(data: Uint8Array): bigint {
+    const offs = this.alloc(BigInt(data.length));
+    const buffer = new Uint8Array(this.getMemory().buffer, Number(offs), data.length);
+    buffer.set(data);
+    return offs;
+  }
+
+  /**
+   * Allocates a string to the WebAssembly memory.
+   * @param {string} data - String to allocate.
+   * @returns {bigint} Memory offset.
+   */
+  writeString(data: string): bigint {
+    const bytes = new TextEncoder().encode(data);
+    return this.writeBytes(bytes);
+  }
+
+  /**
+   * Retrieves the length of a memory block from a specific offset.
+   * @param {bigint} offset - Memory offset.
+   * @returns {bigint} Length of the memory block.
+   */
+  getLength(offset: bigint): bigint {
+    return (this.#extism.exports.extism_length as Function).call(undefined, offset);
+  }
+
+  inputLength(): bigint {
+    return (this.#extism.exports.extism_input_length as Function).call(undefined);
+  }
+
+  /**
+   * Frees a block of memory from a specific offset.
+   * @param {bigint} offset - Memory offset to free.
+   * @returns {void}
+   */
+  free(offset: bigint) {
+    if (offset == BigInt(0)) {
+      return;
+    }
+
+    (this.#extism.exports.extism_free as Function).call(undefined, offset);
+  }
+}
+
+export abstract class ExtismPluginBase {
+  moduleData: ArrayBuffer;
+  currentPlugin: CurrentPlugin;
+  input: Uint8Array;
+  output: Uint8Array;
+  module?: WebAssembly.WebAssemblyInstantiatedSource;
+  options: ExtismPluginOptions;
+  lastStatusCode: number = 0;
+  guestRuntime: GuestRuntime;
+
+  constructor(extism: WebAssembly.Instance, moduleData: ArrayBuffer, options: ExtismPluginOptions) {
+    this.moduleData = moduleData;
+    this.currentPlugin = new CurrentPlugin(this, extism);
+    this.input = new Uint8Array();
+    this.output = new Uint8Array();
+    this.options = options;
+    this.guestRuntime = { type: GuestRuntimeType.None, init: () => { }, initialized: true };
   }
 
   async getExports(): Promise<WebAssembly.Exports> {
@@ -111,7 +233,7 @@ export abstract class ExtismPluginBase {
       throw new Error('Plugin error: input should be string or Uint8Array');
     }
 
-    this.allocator.reset();
+    this.currentPlugin.reset();
 
     let func = module.instance.exports[func_name];
     if (!func) {
@@ -158,6 +280,16 @@ export abstract class ExtismPluginBase {
       }
     }
 
+    for (const m in imports) {
+      if (m === "wasi_snapshot_preview1") {
+        continue;
+      }
+
+      for (const f in imports[m]) {
+        imports[m][f] = imports[m][f].bind(this.currentPlugin);
+      }
+    }
+
     this.module = await WebAssembly.instantiate(this.moduleData, imports);
 
     if (this.module.instance.exports._start) {
@@ -170,27 +302,27 @@ export abstract class ExtismPluginBase {
   }
 
   private makeEnv(): any {
-    const plugin = this;
+    let plugin = this;
     var env: any = {
-      extism_alloc(n: bigint): bigint {
-        const response = plugin.allocator.alloc(n);
+      extism_alloc(this: CurrentPlugin, n: bigint): bigint {
+        const response = this.alloc(n);
         return response;
       },
-      extism_free(n: bigint) {
-        plugin.allocator.free(n);
+      extism_free(this: CurrentPlugin, n: bigint) {
+        this.free(n);
       },
-      extism_load_u8(n: bigint): number {
-        return plugin.allocator.getMemoryBuffer()[Number(n)];
+      extism_load_u8(this: CurrentPlugin, n: bigint): number {
+        return this.getMemoryBuffer()[Number(n)];
       },
-      extism_load_u64(n: bigint): bigint {
-        let cast = new DataView(plugin.allocator.getMemory().buffer, Number(n));
+      extism_load_u64(this: CurrentPlugin, n: bigint): bigint {
+        let cast = new DataView(this.getMemory().buffer, Number(n));
         return cast.getBigUint64(0, true);
       },
-      extism_store_u8(offset: bigint, n: number) {
-        plugin.allocator.getMemoryBuffer()[Number(offset)] = Number(n);
+      extism_store_u8(this: CurrentPlugin, offset: bigint, n: number) {
+        this.getMemoryBuffer()[Number(offset)] = Number(n);
       },
-      extism_store_u64(offset: bigint, n: bigint) {
-        const tmp = new DataView(plugin.allocator.getMemory().buffer, Number(offset));
+      extism_store_u64(this: CurrentPlugin, offset: bigint, n: bigint) {
+        const tmp = new DataView(this.getMemory().buffer, Number(offset));
         tmp.setBigUint64(0, n, true);
       },
       extism_input_length(): bigint {
@@ -203,19 +335,19 @@ export abstract class ExtismPluginBase {
         let cast = new DataView(plugin.input.buffer, Number(idx));
         return cast.getBigUint64(0, true);
       },
-      extism_output_set(offset: bigint, length: bigint) {
+      extism_output_set(this: CurrentPlugin, offset: bigint, length: bigint) {
         const offs = Number(offset);
         const len = Number(length);
-        plugin.output = plugin.allocator.getMemoryBuffer().slice(offs, offs + len);
+        plugin.output = this.getMemoryBuffer().slice(offs, offs + len);
       },
-      extism_error_set(i: bigint) {
-        throw new Error(`Call error: ${plugin.allocator.getString(i)}`);
+      extism_error_set(this: CurrentPlugin, i: bigint) {
+        throw new Error(`Call error: ${this.readString(i)}`);
       },
-      extism_config_get(i: bigint): bigint {
+      extism_config_get(this: CurrentPlugin, i: bigint): bigint {
         if (typeof plugin.options.config === 'undefined') {
           return BigInt(0);
         }
-        const key = plugin.allocator.getString(i);
+        const key = this.readString(i);
         if (key === null) {
           return BigInt(0);
         }
@@ -223,38 +355,38 @@ export abstract class ExtismPluginBase {
         if (typeof value === 'undefined') {
           return BigInt(0);
         }
-        return plugin.allocator.allocString(value);
+        return this.writeString(value);
       },
-      extism_var_get(i: bigint): bigint {
-        const key = plugin.allocator.getString(i);
+      extism_var_get(this: CurrentPlugin, i: bigint): bigint {
+        const key = this.readString(i);
         if (key === null) {
           return BigInt(0);
         }
-        const value = plugin.vars[key];
+        const value = this.vars[key];
         if (typeof value === 'undefined') {
           return BigInt(0);
         }
-        return plugin.allocator.allocBytes(value);
+        return this.writeBytes(value);
       },
-      extism_var_set(n: bigint, i: bigint) {
-        const key = plugin.allocator.getString(n);
+      extism_var_set(this: CurrentPlugin, n: bigint, i: bigint) {
+        const key = this.readString(n);
         if (key === null) {
           return;
         }
-        const value = plugin.allocator.getBytes(i);
+        const value = this.readBytes(i);
         if (value === null) {
           return;
         }
-        plugin.vars[key] = value;
+        this.vars[key] = value;
       },
-      extism_http_request(requestOffset: bigint, bodyOffset: bigint): bigint {
+      extism_http_request(this: CurrentPlugin, requestOffset: bigint, bodyOffset: bigint): bigint {
         if (!plugin.supportsHttpRequests()) {
-          plugin.allocator.free(bodyOffset);
-          plugin.allocator.free(requestOffset);
+          this.free(bodyOffset);
+          this.free(requestOffset);
           throw new Error('Call error: http requests are not supported.');
         }
 
-        const requestJson = plugin.allocator.getString(requestOffset);
+        const requestJson = this.readString(requestOffset);
         if (requestJson == null) {
           throw new Error('Call error: Invalid request.');
         }
@@ -283,37 +415,37 @@ export abstract class ExtismPluginBase {
         }
 
         // TODO: limit number of bytes read to 50 MiB
-        const body = plugin.allocator.getBytes(bodyOffset);
-        plugin.allocator.free(bodyOffset);
-        plugin.allocator.free(requestOffset);
+        const body = this.readBytes(bodyOffset);
+        this.free(bodyOffset);
+        this.free(requestOffset);
 
         const response = plugin.httpRequest(request, body);
         plugin.lastStatusCode = response.status;
 
-        const offset = plugin.allocator.allocBytes(response.body);
+        const offset = this.writeBytes(response.body);
 
         return offset;
       },
       extism_http_status_code(): number {
         return plugin.lastStatusCode;
       },
-      extism_length(i: bigint): bigint {
-        return plugin.allocator.getLength(i);
+      extism_length(this: CurrentPlugin, i: bigint): bigint {
+        return this.getLength(i);
       },
-      extism_log_warn(i: bigint) {
-        const s = plugin.allocator.getString(i);
+      extism_log_warn(this: CurrentPlugin, i: bigint) {
+        const s = this.readString(i);
         console.warn(s);
       },
-      extism_log_info(i: bigint) {
-        const s = plugin.allocator.getString(i);
+      extism_log_info(this: CurrentPlugin, i: bigint) {
+        const s = this.readString(i);
         console.log(s);
       },
-      extism_log_debug(i: bigint) {
-        const s = plugin.allocator.getString(i);
+      extism_log_debug(this: CurrentPlugin, i: bigint) {
+        const s = this.readString(i);
         console.debug(s);
       },
-      extism_log_error(i: bigint) {
-        const s = plugin.allocator.getString(i);
+      extism_log_error(this: CurrentPlugin, i: bigint) {
+        const s = this.readString(i);
         console.error(s);
       },
     };
@@ -421,6 +553,7 @@ export class ExtismPluginOptions {
    */
   withFunction(moduleName: string, funcName: string, func: any) {
     const x = this.functions[moduleName] ?? {};
+
     x[funcName] = func;
     this.functions[moduleName] = x;
 
@@ -616,7 +749,7 @@ function wasiRuntime(module: WebAssembly.Instance): GuestRuntime | null {
 }
 
 function detectGuestRuntime(module: WebAssembly.Instance): GuestRuntime {
-  const none = { init: () => {}, type: GuestRuntimeType.None, initialized: true };
+  const none = { init: () => { }, type: GuestRuntimeType.None, initialized: true };
   return haskellRuntime(module) ?? wasiRuntime(module) ?? none;
 }
 
@@ -648,127 +781,6 @@ export type HttpRequest = {
 };
 
 export const embeddedRuntime =
-	'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EHJBAEGQARCCgICAABoMAgsgAUEUakIANwIAIAFBATYCDCABQaCAwIAANgIIIAFBkIDAgAA2AhAgAUEIakG0gMCAABCEgICAAAALQQAoAvSAwIAAQRB0IQMLIACnQXRqIgRFDQAgAykDCCADQRBqrXwgAFgNACAENQIIIQILIAFBIGokgICAgAAgAgsIACAApy0AAAsIACAApykDAAsSAEEAKQPIgMCAACAAfKctAAALEgBBACkDyIDAgAAgAHynKQMACwoAIACnIAE6AAALCgAgAKcgATcDAAsYAEEAIAE3A9CAwIAAQQAgADcDyIDAgAALGABBACABNwPggMCAAEEAIAA3A9iAwIAACwsAQQApA9CAwIAACwsAQQApA8iAwIAACwsAQQApA+CAwIAACwsAQQApA9iAwIAAC/ABAQJ/I4CAgIAAQSBrIgAkgICAgABBAEIANwPogMCAAEEAQQAtAPCAwIAAIgFBASABGzoA8IDAgAACQAJAIAENAEEAQQFAACIBNgL0gMCAAAJAIAFBf0YNACABQRB0IgFCADcDACABQvD/AzcDCCABQRByQQBBkAEQgoCAgAAaDAILIABBFGpCADcCACAAQQE2AgwgAEGggMCAADYCCCAAQZCAwIAANgIQIABBCGpBtIDAgAAQhICAgAAAC0EAKAL0gMCAAEEQdCEBCyABQRBqQQAgASgCCBCCgICAABogAUIANwMAIABBIGokgICAgAALDQBBACAANwPogMCAAAsLAEEAKQPogMCAAAvWAQICfwF+I4CAgIAAQSBrIgAkgICAgABBAEEALQDwgMCAACIBQQEgARs6APCAwIAAAkACQCABDQBBAEEBQAAiATYC9IDAgAACQCABQX9GDQAgAUEQdCIBQgA3AwAgAULw/wM3AwggAUEQckEAQZABEIKAgIAAGgwCCyAAQRRqQgA3AgAgAEEBNgIMIABBoIDAgAA2AgggAEGQgMCAADYCECAAQQhqQbSAwIAAEISAgIAAAAtBACgC9IDAgABBEHQhAQsgASkDACECIABBIGokgICAgAAgAgsLTQEAQYCAwAALRAEAAAAAAAAAAQAAAAIAAABPdXQgb2YgbWVtb3J5AAAAEAAQAA0AAABzcmMvbGliLnJzAAAoABAACgAAAJsAAAANAAAA';
+  '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EHJBAEGQARCCgICAABoMAgsgAUEUakIANwIAIAFBATYCDCABQaCAwIAANgIIIAFBkIDAgAA2AhAgAUEIakG0gMCAABCEgICAAAALQQAoAvSAwIAAQRB0IQMLIACnQXRqIgRFDQAgAykDCCADQRBqrXwgAFgNACAENQIIIQILIAFBIGokgICAgAAgAgsIACAApy0AAAsIACAApykDAAsSAEEAKQPIgMCAACAAfKctAAALEgBBACkDyIDAgAAgAHynKQMACwoAIACnIAE6AAALCgAgAKcgATcDAAsYAEEAIAE3A9CAwIAAQQAgADcDyIDAgAALGABBACABNwPggMCAAEEAIAA3A9iAwIAACwsAQQApA9CAwIAACwsAQQApA8iAwIAACwsAQQApA+CAwIAACwsAQQApA9iAwIAAC/ABAQJ/I4CAgIAAQSBrIgAkgICAgABBAEIANwPogMCAAEEAQQAtAPCAwIAAIgFBASABGzoA8IDAgAACQAJAIAENAEEAQQFAACIBNgL0gMCAAAJAIAFBf0YNACABQRB0IgFCADcDACABQvD/AzcDCCABQRByQQBBkAEQgoCAgAAaDAILIABBFGpCADcCACAAQQE2AgwgAEGggMCAADYCCCAAQZCAwIAANgIQIABBCGpBtIDAgAAQhICAgAAAC0EAKAL0gMCAAEEQdCEBCyABQRBqQQAgASgCCBCCgICAABogAUIANwMAIABBIGokgICAgAALDQBBACAANwPogMCAAAsLAEEAKQPogMCAAAvWAQICfwF+I4CAgIAAQSBrIgAkgICAgABBAEEALQDwgMCAACIBQQEgARs6APCAwIAAAkACQCABDQBBAEEBQAAiATYC9IDAgAACQCABQX9GDQAgAUEQdCIBQgA3AwAgAULw/wM3AwggAUEQckEAQZABEIKAgIAAGgwCCyAAQRRqQgA3AgAgAEEBNgIMIABBoIDAgAA2AgggAEGQgMCAADYCECAAQQhqQbSAwIAAEISAgIAAAAtBACgC9IDAgABBEHQhAQsgASkDACECIABBIGokgICAgAAgAgsLTQEAQYCAwAALRAEAAAAAAAAAAQAAAAIAAABPdXQgb2YgbWVtb3J5AAAAEAAQAA0AAABzcmMvbGliLnJzAAAoABAACgAAAJsAAAANAAAA';
 
 export const embeddedRuntimeHash = '1a8172a36acc75aa49c35663c1bb5d89c6ae681863540c7d0afc9e0b93727c59'
-
-class Allocator {
-  #extism: WebAssembly.Instance;
-
-  /**
-   * Constructs an allocator instance.
-   * @param {WebAssembly.Instance} extism - WebAssembly instance.
-   */
-  constructor(extism: WebAssembly.Instance) {
-    this.#extism = extism;
-  }
-
-  /**
-   * Resets Extism memory.
-   * @returns {void}
-   */
-  reset() {
-    return (this.#extism.exports.extism_reset as Function).call(undefined);
-  }
-
-  /**
-   * Allocates a block of memory.
-   * @param {bigint} length - Size of the memory block.
-   * @returns {bigint} Offset in the memory.
-   */
-  alloc(length: bigint): bigint {
-    return (this.#extism.exports.extism_alloc as Function).call(undefined, length);
-  }
-
-  /**
-   * Retrieves Extism memory.
-   * @returns {WebAssembly.Memory} The memory object.
-   */
-  getMemory(): WebAssembly.Memory {
-    return this.#extism.exports.memory as WebAssembly.Memory;
-  }
-
-  /**
-   * Retrieves Extism memory buffer as Uint8Array.
-   * @returns {Uint8Array} The buffer view.
-   */
-  getMemoryBuffer(): Uint8Array {
-    return new Uint8Array(this.getMemory().buffer);
-  }
-
-  /**
-   * Gets bytes from a specific memory offset.
-   * @param {bigint} offset - Memory offset.
-   * @returns {Uint8Array | null} Byte array or null if offset is zero.
-   */
-  getBytes(offset: bigint): Uint8Array | null {
-    if (offset == BigInt(0)) {
-      return null;
-    }
-
-    const length = this.getLength(offset);
-
-    const buffer = new Uint8Array(this.getMemory().buffer, Number(offset), Number(length));
-    
-    // Copy the buffer because `this.getMemory().buffer` returns a write-through view
-    return new Uint8Array(buffer);
-  }
-
-  /**
-   * Retrieves a string from a specific memory offset.
-   * @param {bigint} offset - Memory offset.
-   * @returns {string | null} Decoded string or null if offset is zero.
-   */
-  getString(offset: bigint): string | null {
-    const bytes = this.getBytes(offset);
-    if (bytes === null) {
-      return null;
-    }
-
-    return new TextDecoder().decode(bytes);
-  }
-
-  /**
-   * Allocates bytes to the WebAssembly memory.
-   * @param {Uint8Array} data - Byte array to allocate.
-   * @returns {bigint} Memory offset.
-   */
-  allocBytes(data: Uint8Array): bigint {
-    const offs = this.alloc(BigInt(data.length));
-    const buffer = new Uint8Array(this.getMemory().buffer, Number(offs), data.length);
-    buffer.set(data);
-    return offs;
-  }
-
-  /**
-   * Allocates a string to the WebAssembly memory.
-   * @param {string} data - String to allocate.
-   * @returns {bigint} Memory offset.
-   */
-  allocString(data: string): bigint {
-    const bytes = new TextEncoder().encode(data);
-    return this.allocBytes(bytes);
-  }
-
-  /**
-   * Retrieves the length of a memory block from a specific offset.
-   * @param {bigint} offset - Memory offset.
-   * @returns {bigint} Length of the memory block.
-   */
-  getLength(offset: bigint): bigint {
-    return (this.#extism.exports.extism_length as Function).call(undefined, offset);
-  }
-
-  /**
-   * Frees a block of memory from a specific offset.
-   * @param {bigint} offset - Memory offset to free.
-   * @returns {void}
-   */
-  free(offset: bigint) {
-    if (offset == BigInt(0)) {
-      return;
-    }
-
-    (this.#extism.exports.extism_free as Function).call(undefined, offset);
-  }
-}
