@@ -19,12 +19,6 @@ Instead of using FFI and the libextism shared object, this library uses whatever
 npm install @extism/extism@1.0.0-rc1 --save
 ```
 
-Or put in your package.json:
-
-```
-"@extism/extism": "1.0.0-rc1",
-```
-
 > **Note**: Keep in mind we will possibly have breaking changes b/w rc versions until we hit 1.0.
 
 ## API
