@@ -16,7 +16,7 @@ Instead of using FFI and the libextism shared object, this library uses whatever
 ## Install
 
 ```
-npm install -g @extism/extism@1.0.0-rc1 --save
+npm install @extism/extism@1.0.0-rc1 --save
 ```
 
 Or put in your package.json:
