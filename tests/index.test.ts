@@ -4,17 +4,18 @@ import { CurrentPlugin } from '../src/plugin';
 async function newPlugin(
   moduleName: string | Manifest | ManifestWasm | Buffer,
   optionsConfig?: (opts: ExtismPluginOptions) => void): Promise<ExtismPlugin> {
-  let options = new ExtismPluginOptions()
-    .withRuntime({
+  const options: ExtismPluginOptions = {
+    useWasi: true,
+    runtime: {
       path: 'wasm/extism-runtime.wasm',
-    })
-    .withWasi();
+    },
+  }
 
   if (optionsConfig) {
     optionsConfig(options);
   }
 
-  let module : Manifest | ManifestWasm | Buffer;
+  let module: Manifest | ManifestWasm | Buffer;
   if (typeof moduleName == 'string') {
     module = {
       path: `wasm/${moduleName}`,
@@ -51,14 +52,14 @@ describe('test extism', () => {
   });
 
   test('can use embedded runtime', async () => {
-    const options = new ExtismPluginOptions().withWasi();
-
     let module = {
       path: `wasm/code.wasm`,
     };
-  
-    const plugin = await createPlugin(module, options);
-  
+
+    const plugin = await createPlugin(module, {
+      useWasi: true
+    });
+
     let output = await plugin.call('count_vowels', 'this is a test');
 
     let result = JSON.parse(decode(output));
@@ -105,12 +106,15 @@ describe('test extism', () => {
 
   test('host functions works', async () => {
     const plugin = await newPlugin('code-functions.wasm', options => {
-      options.withFunction("env", "hello_world", function (this: CurrentPlugin, off: bigint) {
-        let result = JSON.parse(this.readString(off) ?? "");
-        result['message'] = "hello from host!";
-
-        return this.writeString(JSON.stringify(result));
-      });
+      options.functions = {
+        "env": {
+          "hello_world": function (this: CurrentPlugin, off: bigint) {
+            const result = JSON.parse(this.readString(off) ?? '');
+            result['message'] = 'hello from host!';
+            return plugin.currentPlugin.writeString(JSON.stringify(result));
+          }
+        }
+      }
     });
 
     const output = await plugin.call('count_vowels', 'aaa');
@@ -129,12 +133,12 @@ describe('test extism', () => {
 
   test('can allow http requests', async () => {
     const plugin = await newPlugin('http.wasm', options => {
-      options.withAllowedHost("*.typicode.com");
+      options.allowedHosts = ['*.typicode.com'];
     });
-    
+
     const output = await plugin.call("run_test", "");
     const result = JSON.parse(decode(output));
-    
+
     expect(result.id).toBe(1);
   });
 
@@ -143,51 +147,51 @@ describe('test extism', () => {
     console.warn = jest.fn();
     console.error = jest.fn();
     console.debug = jest.fn();
-    
+
     const plugin = await newPlugin('log.wasm', options => {
-      options.withAllowedHost("*.typicode.com");
+      options.allowedHosts = ['*.typicode.com'];
     });
-    
+
     const _ = await plugin.call("run_test", "");
-    
+
     expect(console.log).toHaveBeenCalledWith("this is an info log");
     expect(console.warn).toHaveBeenCalledWith("this is a warning log");
     expect(console.error).toHaveBeenCalledWith("this is an erorr log");
     expect(console.debug).toHaveBeenCalledWith("this is a debug log");
   });
-  
+
   test('can initialize haskell runtime', async () => {
     console.trace = jest.fn();
-    
+
     const plugin = await newPlugin('hello_haskell.wasm', options => {
-      options.withConfig("greeting", "Howdy");
+      options.config = { 'greeting': 'Howdy' };
     });
-    
+
     {
       const output = await plugin.call("testing", "John");
       const result = decode(output);
-      
+
       expect(result).toBe("Howdy, John")
     }
-    
+
     {
       const output = await plugin.call("testing", "Ben");
       const result = decode(output);
-      
+
       expect(result).toBe("Howdy, Ben")
     }
-    
+
     expect(console.debug).toHaveBeenCalledWith("Haskell (normal) runtime detected.");
   });
 
   test('can read file', async () => {
     const plugin = await newPlugin('fs.wasm', options => {
-      options.withAllowedPath("/mnt", "tests/data")
+      options.allowedPaths = { '/mnt': 'tests/data' };
     });
-  
+
     const output = await plugin.call("run_test", "");
     const result = decode(output);
-  
+
     expect(result).toBe("hello world!");
   });
 });

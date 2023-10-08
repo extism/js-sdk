@@ -224,7 +224,7 @@ export abstract class ExtismPluginBase {
         // The actual code starts here
         const url = new URL(request.url);
         let hostMatches = false;
-        for (const allowedHost of plugin.options.allowedHosts) {
+        for (const allowedHost of (plugin.options.allowedHosts ?? [])) {
           if (allowedHost === url.hostname) {
             hostMatches = true;
             break;
@@ -334,123 +334,14 @@ export type Manifest = {
 
 /**
  * Options for initializing an Extism plugin.
- *
- * @class ExtismPluginOptions
  */
-export class ExtismPluginOptions {
-  useWasi: boolean;
-  runtime: ManifestWasm | null;
-  functions: { [key: string]: { [key: string]: any } };
-  allowedPaths: { [key: string]: string };
-  allowedHosts: string[];
-  config: PluginConfig;
-
-  constructor() {
-    this.useWasi = false;
-    this.functions = {};
-    this.runtime = null;
-    this.allowedPaths = {};
-    this.config = {};
-    this.allowedHosts = [];
-  }
-
-  /**
-   * Enable/Disable WASI.
-   */
-  withWasi(value: boolean = true) {
-    this.useWasi = value;
-    return this;
-  }
-
-  /**
-   * Overrides the Extism Runtime.
-   * @param runtime A Wasm source.
-   * @returns ExtismPluginOptions
-   */
-  withRuntime(runtime: ManifestWasm) {
-    this.runtime = runtime;
-    return this;
-  }
-
-  /**
-   * Adds or updates a host function under a specified module name.
-   * @param {string} moduleName - The name of the module.
-   * @param {string} funcName - The name of the function.
-   * @param {any} func - The host function callback.
-   * @returns {this} Returns the current instance for chaining.
-   */
-  withFunction(moduleName: string, funcName: string, func: any) {
-    const x = this.functions[moduleName] ?? {};
-
-    x[funcName] = func;
-    this.functions[moduleName] = x;
-
-    return this;
-  }
-
-  /**
-   * Adds or updates an allowed path.
-   * If WASI is enabled, the plugin will have access to all allowed paths.
-   * @param {string} dest - The destination path.
-   * @param {string|null} src - The source path. Defaults to the destination if null.
-   * @returns {this} Returns the current instance for chaining.
-   */
-  withAllowedPath(dest: string, src: string | null) {
-    this.allowedPaths[dest] = src || dest;
-    return this;
-  }
-
-  /**
-   * Sets a configuration value that's accessible to the plugin.
-   * The plugin can't change configuration values.
-   * @param {string} key - The configuration key.
-   * @param {string} value - The configuration value.
-   * @returns {this} Returns the current instance for chaining.
-   */
-  withConfig(key: string, value: string) {
-    this.config[key] = value;
-
-    return this;
-  }
-
-  /**
-   * Sets multiple configuration values.
-   * @param {{ [key: string]: string }} configs - An object containing configuration key-value pairs.
-   * @returns {this} Returns the current instance for chaining.
-   */
-  withConfigs(configs: { [key: string]: string }) {
-    for (let key in configs) {
-      this.config[key] = configs[key];
-    }
-
-    return this;
-  }
-
-  /**
-   * Adds a host pattern to the allowed hosts list.
-   * The plugin will be able to make HTTP requests to all allowed hosts.
-   * By default, all hosts are denied.
-   * @param {string} pattern - The host pattern to allow.
-   * @returns {this} Returns the current instance for chaining.
-   */
-  withAllowedHost(pattern: string) {
-    this.allowedHosts.push(pattern.trim());
-
-    return this;
-  }
-
-  /**
-   * Adds multiple host patterns to the allowed hosts list.
-   * @param {string[]} patterns - An array of host patterns to allow.
-   * @returns {this} Returns the current instance for chaining.
-   */
-  withAllowedHosts(patterns: string[]) {
-    for (const pattern of patterns) {
-      this.withAllowedHost(pattern);
-    }
-
-    return this;
-  }
+export interface ExtismPluginOptions {
+  useWasi?: boolean | undefined;
+  runtime?: ManifestWasm | undefined;
+  functions?: { [key: string]: { [key: string]: any } } | undefined;
+  allowedPaths?: { [key: string]: string } | undefined;
+  allowedHosts?: string[] | undefined;
+  config?: PluginConfig | undefined;
 }
 
 /**

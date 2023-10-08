@@ -1,17 +1,18 @@
 import { assertEquals, assertRejects } from 'https://deno.land/std@0.200.0/assert/mod.ts';
 import { assertSpyCalls, spy } from 'https://deno.land/std@0.200.0/testing/mock.ts';
-import { createPlugin, ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/deno/mod.ts';
-import { CurrentPlugin } from "../src/plugin.ts";
+import createPlugin, { CurrentPlugin, ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/deno/mod.ts';
 
 async function newPlugin(
   moduleName: string | Manifest | ManifestWasm,
   optionsConfig?: (opts: ExtismPluginOptions) => void,
 ): Promise<ExtismPlugin> {
-  const options = new ExtismPluginOptions()
-    .withRuntime({
+
+  const options: ExtismPluginOptions = {
+    useWasi: true,
+    runtime: {
       path: 'wasm/extism-runtime.wasm',
-    })
-    .withWasi();
+    },
+  }
 
   if (optionsConfig) {
     optionsConfig(options);
@@ -57,13 +58,13 @@ Deno.test('fails on hash mismatch', async () => {
 });
 
 Deno.test('can use embedded runtime', async () => {
-  const options = new ExtismPluginOptions().withWasi();
-
   let module = {
     path: `wasm/code.wasm`,
   };
 
-  const plugin = await createPlugin(module, options);
+  const plugin = await createPlugin(module, {
+    useWasi: true
+  });
 
   let output = await plugin.call('count_vowels', 'this is a test');
   let result = JSON.parse(decode(output));
@@ -108,11 +109,15 @@ Deno.test('errors when function is not known', async () => {
 
 Deno.test('host functions works', async () => {
   const plugin = await newPlugin('code-functions.wasm', (options) => {
-    options.withFunction('env', 'hello_world', function (this: CurrentPlugin, off: bigint) {
-      const result = JSON.parse(this.readString(off) ?? '');
-      result['message'] = 'hello from host!';
-      return plugin.currentPlugin.writeString(JSON.stringify(result));
-    });
+    options.functions = {
+      "env": {
+        "hello_world": function (this: CurrentPlugin, off: bigint) {
+          const result = JSON.parse(this.readString(off) ?? '');
+          result['message'] = 'hello from host!';
+          return plugin.currentPlugin.writeString(JSON.stringify(result));
+        }
+      }
+    }
   });
 
   const output = await plugin.call('count_vowels', 'aaa');
@@ -143,7 +148,7 @@ Deno.test('can deny http requests', async () => {
 
 Deno.test('can allow http requests', async () => {
   const plugin = await newPlugin('http.wasm', (options) => {
-    options.withAllowedHost('*.typicode.com');
+    options.allowedHosts = ['*.typicode.com'];
   });
 
   // http is not supported in Deno
@@ -174,7 +179,7 @@ Deno.test('can log messages', async () => {
 
 Deno.test('can initialize Haskell runtime', async () => {
   const plugin = await newPlugin('hello_haskell.wasm', (options) => {
-    options.withConfig('greeting', 'Howdy');
+    options.config = { 'greeting': 'Howdy' };
   });
 
   let output = await plugin.call('testing', 'John');
@@ -188,7 +193,7 @@ Deno.test('can initialize Haskell runtime', async () => {
 
 Deno.test('can access fs', async () => {
   const plugin = await newPlugin('fs.wasm', (options) => {
-    options.withAllowedPath('/mnt', 'tests/data');
+    options.allowedPaths = { '/mnt': 'tests/data' };
   });
 
   const output = await plugin.call('run_test', '');

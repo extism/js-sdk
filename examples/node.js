@@ -1,4 +1,4 @@
-const { createPlugin, ExtismPluginOptions } = require("../dist/node/index")
+const { createPlugin } = require("../dist/node/index")
 const { argv } = require("process");
 
 async function main() {
@@ -9,12 +9,11 @@ async function main() {
         path: filename
     }
 
-    const options = new ExtismPluginOptions()
-        .withConfig("thing", "testing")
-        .withWasi()
-        .withAllowedHost("*.typicode.com");
-
-    const plugin = await createPlugin(wasm, options);
+    const plugin = await createPlugin(wasm, {
+        useWasi: true,
+        config: { "thing": "testing" },
+        withAllowedHosts: ["*.typicode.com"]
+    })
 
     const res = await plugin.call(funcname, new TextEncoder().encode(input));
     const s = new TextDecoder().decode(res.buffer);

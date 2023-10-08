@@ -161,15 +161,7 @@ async function createPlugin(
 if (window) {
   // @ts-ignore
   window.createPlugin = createPlugin;
-  // @ts-ignore
-  window.ExtismPluginOptions = ExtismPluginOptions;
 }
 
-export {
-  createPlugin,
-  ExtismPlugin,
-  CurrentPlugin,
-  ExtismPluginOptions,
-}
-
-export type { Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl };
+export default createPlugin;
+export type { ExtismPlugin, CurrentPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl };

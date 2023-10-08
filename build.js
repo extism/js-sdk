@@ -1,6 +1,5 @@
 const { build } = require("esbuild");
 const { peerDependencies } = require('./package.json')
-const fs = require('fs')
 
 const sharedConfig = {
     bundle: true,

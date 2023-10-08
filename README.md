@@ -14,6 +14,7 @@ Instead of using FFI and the libextism shared object, this library uses whatever
 
 ## Installation
 
+Install via npm:
 ```
 npm install @extism/extism@1.0.0-rc1 --save
 ```
@@ -27,10 +28,10 @@ This guide should walk you through some of the concepts in Extism and this JS li
 First you should import `createPlugin` and `ExtismPluginOptions` from Extism:
 ```js
 // CommonJS
-const { createPlugin, ExtismPluginOptions } = require("../dist/node/index")
+const { createPlugin } = require("../dist/node/index")
 
 // ES Modules
-import { createPlugin, ExtismPluginOptions } from '../src/deno/mod.ts'
+import createPlugin from '../src/deno/mod.ts'
 ```
 
 ## Creating A Plug-in
@@ -40,13 +41,14 @@ The primary concept in Extism is the [plug-in](https://extism.org/docs/concepts/
 Plug-in code can come from a file on disk, object storage or any number of places. Since you may not have one handy let's load a demo plug-in from the web:
 
 ```js
-const options = new ExtismPluginOptions().withWasi();
-
 const wasm = {
     url: 'https://github.com/extism/plugins/releases/latest/download/count_vowels.wasm'
 }
 
-const plugin = await createPlugin(wasm, options);
+const plugin = await createPlugin(wasm, {
+    // NOTE: If you get an error like "TypeError: WebAssembly.instantiate(): Import #0 module="wasi_snapshot_preview1": module is not an object or function", then your plugin requires WASI support
+    useWasi: true,
+});
 ```
 
 ## Calling A Plug-in's Exports
@@ -61,7 +63,6 @@ console.log(new TextDecoder().decode(out.buffer))
 ```
 
 All exports have a simple interface of optional bytes in, and optional bytes out. This plug-in happens to take a string and return a JSON encoded string with a report of results.
-
 
 ### Plug-in State
 
@@ -89,16 +90,18 @@ const wasm = {
     url: 'https://github.com/extism/plugins/releases/latest/download/count_vowels.wasm'
 }
 
-let options = new ExtismPluginOptions()
-    .withWasi();
+let plugin = await createPlugin(wasm, {
+    useWasi: true,
+});
 
 let out = await plugin.call("count_vowels", new TextEncoder().encode("Yellow, World!"));
 console.log(new TextDecoder().decode(out.buffer))
 // => {"count": 3, "total": 3, "vowels": "aeiouAEIOU"}
 
-options = new ExtismPluginOptions()
-    .withConfig("vowels", "aeiouyAEIOUY")
-    .withWasi();
+plugin = await createPlugin(wasm, {
+    useWasi: true,
+    config: { "vowels": "aeiouyAEIOUY" }
+});
 
 out = await plugin.call("count_vowels", new TextEncoder().encode("Yellow, World!"));
 console.log(new TextDecoder().decode(out.buffer))
@@ -130,21 +133,26 @@ We want to expose two functions to our plugin, `kv_write(key: string, value: Uin
 // pretend this is Redis or something :)
 let kvStore = new Map();
 
-const options = new ExtismPluginOptions()
-    .withFunction("env", "kv_read", function (offs) { // this: CurrentPlugin
-        const key = this.readString(offs);
-        let value = kvStore.get(key) ?? new Uint8Array([0, 0, 0, 0]);
-        console.log(`Read ${new DataView(value.buffer).getUint32(0, true)} from key=${key}`);
-        return this.writeBytes(value);
-    })
-    .withFunction("env", "kv_write", function (kOffs, vOffs) { // this: CurrentPlugin
-        const key = this.readString(kOffs);
-        const value = this.readBytes(vOffs);
-        console.log(`Writing value=${new DataView(value.buffer).getUint32(0, true)} from key=${key}`);
+const options = {
+    useWasi: true,
+    functions: {
+        "env": {
+            "kv_read": function (offs) { // this: CurrentPlugin
+                const key = this.readString(offs);
+                let value = kvStore.get(key) ?? new Uint8Array([0, 0, 0, 0]);
+                console.log(`Read ${new DataView(value.buffer).getUint32(0, true)} from key=${key}`);
+                return this.writeBytes(value);
+            },
+            "kv_write": function (kOffs, vOffs) { // this: CurrentPlugin
+                const key = this.readString(kOffs);
+                const value = this.readBytes(vOffs);
+                console.log(`Writing value=${new DataView(value.buffer).getUint32(0, true)} from key=${key}`);
 
-        kvStore.set(key, value);
-    })
-    .withWasi();
+                kvStore.set(key, value);
+            }
+        }
+    }
+};
 ```
 
 > *Note*: In order to write host functions you should get familiar with the methods on the `CurrentPlugin` type. `this` is bound to an instance of `CurrentPlugin`.

@@ -105,11 +105,6 @@ async function createPlugin(
   }
 }
 
-export {
-  createPlugin,
-  ExtismPlugin,
-  CurrentPlugin,
-  ExtismPluginOptions
-}
+export default createPlugin;
 
-export type { Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl };
+export type { ExtismPlugin, CurrentPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl };
