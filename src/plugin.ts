@@ -1,5 +1,5 @@
 export abstract class ExtismPluginBase {
-  moduleData: ArrayBuffer;
+  moduleData: ArrayBuffer | Response | PromiseLike<Response>;
   currentPlugin: CurrentPlugin;
   input: Uint8Array;
   output: Uint8Array;
@@ -8,7 +8,7 @@ export abstract class ExtismPluginBase {
   lastStatusCode: number = 0;
   guestRuntime: GuestRuntime;
 
-  constructor(extism: WebAssembly.Instance, moduleData: ArrayBuffer, options: ExtismPluginOptions) {
+  constructor(extism: WebAssembly.Instance, moduleData: ArrayBuffer | Response | PromiseLike<Response>, options: ExtismPluginOptions) {
     this.moduleData = moduleData;
     this.currentPlugin = new CurrentPlugin(this, extism);
     this.input = new Uint8Array();
@@ -118,7 +118,11 @@ export abstract class ExtismPluginBase {
       }
     }
 
-    this.module = await WebAssembly.instantiate(this.moduleData, imports);
+    if (this.moduleData instanceof ArrayBuffer || ArrayBuffer.isView(this.moduleData)) {
+      this.module = await WebAssembly.instantiate(this.moduleData, imports);
+    } else {
+      this.module = await WebAssembly.instantiateStreaming(this.moduleData, imports);
+    }
 
     if (this.module.instance.exports._start) {
       pluginWasi?.initialize(this.module.instance);
@@ -379,12 +383,14 @@ type GuestRuntime = {
   type: GuestRuntimeType;
 };
 
+export type StreamingSource = ArrayBuffer | Response
+
 export async function fetchModuleData(
   manifestData: Manifest | ManifestWasm | ArrayBuffer,
-  fetchWasm: (wasm: ManifestWasm) => Promise<ArrayBuffer>,
+  fetchWasm: (wasm: ManifestWasm) => Promise<StreamingSource>,
   calculateHash: (buffer: ArrayBuffer) => Promise<string>,
 ) {
-  let moduleData: ArrayBuffer | null = null;
+  let moduleData: StreamingSource | null = null;
 
   if (manifestData instanceof ArrayBuffer) {
     moduleData = manifestData;
@@ -401,12 +407,35 @@ export async function fetchModuleData(
   ) {
     moduleData = await fetchWasm(manifestData as ManifestWasm);
 
+    if (moduleData instanceof Response) {
+      // HACK: WebAssembly.instantiateStreaming only works when the content-type is application/wasm
+      // This can be problematic because a lot of object storages store the content-type as application/octet-stream by default
+      if (moduleData.headers.get('Content-Type') != 'application/wasm') {
+        const headers = new Headers(moduleData.headers);
+        headers.set('Content-Type', 'application/wasm');
+
+        moduleData = new Response(moduleData.body, {
+          status: moduleData.status,
+          statusText: moduleData.statusText,
+          headers: headers,
+        })
+      }
+    }
+
     const expected = (manifestData as ManifestWasm).hash;
 
     if (expected) {
-      const actual = await calculateHash(moduleData);
+      let actual: string;
+      if (moduleData instanceof ArrayBuffer || moduleData instanceof Uint8Array) {
+        actual = await calculateHash(moduleData);
+      } else {
+        // Download the content to check its hash
+        moduleData = await moduleData.arrayBuffer();
+        actual = await calculateHash(moduleData);
+      }
+
       if (actual != expected) {
-        throw new Error('Plugin error: hash mismatch');
+        throw new Error(`Plugin error: hash mismatch. Expected: ${expected}. Actual: ${actual}`);
       }
     }
   }
@@ -474,7 +503,7 @@ function detectGuestRuntime(module: WebAssembly.Instance): GuestRuntime {
 
 export async function instantiateExtismRuntime(
   runtime: ManifestWasm | null,
-  fetchWasm: (wasm: ManifestWasm) => Promise<ArrayBuffer>,
+  fetchWasm: (wasm: ManifestWasm) => Promise<StreamingSource>,
   calculateHash: (buffer: ArrayBuffer) => Promise<string>,
 ): Promise<WebAssembly.Instance> {
   if (!runtime) {
@@ -482,8 +511,13 @@ export async function instantiateExtismRuntime(
   }
 
   const extismWasm = await fetchModuleData(runtime, fetchWasm, calculateHash);
-  const extismModule = new WebAssembly.Module(extismWasm);
-  const extismInstance = new WebAssembly.Instance(extismModule, {});
+
+  let extismInstance: WebAssembly.Instance;
+  if (extismWasm instanceof Response) {
+    extismInstance = (await WebAssembly.instantiateStreaming(extismWasm)).instance;
+  } else {
+    extismInstance = (await WebAssembly.instantiate(extismWasm)).instance;
+  }
 
   return extismInstance;
 }

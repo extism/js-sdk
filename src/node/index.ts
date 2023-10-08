@@ -14,6 +14,7 @@ import {
   embeddedRuntime,
   embeddedRuntimeHash,
   CurrentPlugin,
+  StreamingSource,
 } from '../plugin';
 import { WASI } from 'wasi';
 import { readFile } from 'fs';
@@ -104,23 +105,24 @@ async function createPlugin(
 
   return new ExtismPlugin(runtime, moduleData, options);
 
-  async function fetchWasm(wasm: ManifestWasm): Promise<ArrayBuffer> {
-    let data: ArrayBuffer;
-
+  async function fetchWasm(wasm: ManifestWasm): Promise<StreamingSource> {
     if ((wasm as ManifestWasmData).data) {
-      data = (wasm as ManifestWasmData).data;
+      return Promise.resolve((wasm as ManifestWasmData).data);
     } else if ((wasm as ManifestWasmFile).path) {
       const readFileAsync = (path: string) => promisify(readFile)(path);
-
-      data = await readFileAsync((wasm as ManifestWasmFile).path);
+      const buffer = await readFileAsync((wasm as ManifestWasmFile).path);
+      const array = new Uint8Array(buffer);
+      return array.buffer.slice(array.byteOffset, array.byteOffset + array.byteLength);
     } else if ((wasm as ManifestWasmUrl).url) {
-      const response = await fetchPolyfill((wasm as ManifestWasmUrl).url);
-      data = await response.arrayBuffer();
+      //@ts-ignore
+      if (WebAssembly.instantiateStreaming && fetch) {
+        return await fetch((wasm as ManifestWasmUrl).url);
+      } else {
+        return await fetchPolyfill((wasm as ManifestWasmUrl).url).then(response => response.arrayBuffer())
+      }
     } else {
       throw new Error(`Unrecognized wasm source: ${wasm}`);
     }
-
-    return data;
   }
 
   async function calculateHash(data: ArrayBuffer) {

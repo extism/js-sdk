@@ -13,7 +13,8 @@ import {
   HttpResponse,
   embeddedRuntime,
   embeddedRuntimeHash,
-  CurrentPlugin
+  CurrentPlugin,
+  StreamingSource,
 } from '../plugin';
 
 import { WASI, Fd, File, OpenFile } from '@bjorn3/browser_wasi_shim';
@@ -88,7 +89,7 @@ class ExtismPlugin extends ExtismPluginBase {
     const wrapper = {
       exports: {
         memory: instance.exports.memory as WebAssembly.Memory,
-        _start() {},
+        _start() { },
       },
     };
 
@@ -125,14 +126,14 @@ async function createPlugin(
     const binaryString = window.atob(base64);
     const len = binaryString.length;
     const bytes = new Uint8Array(len);
-  
+
     for (let i = 0; i < len; i++) {
       bytes[i] = binaryString.charCodeAt(i);
     }
-  
+
     return bytes;
   }
-  
+
   async function calculateHash(data: ArrayBuffer) {
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
@@ -140,7 +141,7 @@ async function createPlugin(
     return hashHex;
   }
 
-  async function fetchWasm(wasm: ManifestWasm): Promise<ArrayBuffer> {
+  async function fetchWasm(wasm: ManifestWasm): Promise<StreamingSource> {
     let data: ArrayBuffer;
 
     if ((wasm as ManifestWasmData).data) {
@@ -148,8 +149,7 @@ async function createPlugin(
     } else if ((wasm as ManifestWasmFile).path) {
       throw new Error(`Unsupported wasm source: ${wasm}`);
     } else if ((wasm as ManifestWasmUrl).url) {
-      const response = await fetch((wasm as ManifestWasmUrl).url);
-      data = await response.arrayBuffer();
+      return await fetch((wasm as ManifestWasmUrl).url);
     } else {
       throw new Error(`Unrecognized wasm source: ${wasm}`);
     }

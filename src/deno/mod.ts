@@ -13,7 +13,8 @@ import {
   HttpResponse,
   embeddedRuntime,
   embeddedRuntimeHash,
-  CurrentPlugin
+  CurrentPlugin,
+  StreamingSource
 } from '../plugin.ts';
 import Context from 'https://deno.land/std@0.200.0/wasi/snapshot_preview1.ts';
 import minimatch from 'https://deno.land/x/minimatch@v3.0.4/index.js';
@@ -51,7 +52,7 @@ class ExtismPlugin extends ExtismPluginBase {
     context.start({
       exports: {
         memory,
-        _start: () => {},
+        _start: () => { },
       },
     });
   }
@@ -78,8 +79,8 @@ async function createPlugin(
 
   return new ExtismPlugin(runtime, moduleData, options);
 
-  
-  async function fetchWasm(wasm: ManifestWasm): Promise<ArrayBuffer> {
+
+  async function fetchWasm(wasm: ManifestWasm): Promise<StreamingSource> {
     let data: ArrayBuffer;
 
     if ((wasm as ManifestWasmData).data) {
@@ -87,8 +88,7 @@ async function createPlugin(
     } else if ((wasm as ManifestWasmFile).path) {
       data = await Deno.readFile((wasm as ManifestWasmFile).path);
     } else if ((wasm as ManifestWasmUrl).url) {
-      const response = await fetch((wasm as ManifestWasmUrl).url);
-      data = await response.arrayBuffer();
+      return await fetch((wasm as ManifestWasmUrl).url);
     } else {
       throw new Error(`Unrecognized wasm source: ${wasm}`);
     }

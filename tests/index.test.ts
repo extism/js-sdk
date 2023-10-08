@@ -1,5 +1,4 @@
-import { createPlugin, ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/node/index';
-import { CurrentPlugin } from '../src/plugin';
+import { createPlugin, CurrentPlugin, ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/node/index';
 
 async function newPlugin(
   moduleName: string | Manifest | ManifestWasm | Buffer,
@@ -34,10 +33,18 @@ function decode(buffer: Uint8Array) {
 }
 
 describe('test extism', () => {
-  test('can create plugin from url', async () => {
+  test('can create plugin from url with hash check', async () => {
     const plugin = await newPlugin({
       url: "https://raw.githubusercontent.com/extism/extism/main/wasm/code.wasm",
       hash: "7def5bb4aa3843a5daf5d6078f1e8540e5ef10b035a9d9387e9bd5156d2b2565"
+    });
+
+    expect(await plugin.functionExists('count_vowels')).toBe(true);
+  });
+
+  test('can create plugin from url', async () => {
+    const plugin = await newPlugin({
+      url: "https://raw.githubusercontent.com/extism/extism/main/wasm/code.wasm",
     });
 
     expect(await plugin.functionExists('count_vowels')).toBe(true);
