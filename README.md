@@ -1,8 +1,6 @@
 # Extism JS SDK
 
-This repo houses the JS SDK for integrating with the [Extism](https://extism.org/) runtime. Install this library into your host JS applications to run Extism plugins.
-
-Join the [Discord](https://discord.gg/EGTV8Pxs) and chat with us!
+> **Note**: This houses the 1.0 version of the JavaScript SDK and is a work in progress. Please use the [Node SDK](https://github.com/extism/extism/tree/main/node) or the [Browser SDK](https://github.com/extism/extism/tree/main/browser) in extism/extism until we hit 1.0.
 
 This is a universal JavaScript SDK for Extism. We are aiming for it to work in all the major
 JavaScript runtimes:
@@ -16,10 +14,11 @@ Instead of using FFI and the libextism shared object, this library uses whatever
 
 ## Installation
 
-Install vai `npm`:
 ```
-npm i @extism/extism
+npm install @extism/extism@1.0.0-rc1 --save
 ```
+
+> **Note**: Keep in mind we will possibly have breaking changes b/w rc versions until we hit 1.0.
 
 ## Getting Started
 
@@ -182,4 +181,12 @@ node --experimental-wasi-unstable-preview1 ./examples/node.js wasm/config.wasm
 deno run -A ./examples/deno.ts ./wasm/config.wasm
 
 bun run ./examples/node.js wasm/config.wasm
+```
+
+## Update `extism-kernel.wasm`:
+
+We are shipping an embedded kernel in base64 form in plugin.ts. To update it, you can run:
+
+```
+make update-kernel
 ```
