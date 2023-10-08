@@ -53,6 +53,7 @@
     "cross-env": "^7.0.3",
     "crypto": "^1.0.1",
     "minimatch": "^9.0.3",
+    "node-fetch": "^2.7.0",
     "sync-fetch": "^0.5.2"
   }
 }

@@ -18,7 +18,8 @@ import {
 import { WASI } from 'wasi';
 import { readFile } from 'fs';
 import { promisify } from 'util';
-import fetch from 'sync-fetch';
+import syncFetch from 'sync-fetch';
+import fetchPolyfill from 'node-fetch';
 import { minimatch } from 'minimatch';
 import { createHash } from 'crypto';
 
@@ -40,7 +41,7 @@ class ExtismPlugin extends ExtismPluginBase {
       b = undefined;
     }
 
-    const response = fetch(request.url, {
+    const response = syncFetch(request.url, {
       headers: request.headers,
       method: request.method,
       body: b,
@@ -113,7 +114,7 @@ async function createPlugin(
 
       data = await readFileAsync((wasm as ManifestWasmFile).path);
     } else if ((wasm as ManifestWasmUrl).url) {
-      const response = await fetch((wasm as ManifestWasmUrl).url);
+      const response = await fetchPolyfill((wasm as ManifestWasmUrl).url);
       data = await response.arrayBuffer();
     } else {
       throw new Error(`Unrecognized wasm source: ${wasm}`);
