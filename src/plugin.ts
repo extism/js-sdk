@@ -114,7 +114,7 @@ export abstract class ExtismPluginBase {
       }
 
       for (const f in imports[m]) {
-        imports[m][f] = imports[m][f].bind(this.currentPlugin);
+        imports[m][f] = imports[m][f].bind(null, this.currentPlugin);
       }
     }
 
@@ -132,50 +132,50 @@ export abstract class ExtismPluginBase {
   private makeEnv(): any {
     let plugin = this;
     var env: any = {
-      extism_alloc(this: CurrentPlugin, n: bigint): bigint {
-        const response = this.alloc(n);
+      extism_alloc(cp: CurrentPlugin, n: bigint): bigint {
+        const response = cp.alloc(n);
         return response;
       },
-      extism_free(this: CurrentPlugin, n: bigint) {
-        this.free(n);
+      extism_free(cp: CurrentPlugin, n: bigint) {
+        cp.free(n);
       },
-      extism_load_u8(this: CurrentPlugin, n: bigint): number {
-        return this.getMemoryBuffer()[Number(n)];
+      extism_load_u8(cp: CurrentPlugin, n: bigint): number {
+        return cp.getMemoryBuffer()[Number(n)];
       },
-      extism_load_u64(this: CurrentPlugin, n: bigint): bigint {
-        let cast = new DataView(this.getMemory().buffer, Number(n));
+      extism_load_u64(cp: CurrentPlugin, n: bigint): bigint {
+        let cast = new DataView(cp.getMemory().buffer, Number(n));
         return cast.getBigUint64(0, true);
       },
-      extism_store_u8(this: CurrentPlugin, offset: bigint, n: number) {
-        this.getMemoryBuffer()[Number(offset)] = Number(n);
+      extism_store_u8(cp: CurrentPlugin, offset: bigint, n: number) {
+        cp.getMemoryBuffer()[Number(offset)] = Number(n);
       },
-      extism_store_u64(this: CurrentPlugin, offset: bigint, n: bigint) {
-        const tmp = new DataView(this.getMemory().buffer, Number(offset));
+      extism_store_u64(cp: CurrentPlugin, offset: bigint, n: bigint) {
+        const tmp = new DataView(cp.getMemory().buffer, Number(offset));
         tmp.setBigUint64(0, n, true);
       },
       extism_input_length(): bigint {
         return BigInt(plugin.input.length);
       },
-      extism_input_load_u8(i: bigint): number {
+      extism_input_load_u8(cp: CurrentPlugin, i: bigint): number {
         return plugin.input[Number(i)];
       },
-      extism_input_load_u64(idx: bigint): bigint {
+      extism_input_load_u64(cp: CurrentPlugin, idx: bigint): bigint {
         let cast = new DataView(plugin.input.buffer, Number(idx));
         return cast.getBigUint64(0, true);
       },
-      extism_output_set(this: CurrentPlugin, offset: bigint, length: bigint) {
+      extism_output_set(cp: CurrentPlugin, offset: bigint, length: bigint) {
         const offs = Number(offset);
         const len = Number(length);
-        plugin.output = this.getMemoryBuffer().slice(offs, offs + len);
+        plugin.output = cp.getMemoryBuffer().slice(offs, offs + len);
       },
-      extism_error_set(this: CurrentPlugin, i: bigint) {
-        throw new Error(`Call error: ${this.readString(i)}`);
+      extism_error_set(cp: CurrentPlugin, i: bigint) {
+        throw new Error(`Call error: ${cp.readString(i)}`);
       },
-      extism_config_get(this: CurrentPlugin, i: bigint): bigint {
+      extism_config_get(cp: CurrentPlugin, i: bigint): bigint {
         if (typeof plugin.options.config === 'undefined') {
           return BigInt(0);
         }
-        const key = this.readString(i);
+        const key = cp.readString(i);
         if (key === null) {
           return BigInt(0);
         }
@@ -183,38 +183,38 @@ export abstract class ExtismPluginBase {
         if (typeof value === 'undefined') {
           return BigInt(0);
         }
-        return this.writeString(value);
+        return cp.writeString(value);
       },
-      extism_var_get(this: CurrentPlugin, i: bigint): bigint {
-        const key = this.readString(i);
+      extism_var_get(cp: CurrentPlugin, i: bigint): bigint {
+        const key = cp.readString(i);
         if (key === null) {
           return BigInt(0);
         }
-        const value = this.vars[key];
+        const value = cp.vars[key];
         if (typeof value === 'undefined') {
           return BigInt(0);
         }
-        return this.writeBytes(value);
+        return cp.writeBytes(value);
       },
-      extism_var_set(this: CurrentPlugin, n: bigint, i: bigint) {
-        const key = this.readString(n);
+      extism_var_set(cp: CurrentPlugin, n: bigint, i: bigint) {
+        const key = cp.readString(n);
         if (key === null) {
           return;
         }
-        const value = this.readBytes(i);
+        const value = cp.readBytes(i);
         if (value === null) {
           return;
         }
-        this.vars[key] = value;
+        cp.vars[key] = value;
       },
-      extism_http_request(this: CurrentPlugin, requestOffset: bigint, bodyOffset: bigint): bigint {
+      extism_http_request(cp: CurrentPlugin, requestOffset: bigint, bodyOffset: bigint): bigint {
         if (!plugin.supportsHttpRequests()) {
-          this.free(bodyOffset);
-          this.free(requestOffset);
+          cp.free(bodyOffset);
+          cp.free(requestOffset);
           throw new Error('Call error: http requests are not supported.');
         }
 
-        const requestJson = this.readString(requestOffset);
+        const requestJson = cp.readString(requestOffset);
         if (requestJson == null) {
           throw new Error('Call error: Invalid request.');
         }
@@ -243,37 +243,37 @@ export abstract class ExtismPluginBase {
         }
 
         // TODO: limit number of bytes read to 50 MiB
-        const body = this.readBytes(bodyOffset);
-        this.free(bodyOffset);
-        this.free(requestOffset);
+        const body = cp.readBytes(bodyOffset);
+        cp.free(bodyOffset);
+        cp.free(requestOffset);
 
         const response = plugin.httpRequest(request, body);
         plugin.lastStatusCode = response.status;
 
-        const offset = this.writeBytes(response.body);
+        const offset = cp.writeBytes(response.body);
 
         return offset;
       },
       extism_http_status_code(): number {
         return plugin.lastStatusCode;
       },
-      extism_length(this: CurrentPlugin, i: bigint): bigint {
-        return this.getLength(i);
+      extism_length(cp: CurrentPlugin, i: bigint): bigint {
+        return cp.getLength(i);
       },
-      extism_log_warn(this: CurrentPlugin, i: bigint) {
-        const s = this.readString(i);
+      extism_log_warn(cp: CurrentPlugin, i: bigint) {
+        const s = cp.readString(i);
         console.warn(s);
       },
-      extism_log_info(this: CurrentPlugin, i: bigint) {
-        const s = this.readString(i);
+      extism_log_info(cp: CurrentPlugin, i: bigint) {
+        const s = cp.readString(i);
         console.log(s);
       },
-      extism_log_debug(this: CurrentPlugin, i: bigint) {
-        const s = this.readString(i);
+      extism_log_debug(cp: CurrentPlugin, i: bigint) {
+        const s = cp.readString(i);
         console.debug(s);
       },
-      extism_log_error(this: CurrentPlugin, i: bigint) {
-        const s = this.readString(i);
+      extism_log_error(cp: CurrentPlugin, i: bigint) {
+        const s = cp.readString(i);
         console.error(s);
       },
     };

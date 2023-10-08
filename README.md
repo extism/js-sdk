@@ -137,15 +137,16 @@ const options = {
     useWasi: true,
     functions: {
         "env": {
-            "kv_read": function (offs) { // this: CurrentPlugin
-                const key = this.readString(offs);
+            // NOTE: the first argument is always a CurrentPlugin
+            "kv_read": function (cp: CurrentPlugin, offs: bigint) {
+                const key = cp.readString(offs);
                 let value = kvStore.get(key) ?? new Uint8Array([0, 0, 0, 0]);
                 console.log(`Read ${new DataView(value.buffer).getUint32(0, true)} from key=${key}`);
-                return this.writeBytes(value);
+                return cp.writeBytes(value);
             },
-            "kv_write": function (kOffs, vOffs) { // this: CurrentPlugin
-                const key = this.readString(kOffs);
-                const value = this.readBytes(vOffs);
+            "kv_write": function (cp: CurrentPlugin, kOffs: bigint, vOffs: bigint) { // this: CurrentPlugin
+                const key = cp.readString(kOffs);
+                const value = cp.readBytes(vOffs);
                 console.log(`Writing value=${new DataView(value.buffer).getUint32(0, true)} from key=${key}`);
 
                 kvStore.set(key, value);

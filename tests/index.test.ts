@@ -108,8 +108,8 @@ describe('test extism', () => {
     const plugin = await newPlugin('code-functions.wasm', options => {
       options.functions = {
         "env": {
-          "hello_world": function (this: CurrentPlugin, off: bigint) {
-            const result = JSON.parse(this.readString(off) ?? '');
+          "hello_world": function (cp: CurrentPlugin, off: bigint) {
+            const result = JSON.parse(cp.readString(off) ?? '');
             result['message'] = 'hello from host!';
             return plugin.currentPlugin.writeString(JSON.stringify(result));
           }
