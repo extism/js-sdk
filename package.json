@@ -1,6 +1,6 @@
 {
   "name": "@extism/extism",
-  "version": "1.0.0-rc1",
+  "version": "0.0.1-rc1",
   "description": "Extism runtime for JavaScript",
   "scripts": {
     "build": "node build.js && tsc --emitDeclarationOnly --project ./tsconfig.node.json --declaration --outDir dist && tsc --emitDeclarationOnly --project ./tsconfig.browser.json --declaration --outDir dist",
