@@ -1,0 +1,47 @@
+name: Publish package to NPM
+
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        rust:
+          - stable
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup Node.js environment
+      uses: actions/setup-node@v3.8.1
+    
+    - name: Setup Deno
+      uses: denoland/setup-deno@v1.1.2
+    
+    - name: NPM install with caching
+      run: npm install
+
+    - name: Build
+      run: npm run build
+
+    - name: Node Test
+      run: npm run test
+      
+    - name: Deno Test
+      run: deno test -A ./tests/mod.test.ts
+
+    - name: Update package version
+      run: |
+        TAG=$(git describe --tags --abbrev=0)
+        echo "Latest Git tag: $TAG"
+        npm version $TAG --no-git-tag-version --no-commit-hooks
+
+    - name: NPM Publish
+      uses: JS-DevTools/npm-publish@v2.2.2
+      with:
+        token: ${{ secrets.NPM_TOKEN }}
