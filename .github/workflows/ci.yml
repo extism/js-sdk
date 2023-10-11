@@ -25,8 +25,8 @@ jobs:
     - name: Setup Deno
       uses: denoland/setup-deno@v1.1.2
     
-    - name: NPM install with caching
-      run: npm install
+    - name: NPM install
+      run: npm ci
 
     - name: Build
       run: npm run build

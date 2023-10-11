@@ -23,7 +23,7 @@ jobs:
     - name: Setup Deno
       uses: denoland/setup-deno@v1.1.2
     
-    - name: NPM install with caching
+    - name: NPM install
       run: npm ci
 
     - name: Build
@@ -39,7 +39,7 @@ jobs:
       run: |
         tag="${{ github.ref }}"
         tag="${tag/refs\/tags\/v/}"
-        npm version $TAG --no-git-tag-version --no-commit-hooks
+        npm version $tag --no-git-tag-version --no-commit-hooks
 
     - name: NPM Publish
       uses: JS-DevTools/npm-publish@v2.2.2
