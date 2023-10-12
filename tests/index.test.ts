@@ -33,6 +33,14 @@ function decode(buffer: Uint8Array) {
 }
 
 describe('test extism', () => {
+  test('can create plugin from string', async () => {
+    const plugin = await createPlugin("wasm/code.wasm", {
+      useWasi: true
+    });
+    
+    expect(await plugin.functionExists('count_vowels')).toBe(true);
+  });
+
   test('can create plugin from url with hash check', async () => {
     const plugin = await newPlugin({
       url: "https://raw.githubusercontent.com/extism/extism/main/wasm/code.wasm",

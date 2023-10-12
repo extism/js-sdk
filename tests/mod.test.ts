@@ -36,6 +36,14 @@ function decode(buffer: Uint8Array) {
   return decoder.decode(buffer);
 }
 
+Deno.test('can create plugin from string', async () => {
+  const plugin = await createPlugin("wasm/code.wasm", {
+    useWasi: true
+  });
+  
+  assertEquals(await plugin.functionExists('count_vowels'), true);
+});
+
 Deno.test('can create plugin from url', async () => {
   const plugin = await newPlugin({
     url: 'https://raw.githubusercontent.com/extism/extism/main/wasm/code.wasm',

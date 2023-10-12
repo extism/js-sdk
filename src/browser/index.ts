@@ -108,9 +108,16 @@ class ExtismPlugin extends ExtismPluginBase {
  * @returns {ExtismPlugin} An initialized plugin.
  */
 async function createPlugin(
-  manifestData: Manifest | ManifestWasm | ArrayBuffer,
+  manifestData: Manifest | ManifestWasm | ArrayBuffer | string | URL,
   options: ExtismPluginOptions,
 ): Promise<ExtismPlugin> {
+
+  if (typeof manifestData === "string" || manifestData instanceof URL) {
+    manifestData = {
+      url: manifestData as string | URL
+    }
+  }
+  
   let moduleData = await fetchModuleData(manifestData, fetchWasm, calculateHash);
 
   const runtimeWasm = options.runtime ?? {
