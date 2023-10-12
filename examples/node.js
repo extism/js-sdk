@@ -6,7 +6,7 @@ async function main() {
     const funcname = argv[3] || "run_test";
     const input = argv[4] || "this is a test";
     const wasm = {
-        path: filename
+        url: filename
     }
 
     const plugin = await createPlugin(wasm, {

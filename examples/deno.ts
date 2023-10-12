@@ -4,7 +4,7 @@ const filename = Deno.args[0] || "wasm/hello.wasm";
 const funcname = Deno.args[1] || "run_test";
 const input = Deno.args[2] || "this is a test";
 const wasm = {
-    path: filename
+    url: filename
 }
 
 const plugin = await createPlugin(wasm, {
