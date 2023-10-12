@@ -28,7 +28,7 @@ This guide should walk you through some of the concepts in Extism and this JS li
 First you should import `createPlugin` and `ExtismPluginOptions` from Extism:
 ```js
 // CommonJS
-const { createPlugin } = require("../dist/node/index")
+const createPlugin = require("../dist/node/index")
 
 // ES Modules
 import createPlugin from '../src/deno/mod.ts'

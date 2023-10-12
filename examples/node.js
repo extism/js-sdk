@@ -1,4 +1,4 @@
-const { createPlugin } = require("../dist/node/index")
+const createPlugin = require("../dist/node/index").default;
 const { argv } = require("process");
 
 async function main() {
