@@ -409,8 +409,9 @@ export async function fetchModuleData(
 
     if (moduleData instanceof Response) {
       // HACK: WebAssembly.instantiateStreaming only works when the content-type is application/wasm
-      // This can be problematic because a lot of object storages store the content-type as application/octet-stream by default
-      if (moduleData.headers.get('Content-Type') != 'application/wasm') {
+      // This can be problematic because a lot of object storages store the content-type
+      // as application/octet-stream by default
+      if (moduleData.headers.get('Content-Type') === 'application/octet-stream') {
         const headers = new Headers(moduleData.headers);
         headers.set('Content-Type', 'application/wasm');
 
@@ -557,7 +558,8 @@ export class CurrentPlugin {
     } else if (typeof value === 'number') {
       this.vars[name] = this.uintToLEBytes(value);
     } else {
-      throw new Error('Unsupported value type');
+      const typeName = (value as any)?.constructor.name || (value === null ? 'null' : typeof value);
+      throw new TypeError(`Invalid plugin variable type. Expected Uint8Array, string, or number, got ${typeName}`);
     }
   }
 
@@ -568,7 +570,7 @@ export class CurrentPlugin {
   getNumberVar(name: string): number {
     const value = this.getVar(name);
     if (value.length < 4) {
-      throw new Error(`Variable ${name} has incorrect length`);
+      throw new Error(`Variable "${name}" has incorrect length`);
     }
 
     return this.uintFromLEBytes(value);
@@ -585,15 +587,13 @@ export class CurrentPlugin {
 
   private uintToLEBytes(num: number): Uint8Array {
     const bytes = new Uint8Array(4);
-    bytes[0] = num & 0xff;
-    bytes[1] = (num >> 8) & 0xff;
-    bytes[2] = (num >> 16) & 0xff;
-    bytes[3] = (num >> 24) & 0xff;
+    new DataView(bytes.buffer).setUint32(0, num, true);
+
     return bytes;
   }
 
   private uintFromLEBytes(bytes: Uint8Array): number {
-    return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
+    return new DataView(bytes.buffer).getUint32(0, true);
   }
 
   /**
@@ -601,7 +601,7 @@ export class CurrentPlugin {
    * @returns {void}
    */
   reset() {
-    return (this.#extism.exports.extism_reset as Function).call(undefined);
+    return (this.#extism.exports.extism_reset as Function)();
   }
 
   /**
@@ -610,7 +610,7 @@ export class CurrentPlugin {
    * @returns {bigint} Offset in the memory.
    */
   alloc(length: bigint): bigint {
-    return (this.#extism.exports.extism_alloc as Function).call(undefined, length);
+    return (this.#extism.exports.extism_alloc as Function)(length);
   }
 
   /**
@@ -689,11 +689,11 @@ export class CurrentPlugin {
    * @returns {bigint} Length of the memory block.
    */
   getLength(offset: bigint): bigint {
-    return (this.#extism.exports.extism_length as Function).call(undefined, offset);
+    return (this.#extism.exports.extism_length as Function)(offset);
   }
 
   inputLength(): bigint {
-    return (this.#extism.exports.extism_input_length as Function).call(undefined);
+    return (this.#extism.exports.extism_input_length as Function)();
   }
 
   /**
@@ -706,6 +706,6 @@ export class CurrentPlugin {
       return;
     }
 
-    (this.#extism.exports.extism_free as Function).call(undefined, offset);
+    (this.#extism.exports.extism_free as Function)(offset);
   }
 }
