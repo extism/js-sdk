@@ -147,12 +147,10 @@ async function createPlugin(
     if ((wasm as ManifestWasmData).data) {
       data = (wasm as ManifestWasmData).data;
     } else if ((wasm as ManifestWasmUrl).url) {
+      // In the browser, it's useful to support relative paths,
+      // so we assume the URL we get doesn't point to local files
       const url = (wasm as ManifestWasmUrl).url;
-      if (isURL(url)) {
-        return await fetch(url);
-      } else {
-        throw new Error("Local paths are not supported.");
-      }
+      return await fetch(url);
     } else {
       throw new Error(`Unrecognized wasm source: ${wasm}`);
     }
