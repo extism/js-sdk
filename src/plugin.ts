@@ -287,15 +287,6 @@ export abstract class ExtismPluginBase {
 }
 
 /**
- * Represents a path to a WASM module
- */
-export type ManifestWasmFile = {
-  path: string;
-  name?: string;
-  hash?: string;
-};
-
-/**
  * Represents the raw bytes of a WASM file loaded into memory
  */
 export type ManifestWasmData = {
@@ -308,7 +299,7 @@ export type ManifestWasmData = {
  * Represents a url to a WASM module
  */
 export type ManifestWasmUrl = {
-  url: string;
+  url: URL | string;
   name?: string;
   hash?: string;
 };
@@ -321,7 +312,7 @@ export type PluginConfig = { [key: string]: string };
 /**
  * The WASM to load as bytes, a path, or a url
  */
-export type ManifestWasm = ManifestWasmUrl | ManifestWasmFile | ManifestWasmData;
+export type ManifestWasm = ManifestWasmUrl | ManifestWasmData;
 
 /**
  * The manifest which describes the {@link ExtismPlugin} code and
@@ -385,6 +376,10 @@ type GuestRuntime = {
 
 export type StreamingSource = ArrayBuffer | Response
 
+export function isURL(url: URL | string) {
+  return url instanceof URL || url.includes("://");
+}
+
 export async function fetchModuleData(
   manifestData: Manifest | ManifestWasm | ArrayBuffer,
   fetchWasm: (wasm: ManifestWasm) => Promise<StreamingSource>,
@@ -402,7 +397,6 @@ export async function fetchModuleData(
     moduleData = await fetchWasm(wasm);
   } else if (
     (manifestData as ManifestWasmData).data ||
-    (manifestData as ManifestWasmFile).path ||
     (manifestData as ManifestWasmUrl).url
   ) {
     moduleData = await fetchWasm(manifestData as ManifestWasm);

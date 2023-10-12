@@ -1,4 +1,4 @@
-import { createPlugin, CurrentPlugin, ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/node/index';
+import createPlugin, { CurrentPlugin, ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm } from '../src/node/index';
 
 async function newPlugin(
   moduleName: string | Manifest | ManifestWasm | Buffer,
@@ -6,7 +6,7 @@ async function newPlugin(
   const options: ExtismPluginOptions = {
     useWasi: true,
     runtime: {
-      path: 'wasm/extism-runtime.wasm',
+      url: 'wasm/extism-runtime.wasm',
     },
   }
 
@@ -17,7 +17,7 @@ async function newPlugin(
   let module: Manifest | ManifestWasm | Buffer;
   if (typeof moduleName == 'string') {
     module = {
-      path: `wasm/${moduleName}`,
+      url: `wasm/${moduleName}`,
     };
   } else {
     module = moduleName;
@@ -52,7 +52,7 @@ describe('test extism', () => {
 
   test('fails on hash mismatch', async () => {
     await expect(newPlugin({
-      path: "wasm/code.wasm",
+      url: "wasm/code.wasm",
       name: "code",
       hash: "-----------"
     })).rejects.toThrow(/Plugin error/);
@@ -60,7 +60,7 @@ describe('test extism', () => {
 
   test('can use embedded runtime', async () => {
     let module = {
-      path: `wasm/code.wasm`,
+      url: `wasm/code.wasm`,
     };
 
     const plugin = await createPlugin(module, {

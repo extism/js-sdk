@@ -7,7 +7,6 @@ import {
   Manifest,
   ManifestWasm,
   ManifestWasmData,
-  ManifestWasmFile,
   ManifestWasmUrl,
   HttpRequest,
   HttpResponse,
@@ -15,6 +14,7 @@ import {
   embeddedRuntimeHash,
   CurrentPlugin,
   StreamingSource,
+  isURL,
 } from '../plugin';
 
 import { WASI, Fd, File, OpenFile } from '@bjorn3/browser_wasi_shim';
@@ -146,10 +146,13 @@ async function createPlugin(
 
     if ((wasm as ManifestWasmData).data) {
       data = (wasm as ManifestWasmData).data;
-    } else if ((wasm as ManifestWasmFile).path) {
-      throw new Error(`Unsupported wasm source: ${wasm}`);
     } else if ((wasm as ManifestWasmUrl).url) {
-      return await fetch((wasm as ManifestWasmUrl).url);
+      const url = (wasm as ManifestWasmUrl).url;
+      if (isURL(url)) {
+        return await fetch(url);
+      } else {
+        throw new Error("Local paths are not supported.");
+      }
     } else {
       throw new Error(`Unrecognized wasm source: ${wasm}`);
     }
@@ -164,4 +167,4 @@ if (window) {
 }
 
 export default createPlugin;
-export type { ExtismPlugin, CurrentPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl };
+export type { ExtismPlugin, CurrentPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmUrl };

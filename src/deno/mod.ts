@@ -7,19 +7,20 @@ import {
   Manifest,
   ManifestWasm,
   ManifestWasmData,
-  ManifestWasmFile,
   ManifestWasmUrl,
   HttpRequest,
   HttpResponse,
   embeddedRuntime,
   embeddedRuntimeHash,
   CurrentPlugin,
-  StreamingSource
+  StreamingSource,
+  isURL,
 } from '../plugin.ts';
 import Context from 'https://deno.land/std@0.200.0/wasi/snapshot_preview1.ts';
 import minimatch from 'https://deno.land/x/minimatch@v3.0.4/index.js';
 import { createHash } from 'https://deno.land/std@0.108.0/hash/mod.ts';
 import { decode } from 'https://deno.land/std@0.201.0/encoding/base64.ts';
+import * as path from 'https://deno.land/std@0.102.0/path/mod.ts';
 
 class ExtismPlugin extends ExtismPluginBase {
   protected supportsHttpRequests(): boolean {
@@ -79,16 +80,19 @@ async function createPlugin(
 
   return new ExtismPlugin(runtime, moduleData, options);
 
-
   async function fetchWasm(wasm: ManifestWasm): Promise<StreamingSource> {
     let data: ArrayBuffer;
 
     if ((wasm as ManifestWasmData).data) {
       data = (wasm as ManifestWasmData).data;
-    } else if ((wasm as ManifestWasmFile).path) {
-      data = await Deno.readFile((wasm as ManifestWasmFile).path);
     } else if ((wasm as ManifestWasmUrl).url) {
-      return await fetch((wasm as ManifestWasmUrl).url);
+      const url = (wasm as ManifestWasmUrl).url;
+      if (isURL(url)) {
+        return await fetch(url);
+      } else {
+        const absolutePath = path.resolve(url as string);
+        return await fetch(`file://${absolutePath}`);
+      }
     } else {
       throw new Error(`Unrecognized wasm source: ${wasm}`);
     }
@@ -107,4 +111,4 @@ async function createPlugin(
 
 export default createPlugin;
 
-export type { ExtismPlugin, CurrentPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl };
+export type { ExtismPlugin, CurrentPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmUrl };

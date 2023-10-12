@@ -10,7 +10,7 @@ async function newPlugin(
   const options: ExtismPluginOptions = {
     useWasi: true,
     runtime: {
-      path: 'wasm/extism-runtime.wasm',
+      url: 'wasm/extism-runtime.wasm',
     },
   }
 
@@ -21,7 +21,7 @@ async function newPlugin(
   let module: Manifest | ManifestWasm;
   if (typeof moduleName == 'string') {
     module = {
-      path: `wasm/${moduleName}`,
+      url: `wasm/${moduleName}`,
     };
   } else {
     module = moduleName;
@@ -49,7 +49,7 @@ Deno.test('fails on hash mismatch', async () => {
   await assertRejects(
     () =>
       newPlugin({
-        path: 'wasm/code.wasm',
+        url: 'wasm/code.wasm',
         hash: '----',
       }),
     Error,
@@ -59,7 +59,7 @@ Deno.test('fails on hash mismatch', async () => {
 
 Deno.test('can use embedded runtime', async () => {
   let module = {
-    path: `wasm/code.wasm`,
+    url: `wasm/code.wasm`,
   };
 
   const plugin = await createPlugin(module, {

@@ -7,7 +7,6 @@ import {
   Manifest,
   ManifestWasm,
   ManifestWasmData,
-  ManifestWasmFile,
   ManifestWasmUrl,
   HttpRequest,
   HttpResponse,
@@ -15,6 +14,7 @@ import {
   embeddedRuntimeHash,
   CurrentPlugin,
   StreamingSource,
+  isURL,
 } from '../plugin';
 import { WASI } from 'wasi';
 import { readFile } from 'fs';
@@ -23,6 +23,7 @@ import syncFetch from 'sync-fetch';
 import fetchPolyfill from 'node-fetch';
 import { minimatch } from 'minimatch';
 import { createHash } from 'crypto';
+import path from 'path';
 
 class ExtismPlugin extends ExtismPluginBase {
   protected supportsHttpRequests(): boolean {
@@ -108,18 +109,27 @@ async function createPlugin(
   async function fetchWasm(wasm: ManifestWasm): Promise<StreamingSource> {
     if ((wasm as ManifestWasmData).data) {
       return Promise.resolve((wasm as ManifestWasmData).data);
-    } else if ((wasm as ManifestWasmFile).path) {
-      const readFileAsync = (path: string) => promisify(readFile)(path);
-      const buffer = await readFileAsync((wasm as ManifestWasmFile).path);
-      const array = new Uint8Array(buffer);
-      return array.buffer.slice(array.byteOffset, array.byteOffset + array.byteLength);
     } else if ((wasm as ManifestWasmUrl).url) {
-      //@ts-ignore
-      if (WebAssembly.instantiateStreaming && fetch) {
-        return await fetch((wasm as ManifestWasmUrl).url);
+      const url = (wasm as ManifestWasmUrl).url;
+
+      let source: StreamingSource;
+      if (isURL(url)) {
+        const response = await fetch(url);
+
+        //@ts-ignore
+        if (WebAssembly.instantiateStreaming) {
+          source = response;
+        } else {
+          source = await response.arrayBuffer();
+        }
       } else {
-        return await fetchPolyfill((wasm as ManifestWasmUrl).url).then(response => response.arrayBuffer())
+        const readFileAsync = (path: string) => promisify(readFile)(path);
+        const buffer = await readFileAsync(url as string);
+        const array = new Uint8Array(buffer);
+        source = array.buffer.slice(array.byteOffset, array.byteOffset + array.byteLength);
       }
+
+      return source;
     } else {
       throw new Error(`Unrecognized wasm source: ${wasm}`);
     }
@@ -138,4 +148,4 @@ async function createPlugin(
 }
 
 export default createPlugin;
-export type { ExtismPlugin, CurrentPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl };
+export type { ExtismPlugin, CurrentPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmUrl };
