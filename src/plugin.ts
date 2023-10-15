@@ -8,7 +8,7 @@ export abstract class ExtismPluginBase {
   module?: WebAssembly.WebAssemblyInstantiatedSource;
   options: ExtismPluginOptions;
   lastStatusCode: number = 0;
-  guestRuntime: GuestRuntime;
+  #guestRuntime: GuestRuntime;
 
   constructor(extism: WebAssembly.Instance, moduleData: ArrayBuffer, options: ExtismPluginOptions) {
     this.moduleData = moduleData;
@@ -17,7 +17,7 @@ export abstract class ExtismPluginBase {
     this.input = new Uint8Array();
     this.output = new Uint8Array();
     this.options = options;
-    this.guestRuntime = { type: GuestRuntimeType.None, init: () => {}, initialized: true };
+    this.#guestRuntime = { type: GuestRuntimeType.None, init: () => {}, initialized: true };
   }
 
   setVar(name: string, value: Uint8Array | string | number): void {
@@ -118,9 +118,9 @@ export abstract class ExtismPluginBase {
       throw Error(`Plugin error: function does not exist ${func_name}`);
     }
 
-    if (func_name != '_start' && this.guestRuntime?.init && !this.guestRuntime.initialized) {
-      this.guestRuntime.init();
-      this.guestRuntime.initialized = true;
+    if (func_name != '_start' && this.#guestRuntime?.init && !this.#guestRuntime.initialized) {
+      this.#guestRuntime.init();
+      this.#guestRuntime.initialized = true;
     }
 
     //@ts-ignore
@@ -164,7 +164,7 @@ export abstract class ExtismPluginBase {
       pluginWasi?.initialize(this.module.instance);
     }
 
-    this.guestRuntime = detectGuestRuntime(this.module.instance);
+    this.#guestRuntime = detectGuestRuntime(this.module.instance);
 
     return this.module;
   }
