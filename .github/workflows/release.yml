@@ -1,18 +1,16 @@
-name: JS CI
+name: Publish package to NPM
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    tags:
+      - 'v*'
 
 jobs:
-
   build:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest]
         rust:
           - stable
 
@@ -36,3 +34,14 @@ jobs:
       
     - name: Deno Test
       run: deno test -A ./tests/mod.test.ts
+
+    - name: Update package version
+      run: |
+        tag="${{ github.ref }}"
+        tag="${tag/refs\/tags\/v/}"
+        npm version $tag --no-git-tag-version --no-commit-hooks
+
+    - name: NPM Publish
+      uses: JS-DevTools/npm-publish@v2.2.2
+      with:
+        token: ${{ secrets.NPM_TOKEN }}
