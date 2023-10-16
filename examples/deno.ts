@@ -1,4 +1,4 @@
-import createPlugin, { CurrentPlugin } from '../src/deno/mod.ts'
+import createPlugin from '../src/deno/mod.ts'
 
 const filename = Deno.args[0] || "wasm/hello.wasm";
 const funcname = Deno.args[1] || "run_test";
