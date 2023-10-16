@@ -1,8 +1,6 @@
-
 export abstract class ExtismPluginBase {
-  moduleData: ArrayBuffer;
-  allocator: Allocator;
-  vars: Record<string, Uint8Array>;
+  moduleData: ArrayBuffer | Response | PromiseLike<Response>;
+  currentPlugin: CurrentPlugin;
   input: Uint8Array;
   output: Uint8Array;
   module?: WebAssembly.WebAssemblyInstantiatedSource;
@@ -10,61 +8,13 @@ export abstract class ExtismPluginBase {
   lastStatusCode: number = 0;
   guestRuntime: GuestRuntime;
 
-  constructor(extism: WebAssembly.Instance, moduleData: ArrayBuffer, options: ExtismPluginOptions) {
+  constructor(extism: WebAssembly.Instance, moduleData: ArrayBuffer | Response | PromiseLike<Response>, options: ExtismPluginOptions) {
     this.moduleData = moduleData;
-    this.allocator = new Allocator(extism);
-    this.vars = {};
+    this.currentPlugin = new CurrentPlugin(this, extism);
     this.input = new Uint8Array();
     this.output = new Uint8Array();
     this.options = options;
-    this.guestRuntime = { type: GuestRuntimeType.None, init: () => {}, initialized: true };
-  }
-
-  setVar(name: string, value: Uint8Array | string | number): void {
-    if (value instanceof Uint8Array) {
-      this.vars[name] = value;
-    } else if (typeof value === 'string') {
-      this.vars[name] = new TextEncoder().encode(value);
-    } else if (typeof value === 'number') {
-      this.vars[name] = this.uintToLEBytes(value);
-    } else {
-      throw new Error('Unsupported value type');
-    }
-  }
-
-  getStringVar(name: string): string {
-    return new TextDecoder().decode(this.getVar(name));
-  }
-
-  getNumberVar(name: string): number {
-    const value = this.getVar(name);
-    if (value.length < 4) {
-      throw new Error(`Variable ${name} has incorrect length`);
-    }
-
-    return this.uintFromLEBytes(value);
-  }
-
-  getVar(name: string): Uint8Array {
-    const value = this.vars[name];
-    if (!value) {
-      throw new Error(`Variable ${name} not found`);
-    }
-
-    return value;
-  }
-
-  private uintToLEBytes(num: number): Uint8Array {
-    const bytes = new Uint8Array(4);
-    bytes[0] = num & 0xff;
-    bytes[1] = (num >> 8) & 0xff;
-    bytes[2] = (num >> 16) & 0xff;
-    bytes[3] = (num >> 24) & 0xff;
-    return bytes;
-  }
-
-  private uintFromLEBytes(bytes: Uint8Array): number {
-    return bytes[0] | (bytes[1] << 8) | (bytes[2] << 16) | (bytes[3] << 24);
+    this.guestRuntime = { type: GuestRuntimeType.None, init: () => { }, initialized: true };
   }
 
   async getExports(): Promise<WebAssembly.Exports> {
@@ -111,7 +61,7 @@ export abstract class ExtismPluginBase {
       throw new Error('Plugin error: input should be string or Uint8Array');
     }
 
-    this.allocator.reset();
+    this.currentPlugin.reset();
 
     let func = module.instance.exports[func_name];
     if (!func) {
@@ -158,7 +108,21 @@ export abstract class ExtismPluginBase {
       }
     }
 
-    this.module = await WebAssembly.instantiate(this.moduleData, imports);
+    for (const m in imports) {
+      if (m === "wasi_snapshot_preview1") {
+        continue;
+      }
+
+      for (const f in imports[m]) {
+        imports[m][f] = imports[m][f].bind(null, this.currentPlugin);
+      }
+    }
+
+    if (this.moduleData instanceof ArrayBuffer || ArrayBuffer.isView(this.moduleData)) {
+      this.module = await WebAssembly.instantiate(this.moduleData, imports);
+    } else {
+      this.module = await WebAssembly.instantiateStreaming(this.moduleData, imports);
+    }
 
     if (this.module.instance.exports._start) {
       pluginWasi?.initialize(this.module.instance);
@@ -170,52 +134,52 @@ export abstract class ExtismPluginBase {
   }
 
   private makeEnv(): any {
-    const plugin = this;
+    let plugin = this;
     var env: any = {
-      extism_alloc(n: bigint): bigint {
-        const response = plugin.allocator.alloc(n);
+      extism_alloc(cp: CurrentPlugin, n: bigint): bigint {
+        const response = cp.alloc(n);
         return response;
       },
-      extism_free(n: bigint) {
-        plugin.allocator.free(n);
+      extism_free(cp: CurrentPlugin, n: bigint) {
+        cp.free(n);
       },
-      extism_load_u8(n: bigint): number {
-        return plugin.allocator.getMemoryBuffer()[Number(n)];
+      extism_load_u8(cp: CurrentPlugin, n: bigint): number {
+        return cp.getMemoryBuffer()[Number(n)];
       },
-      extism_load_u64(n: bigint): bigint {
-        let cast = new DataView(plugin.allocator.getMemory().buffer, Number(n));
+      extism_load_u64(cp: CurrentPlugin, n: bigint): bigint {
+        let cast = new DataView(cp.getMemory().buffer, Number(n));
         return cast.getBigUint64(0, true);
       },
-      extism_store_u8(offset: bigint, n: number) {
-        plugin.allocator.getMemoryBuffer()[Number(offset)] = Number(n);
+      extism_store_u8(cp: CurrentPlugin, offset: bigint, n: number) {
+        cp.getMemoryBuffer()[Number(offset)] = Number(n);
       },
-      extism_store_u64(offset: bigint, n: bigint) {
-        const tmp = new DataView(plugin.allocator.getMemory().buffer, Number(offset));
+      extism_store_u64(cp: CurrentPlugin, offset: bigint, n: bigint) {
+        const tmp = new DataView(cp.getMemory().buffer, Number(offset));
         tmp.setBigUint64(0, n, true);
       },
       extism_input_length(): bigint {
         return BigInt(plugin.input.length);
       },
-      extism_input_load_u8(i: bigint): number {
+      extism_input_load_u8(cp: CurrentPlugin, i: bigint): number {
         return plugin.input[Number(i)];
       },
-      extism_input_load_u64(idx: bigint): bigint {
+      extism_input_load_u64(cp: CurrentPlugin, idx: bigint): bigint {
         let cast = new DataView(plugin.input.buffer, Number(idx));
         return cast.getBigUint64(0, true);
       },
-      extism_output_set(offset: bigint, length: bigint) {
+      extism_output_set(cp: CurrentPlugin, offset: bigint, length: bigint) {
         const offs = Number(offset);
         const len = Number(length);
-        plugin.output = plugin.allocator.getMemoryBuffer().slice(offs, offs + len);
+        plugin.output = cp.getMemoryBuffer().slice(offs, offs + len);
       },
-      extism_error_set(i: bigint) {
-        throw new Error(`Call error: ${plugin.allocator.getString(i)}`);
+      extism_error_set(cp: CurrentPlugin, i: bigint) {
+        throw new Error(`Call error: ${cp.readString(i)}`);
       },
-      extism_config_get(i: bigint): bigint {
+      extism_config_get(cp: CurrentPlugin, i: bigint): bigint {
         if (typeof plugin.options.config === 'undefined') {
           return BigInt(0);
         }
-        const key = plugin.allocator.getString(i);
+        const key = cp.readString(i);
         if (key === null) {
           return BigInt(0);
         }
@@ -223,38 +187,38 @@ export abstract class ExtismPluginBase {
         if (typeof value === 'undefined') {
           return BigInt(0);
         }
-        return plugin.allocator.allocString(value);
+        return cp.writeString(value);
       },
-      extism_var_get(i: bigint): bigint {
-        const key = plugin.allocator.getString(i);
+      extism_var_get(cp: CurrentPlugin, i: bigint): bigint {
+        const key = cp.readString(i);
         if (key === null) {
           return BigInt(0);
         }
-        const value = plugin.vars[key];
+        const value = cp.vars[key];
         if (typeof value === 'undefined') {
           return BigInt(0);
         }
-        return plugin.allocator.allocBytes(value);
+        return cp.writeBytes(value);
       },
-      extism_var_set(n: bigint, i: bigint) {
-        const key = plugin.allocator.getString(n);
+      extism_var_set(cp: CurrentPlugin, n: bigint, i: bigint) {
+        const key = cp.readString(n);
         if (key === null) {
           return;
         }
-        const value = plugin.allocator.getBytes(i);
+        const value = cp.readBytes(i);
         if (value === null) {
           return;
         }
-        plugin.vars[key] = value;
+        cp.vars[key] = value;
       },
-      extism_http_request(requestOffset: bigint, bodyOffset: bigint): bigint {
+      extism_http_request(cp: CurrentPlugin, requestOffset: bigint, bodyOffset: bigint): bigint {
         if (!plugin.supportsHttpRequests()) {
-          plugin.allocator.free(bodyOffset);
-          plugin.allocator.free(requestOffset);
+          cp.free(bodyOffset);
+          cp.free(requestOffset);
           throw new Error('Call error: http requests are not supported.');
         }
 
-        const requestJson = plugin.allocator.getString(requestOffset);
+        const requestJson = cp.readString(requestOffset);
         if (requestJson == null) {
           throw new Error('Call error: Invalid request.');
         }
@@ -264,7 +228,7 @@ export abstract class ExtismPluginBase {
         // The actual code starts here
         const url = new URL(request.url);
         let hostMatches = false;
-        for (const allowedHost of plugin.options.allowedHosts) {
+        for (const allowedHost of (plugin.options.allowedHosts ?? [])) {
           if (allowedHost === url.hostname) {
             hostMatches = true;
             break;
@@ -283,37 +247,37 @@ export abstract class ExtismPluginBase {
         }
 
         // TODO: limit number of bytes read to 50 MiB
-        const body = plugin.allocator.getBytes(bodyOffset);
-        plugin.allocator.free(bodyOffset);
-        plugin.allocator.free(requestOffset);
+        const body = cp.readBytes(bodyOffset);
+        cp.free(bodyOffset);
+        cp.free(requestOffset);
 
         const response = plugin.httpRequest(request, body);
         plugin.lastStatusCode = response.status;
 
-        const offset = plugin.allocator.allocBytes(response.body);
+        const offset = cp.writeBytes(response.body);
 
         return offset;
       },
       extism_http_status_code(): number {
         return plugin.lastStatusCode;
       },
-      extism_length(i: bigint): bigint {
-        return plugin.allocator.getLength(i);
+      extism_length(cp: CurrentPlugin, i: bigint): bigint {
+        return cp.getLength(i);
       },
-      extism_log_warn(i: bigint) {
-        const s = plugin.allocator.getString(i);
+      extism_log_warn(cp: CurrentPlugin, i: bigint) {
+        const s = cp.readString(i);
         console.warn(s);
       },
-      extism_log_info(i: bigint) {
-        const s = plugin.allocator.getString(i);
+      extism_log_info(cp: CurrentPlugin, i: bigint) {
+        const s = cp.readString(i);
         console.log(s);
       },
-      extism_log_debug(i: bigint) {
-        const s = plugin.allocator.getString(i);
+      extism_log_debug(cp: CurrentPlugin, i: bigint) {
+        const s = cp.readString(i);
         console.debug(s);
       },
-      extism_log_error(i: bigint) {
-        const s = plugin.allocator.getString(i);
+      extism_log_error(cp: CurrentPlugin, i: bigint) {
+        const s = cp.readString(i);
         console.error(s);
       },
     };
@@ -321,15 +285,6 @@ export abstract class ExtismPluginBase {
     return env;
   }
 }
-
-/**
- * Represents a path to a WASM module
- */
-export type ManifestWasmFile = {
-  path: string;
-  name?: string;
-  hash?: string;
-};
 
 /**
  * Represents the raw bytes of a WASM file loaded into memory
@@ -344,7 +299,7 @@ export type ManifestWasmData = {
  * Represents a url to a WASM module
  */
 export type ManifestWasmUrl = {
-  url: string;
+  url: URL | string;
   name?: string;
   hash?: string;
 };
@@ -357,7 +312,7 @@ export type PluginConfig = { [key: string]: string };
 /**
  * The WASM to load as bytes, a path, or a url
  */
-export type ManifestWasm = ManifestWasmUrl | ManifestWasmFile | ManifestWasmData;
+export type ManifestWasm = ManifestWasmUrl | ManifestWasmData;
 
 /**
  * The manifest which describes the {@link ExtismPlugin} code and
@@ -374,122 +329,14 @@ export type Manifest = {
 
 /**
  * Options for initializing an Extism plugin.
- *
- * @class ExtismPluginOptions
  */
-export class ExtismPluginOptions {
-  useWasi: boolean;
-  runtime: ManifestWasm | null;
-  functions: { [key: string]: { [key: string]: any } };
-  allowedPaths: { [key: string]: string };
-  allowedHosts: string[];
-  config: PluginConfig;
-
-  constructor() {
-    this.useWasi = false;
-    this.functions = {};
-    this.runtime = null;
-    this.allowedPaths = {};
-    this.config = {};
-    this.allowedHosts = [];
-  }
-
-  /**
-   * Enable/Disable WASI.
-   */
-  withWasi(value: boolean = true) {
-    this.useWasi = value;
-    return this;
-  }
-
-  /**
-   * Overrides the Extism Runtime.
-   * @param runtime A Wasm source.
-   * @returns ExtismPluginOptions
-   */
-  withRuntime(runtime: ManifestWasm) {
-    this.runtime = runtime;
-    return this;
-  }
-
-  /**
-   * Adds or updates a host function under a specified module name.
-   * @param {string} moduleName - The name of the module.
-   * @param {string} funcName - The name of the function.
-   * @param {any} func - The host function callback.
-   * @returns {this} Returns the current instance for chaining.
-   */
-  withFunction(moduleName: string, funcName: string, func: any) {
-    const x = this.functions[moduleName] ?? {};
-    x[funcName] = func;
-    this.functions[moduleName] = x;
-
-    return this;
-  }
-
-  /**
-   * Adds or updates an allowed path.
-   * If WASI is enabled, the plugin will have access to all allowed paths.
-   * @param {string} dest - The destination path.
-   * @param {string|null} src - The source path. Defaults to the destination if null.
-   * @returns {this} Returns the current instance for chaining.
-   */
-  withAllowedPath(dest: string, src: string | null) {
-    this.allowedPaths[dest] = src || dest;
-    return this;
-  }
-
-  /**
-   * Sets a configuration value that's accessible to the plugin.
-   * The plugin can't change configuration values.
-   * @param {string} key - The configuration key.
-   * @param {string} value - The configuration value.
-   * @returns {this} Returns the current instance for chaining.
-   */
-  withConfig(key: string, value: string) {
-    this.config[key] = value;
-
-    return this;
-  }
-
-  /**
-   * Sets multiple configuration values.
-   * @param {{ [key: string]: string }} configs - An object containing configuration key-value pairs.
-   * @returns {this} Returns the current instance for chaining.
-   */
-  withConfigs(configs: { [key: string]: string }) {
-    for (let key in configs) {
-      this.config[key] = configs[key];
-    }
-
-    return this;
-  }
-
-  /**
-   * Adds a host pattern to the allowed hosts list.
-   * The plugin will be able to make HTTP requests to all allowed hosts.
-   * By default, all hosts are denied.
-   * @param {string} pattern - The host pattern to allow.
-   * @returns {this} Returns the current instance for chaining.
-   */
-  withAllowedHost(pattern: string) {
-    this.allowedHosts.push(pattern.trim());
-
-    return this;
-  }
-
-  /**
-   * Adds multiple host patterns to the allowed hosts list.
-   * @param {string[]} patterns - An array of host patterns to allow.
-   * @returns {this} Returns the current instance for chaining.
-   */
-  withAllowedHosts(patterns: string[]) {
-    for (const pattern of patterns) {
-      this.withAllowedHost(pattern);
-    }
-
-    return this;
-  }
+export interface ExtismPluginOptions {
+  useWasi?: boolean | undefined;
+  runtime?: ManifestWasm | undefined;
+  functions?: { [key: string]: { [key: string]: any } } | undefined;
+  allowedPaths?: { [key: string]: string } | undefined;
+  allowedHosts?: string[] | undefined;
+  config?: PluginConfig | undefined;
 }
 
 /**
@@ -527,12 +374,18 @@ type GuestRuntime = {
   type: GuestRuntimeType;
 };
 
+export type StreamingSource = ArrayBuffer | Response
+
+export function isURL(url: URL | string) {
+  return url instanceof URL || url.includes("://");
+}
+
 export async function fetchModuleData(
   manifestData: Manifest | ManifestWasm | ArrayBuffer,
-  fetchWasm: (wasm: ManifestWasm) => Promise<ArrayBuffer>,
+  fetchWasm: (wasm: ManifestWasm) => Promise<StreamingSource>,
   calculateHash: (buffer: ArrayBuffer) => Promise<string>,
 ) {
-  let moduleData: ArrayBuffer | null = null;
+  let moduleData: StreamingSource | null = null;
 
   if (manifestData instanceof ArrayBuffer) {
     moduleData = manifestData;
@@ -544,17 +397,40 @@ export async function fetchModuleData(
     moduleData = await fetchWasm(wasm);
   } else if (
     (manifestData as ManifestWasmData).data ||
-    (manifestData as ManifestWasmFile).path ||
     (manifestData as ManifestWasmUrl).url
   ) {
     moduleData = await fetchWasm(manifestData as ManifestWasm);
 
+    if (moduleData instanceof Response) {
+      // HACK: WebAssembly.instantiateStreaming only works when the content-type is application/wasm
+      // This can be problematic because a lot of object storages store the content-type
+      // as application/octet-stream by default
+      if (moduleData.headers.get('Content-Type') === 'application/octet-stream') {
+        const headers = new Headers(moduleData.headers);
+        headers.set('Content-Type', 'application/wasm');
+
+        moduleData = new Response(moduleData.body, {
+          status: moduleData.status,
+          statusText: moduleData.statusText,
+          headers: headers,
+        })
+      }
+    }
+
     const expected = (manifestData as ManifestWasm).hash;
 
     if (expected) {
-      const actual = await calculateHash(moduleData);
+      let actual: string;
+      if (moduleData instanceof ArrayBuffer || moduleData instanceof Uint8Array) {
+        actual = await calculateHash(moduleData);
+      } else {
+        // Download the content to check its hash
+        moduleData = await moduleData.arrayBuffer();
+        actual = await calculateHash(moduleData);
+      }
+
       if (actual != expected) {
-        throw new Error('Plugin error: hash mismatch');
+        throw new Error(`Plugin error: hash mismatch. Expected: ${expected}. Actual: ${actual}`);
       }
     }
   }
@@ -616,13 +492,13 @@ function wasiRuntime(module: WebAssembly.Instance): GuestRuntime | null {
 }
 
 function detectGuestRuntime(module: WebAssembly.Instance): GuestRuntime {
-  const none = { init: () => {}, type: GuestRuntimeType.None, initialized: true };
+  const none = { init: () => { }, type: GuestRuntimeType.None, initialized: true };
   return haskellRuntime(module) ?? wasiRuntime(module) ?? none;
 }
 
 export async function instantiateExtismRuntime(
   runtime: ManifestWasm | null,
-  fetchWasm: (wasm: ManifestWasm) => Promise<ArrayBuffer>,
+  fetchWasm: (wasm: ManifestWasm) => Promise<StreamingSource>,
   calculateHash: (buffer: ArrayBuffer) => Promise<string>,
 ): Promise<WebAssembly.Instance> {
   if (!runtime) {
@@ -630,8 +506,13 @@ export async function instantiateExtismRuntime(
   }
 
   const extismWasm = await fetchModuleData(runtime, fetchWasm, calculateHash);
-  const extismModule = new WebAssembly.Module(extismWasm);
-  const extismInstance = new WebAssembly.Instance(extismModule, {});
+
+  let extismInstance: WebAssembly.Instance;
+  if (extismWasm instanceof Response) {
+    extismInstance = (await WebAssembly.instantiateStreaming(extismWasm)).instance;
+  } else {
+    extismInstance = (await WebAssembly.instantiate(extismWasm)).instance;
+  }
 
   return extismInstance;
 }
@@ -651,15 +532,61 @@ export const embeddedRuntime = 'AGFzbQEAAAABMApgAX8AYAN/f38Bf2ACf38AYAF+AX5gAX4A
 
 export const embeddedRuntimeHash = 'aab40a25b5edda3fc5c9d1de1bf17af9ce5d02cbac1bacf5bdfa495b4ab9fc39'
 
-class Allocator {
+export class CurrentPlugin {
+  vars: Record<string, Uint8Array>;
+  plugin: ExtismPluginBase;
   #extism: WebAssembly.Instance;
 
-  /**
-   * Constructs an allocator instance.
-   * @param {WebAssembly.Instance} extism - WebAssembly instance.
-   */
-  constructor(extism: WebAssembly.Instance) {
+  constructor(plugin: ExtismPluginBase, extism: WebAssembly.Instance) {
+    this.vars = {};
+    this.plugin = plugin;
     this.#extism = extism;
+  }
+
+  setVar(name: string, value: Uint8Array | string | number): void {
+    if (value instanceof Uint8Array) {
+      this.vars[name] = value;
+    } else if (typeof value === 'string') {
+      this.vars[name] = new TextEncoder().encode(value);
+    } else if (typeof value === 'number') {
+      this.vars[name] = this.uintToLEBytes(value);
+    } else {
+      const typeName = (value as any)?.constructor.name || (value === null ? 'null' : typeof value);
+      throw new TypeError(`Invalid plugin variable type. Expected Uint8Array, string, or number, got ${typeName}`);
+    }
+  }
+
+  readStringVar(name: string): string {
+    return new TextDecoder().decode(this.getVar(name));
+  }
+
+  getNumberVar(name: string): number {
+    const value = this.getVar(name);
+    if (value.length < 4) {
+      throw new Error(`Variable "${name}" has incorrect length`);
+    }
+
+    return this.uintFromLEBytes(value);
+  }
+
+  getVar(name: string): Uint8Array {
+    const value = this.vars[name];
+    if (!value) {
+      throw new Error(`Variable ${name} not found`);
+    }
+
+    return value;
+  }
+
+  private uintToLEBytes(num: number): Uint8Array {
+    const bytes = new Uint8Array(4);
+    new DataView(bytes.buffer).setUint32(0, num, true);
+
+    return bytes;
+  }
+
+  private uintFromLEBytes(bytes: Uint8Array): number {
+    return new DataView(bytes.buffer).getUint32(0, true);
   }
 
   /**
@@ -667,7 +594,7 @@ class Allocator {
    * @returns {void}
    */
   reset() {
-    return (this.#extism.exports.extism_reset as Function).call(undefined);
+    return (this.#extism.exports.extism_reset as Function)();
   }
 
   /**
@@ -676,7 +603,7 @@ class Allocator {
    * @returns {bigint} Offset in the memory.
    */
   alloc(length: bigint): bigint {
-    return (this.#extism.exports.extism_alloc as Function).call(undefined, length);
+    return (this.#extism.exports.extism_alloc as Function)(length);
   }
 
   /**
@@ -700,7 +627,7 @@ class Allocator {
    * @param {bigint} offset - Memory offset.
    * @returns {Uint8Array | null} Byte array or null if offset is zero.
    */
-  getBytes(offset: bigint): Uint8Array | null {
+  readBytes(offset: bigint): Uint8Array | null {
     if (offset == BigInt(0)) {
       return null;
     }
@@ -708,7 +635,7 @@ class Allocator {
     const length = this.getLength(offset);
 
     const buffer = new Uint8Array(this.getMemory().buffer, Number(offset), Number(length));
-    
+
     // Copy the buffer because `this.getMemory().buffer` returns a write-through view
     return new Uint8Array(buffer);
   }
@@ -718,8 +645,8 @@ class Allocator {
    * @param {bigint} offset - Memory offset.
    * @returns {string | null} Decoded string or null if offset is zero.
    */
-  getString(offset: bigint): string | null {
-    const bytes = this.getBytes(offset);
+  readString(offset: bigint): string | null {
+    const bytes = this.readBytes(offset);
     if (bytes === null) {
       return null;
     }
@@ -732,7 +659,7 @@ class Allocator {
    * @param {Uint8Array} data - Byte array to allocate.
    * @returns {bigint} Memory offset.
    */
-  allocBytes(data: Uint8Array): bigint {
+  writeBytes(data: Uint8Array): bigint {
     const offs = this.alloc(BigInt(data.length));
     const buffer = new Uint8Array(this.getMemory().buffer, Number(offs), data.length);
     buffer.set(data);
@@ -744,9 +671,9 @@ class Allocator {
    * @param {string} data - String to allocate.
    * @returns {bigint} Memory offset.
    */
-  allocString(data: string): bigint {
+  writeString(data: string): bigint {
     const bytes = new TextEncoder().encode(data);
-    return this.allocBytes(bytes);
+    return this.writeBytes(bytes);
   }
 
   /**
@@ -755,7 +682,11 @@ class Allocator {
    * @returns {bigint} Length of the memory block.
    */
   getLength(offset: bigint): bigint {
-    return (this.#extism.exports.extism_length as Function).call(undefined, offset);
+    return (this.#extism.exports.extism_length as Function)(offset);
+  }
+
+  inputLength(): bigint {
+    return (this.#extism.exports.extism_input_length as Function)();
   }
 
   /**
@@ -768,6 +699,6 @@ class Allocator {
       return;
     }
 
-    (this.#extism.exports.extism_free as Function).call(undefined, offset);
+    (this.#extism.exports.extism_free as Function)(offset);
   }
 }

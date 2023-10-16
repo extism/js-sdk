@@ -7,40 +7,20 @@ import {
   Manifest,
   ManifestWasm,
   ManifestWasmData,
-  ManifestWasmFile,
   ManifestWasmUrl,
   HttpRequest,
   HttpResponse,
   embeddedRuntime,
-  embeddedRuntimeHash
+  embeddedRuntimeHash,
+  CurrentPlugin,
+  StreamingSource,
+  isURL,
 } from '../plugin';
 
-import { WASI, Fd } from '@bjorn3/browser_wasi_shim';
+import { WASI, Fd, File, OpenFile } from '@bjorn3/browser_wasi_shim';
 import { minimatch } from 'minimatch';
 
 class ExtismPlugin extends ExtismPluginBase {
-  /**
-   * Create a new plugin.
-   * @param manifestData An Extism manifest {@link Manifest} or a Wasm module.
-   * @param options Options for initializing the plugin.
-   * @returns {ExtismPlugin} An initialized plugin.
-   */
-  static async new(
-    manifestData: Manifest | ManifestWasm | Buffer,
-    options: ExtismPluginOptions,
-  ): Promise<ExtismPlugin> {
-    let moduleData = await fetchModuleData(manifestData, this.fetchWasm, this.calculateHash);
-
-    const runtimeWasm = options.runtime ?? {
-      data: this.toBytes(embeddedRuntime),
-      hash: embeddedRuntimeHash
-    };
-
-    let runtime = await instantiateExtismRuntime(runtimeWasm, this.fetchWasm, this.calculateHash);
-
-    return new ExtismPlugin(runtime, moduleData, options);
-  }
-
   protected supportsHttpRequests(): boolean {
     return true;
   }
@@ -95,6 +75,9 @@ class ExtismPlugin extends ExtismPluginBase {
     const args: Array<string> = [];
     const envVars: Array<string> = [];
     let fds: Fd[] = [
+      new OpenFile(new File([])), // stdin
+      new OpenFile(new File([])), // stdout
+      new OpenFile(new File([])), // stderr
     ];
 
     const wasi = new WASI(args, envVars, fds);
@@ -106,7 +89,7 @@ class ExtismPlugin extends ExtismPluginBase {
     const wrapper = {
       exports: {
         memory: instance.exports.memory as WebAssembly.Memory,
-        _start() {},
+        _start() { },
       },
     };
 
@@ -116,49 +99,77 @@ class ExtismPlugin extends ExtismPluginBase {
 
     wasi.start(wrapper);
   }
+}
 
-  private static async fetchWasm(wasm: ManifestWasm): Promise<ArrayBuffer> {
-    let data: ArrayBuffer;
+/**
+ * Create a new plugin.
+ * @param manifestData An Extism manifest {@link Manifest} or a Wasm module.
+ * @param options Options for initializing the plugin.
+ * @returns {ExtismPlugin} An initialized plugin.
+ */
+async function createPlugin(
+  manifestData: Manifest | ManifestWasm | ArrayBuffer | string | URL,
+  options: ExtismPluginOptions,
+): Promise<ExtismPlugin> {
 
-    if ((wasm as ManifestWasmData).data) {
-      data = (wasm as ManifestWasmData).data;
-    } else if ((wasm as ManifestWasmFile).path) {
-      throw new Error(`Unsupported wasm source: ${wasm}`);
-    } else if ((wasm as ManifestWasmUrl).url) {
-      const response = await fetch((wasm as ManifestWasmUrl).url);
-      data = await response.arrayBuffer();
-    } else {
-      throw new Error(`Unrecognized wasm source: ${wasm}`);
+  if (typeof manifestData === "string" || manifestData instanceof URL) {
+    manifestData = {
+      url: manifestData as string | URL
+    }
+  }
+  
+  let moduleData = await fetchModuleData(manifestData, fetchWasm, calculateHash);
+
+  const runtimeWasm = options.runtime ?? {
+    data: toBytes(embeddedRuntime),
+    hash: embeddedRuntimeHash
+  };
+
+  let runtime = await instantiateExtismRuntime(runtimeWasm, fetchWasm, calculateHash);
+
+  return new ExtismPlugin(runtime, moduleData, options);
+
+  function toBytes(base64: string): Uint8Array {
+    const binaryString = window.atob(base64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
     }
 
-    return data;
+    return bytes;
   }
 
-  private static async calculateHash(data: ArrayBuffer) {
+  async function calculateHash(data: ArrayBuffer) {
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray.map((byte) => byte.toString(16).padStart(2, '0')).join('');
     return hashHex;
   }
 
-  private static toBytes(base64: string): Uint8Array {
-    const binaryString = window.atob(base64);
-    const len = binaryString.length;
-    const bytes = new Uint8Array(len);
-  
-    for (let i = 0; i < len; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
+  async function fetchWasm(wasm: ManifestWasm): Promise<StreamingSource> {
+    let data: ArrayBuffer;
+
+    if ((wasm as ManifestWasmData).data) {
+      data = (wasm as ManifestWasmData).data;
+    } else if ((wasm as ManifestWasmUrl).url) {
+      // In the browser, it's useful to support relative paths,
+      // so we assume the URL we get doesn't point to local files
+      const url = (wasm as ManifestWasmUrl).url;
+      return await fetch(url);
+    } else {
+      throw new Error(`Unrecognized wasm source: ${wasm}`);
     }
-  
-    return bytes;
+
+    return data;
   }
 }
 
 if (window) {
   // @ts-ignore
-  window.ExtismPlugin = ExtismPlugin;
-  // @ts-ignore
-  window.ExtismPluginOptions = ExtismPluginOptions;
+  window.createPlugin = createPlugin;
 }
 
-export { ExtismPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmFile, ManifestWasmUrl };
+export default createPlugin;
+export type { ExtismPlugin, CurrentPlugin, ExtismPluginOptions, Manifest, ManifestWasm, ManifestWasmData, ManifestWasmUrl };
