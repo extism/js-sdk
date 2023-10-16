@@ -25,13 +25,16 @@ npm install @extism/extism@1.0.0-rc1 --save
 
 This guide should walk you through some of the concepts in Extism and this JS library.
 
-First you should import `createPlugin` and `ExtismPluginOptions` from Extism:
+First you should import `createPlugin` from Extism:
 ```js
 // CommonJS
-const createPlugin = require("../dist/node/index")
+const createPlugin = require("@extism/extism")
 
-// ES Modules
-import createPlugin from '../src/deno/mod.ts'
+// ES Modules/Typescript
+import createPlugin from '@extism/extism';
+
+// Deno
+import createPlugin from 'https://raw.githubusercontent.com/extism/js-sdk/main/src/deno/mod.ts';
 ```
 
 ## Creating A Plug-in
