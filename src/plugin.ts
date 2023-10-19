@@ -96,7 +96,7 @@ export abstract class ExtismPluginBase {
 
     let imports: any = {
       wasi_snapshot_preview1: pluginWasi?.importObject(),
-      env: environment,
+      "extism:host/env": environment,
     };
 
     for (const m in this.options.functions) {
@@ -136,46 +136,46 @@ export abstract class ExtismPluginBase {
   private makeEnv(): any {
     let plugin = this;
     var env: any = {
-      extism_alloc(cp: CurrentPlugin, n: bigint): bigint {
+      alloc(cp: CurrentPlugin, n: bigint): bigint {
         const response = cp.alloc(n);
         return response;
       },
-      extism_free(cp: CurrentPlugin, n: bigint) {
+      free(cp: CurrentPlugin, n: bigint) {
         cp.free(n);
       },
-      extism_load_u8(cp: CurrentPlugin, n: bigint): number {
+      load_u8(cp: CurrentPlugin, n: bigint): number {
         return cp.getMemoryBuffer()[Number(n)];
       },
-      extism_load_u64(cp: CurrentPlugin, n: bigint): bigint {
+      load_u64(cp: CurrentPlugin, n: bigint): bigint {
         let cast = new DataView(cp.getMemory().buffer, Number(n));
         return cast.getBigUint64(0, true);
       },
-      extism_store_u8(cp: CurrentPlugin, offset: bigint, n: number) {
+      store_u8(cp: CurrentPlugin, offset: bigint, n: number) {
         cp.getMemoryBuffer()[Number(offset)] = Number(n);
       },
-      extism_store_u64(cp: CurrentPlugin, offset: bigint, n: bigint) {
+      store_u64(cp: CurrentPlugin, offset: bigint, n: bigint) {
         const tmp = new DataView(cp.getMemory().buffer, Number(offset));
         tmp.setBigUint64(0, n, true);
       },
-      extism_input_length(): bigint {
+      input_length(): bigint {
         return BigInt(plugin.input.length);
       },
-      extism_input_load_u8(cp: CurrentPlugin, i: bigint): number {
+      input_load_u8(cp: CurrentPlugin, i: bigint): number {
         return plugin.input[Number(i)];
       },
-      extism_input_load_u64(cp: CurrentPlugin, idx: bigint): bigint {
+      input_load_u64(cp: CurrentPlugin, idx: bigint): bigint {
         let cast = new DataView(plugin.input.buffer, Number(idx));
         return cast.getBigUint64(0, true);
       },
-      extism_output_set(cp: CurrentPlugin, offset: bigint, length: bigint) {
+      output_set(cp: CurrentPlugin, offset: bigint, length: bigint) {
         const offs = Number(offset);
         const len = Number(length);
         plugin.output = cp.getMemoryBuffer().slice(offs, offs + len);
       },
-      extism_error_set(cp: CurrentPlugin, i: bigint) {
+      error_set(cp: CurrentPlugin, i: bigint) {
         throw new Error(`Call error: ${cp.readString(i)}`);
       },
-      extism_config_get(cp: CurrentPlugin, i: bigint): bigint {
+      config_get(cp: CurrentPlugin, i: bigint): bigint {
         if (typeof plugin.options.config === 'undefined') {
           return BigInt(0);
         }
@@ -189,7 +189,7 @@ export abstract class ExtismPluginBase {
         }
         return cp.writeString(value);
       },
-      extism_var_get(cp: CurrentPlugin, i: bigint): bigint {
+      var_get(cp: CurrentPlugin, i: bigint): bigint {
         const key = cp.readString(i);
         if (key === null) {
           return BigInt(0);
@@ -200,7 +200,7 @@ export abstract class ExtismPluginBase {
         }
         return cp.writeBytes(value);
       },
-      extism_var_set(cp: CurrentPlugin, n: bigint, i: bigint) {
+      var_set(cp: CurrentPlugin, n: bigint, i: bigint) {
         const key = cp.readString(n);
         if (key === null) {
           return;
@@ -211,7 +211,7 @@ export abstract class ExtismPluginBase {
         }
         cp.vars[key] = value;
       },
-      extism_http_request(cp: CurrentPlugin, requestOffset: bigint, bodyOffset: bigint): bigint {
+      http_request(cp: CurrentPlugin, requestOffset: bigint, bodyOffset: bigint): bigint {
         if (!plugin.supportsHttpRequests()) {
           cp.free(bodyOffset);
           cp.free(requestOffset);
@@ -258,25 +258,25 @@ export abstract class ExtismPluginBase {
 
         return offset;
       },
-      extism_http_status_code(): number {
+      http_status_code(): number {
         return plugin.lastStatusCode;
       },
-      extism_length(cp: CurrentPlugin, i: bigint): bigint {
+      length(cp: CurrentPlugin, i: bigint): bigint {
         return cp.getLength(i);
       },
-      extism_log_warn(cp: CurrentPlugin, i: bigint) {
+      log_warn(cp: CurrentPlugin, i: bigint) {
         const s = cp.readString(i);
         console.warn(s);
       },
-      extism_log_info(cp: CurrentPlugin, i: bigint) {
+      log_info(cp: CurrentPlugin, i: bigint) {
         const s = cp.readString(i);
         console.log(s);
       },
-      extism_log_debug(cp: CurrentPlugin, i: bigint) {
+      log_debug(cp: CurrentPlugin, i: bigint) {
         const s = cp.readString(i);
         console.debug(s);
       },
-      extism_log_error(cp: CurrentPlugin, i: bigint) {
+      log_error(cp: CurrentPlugin, i: bigint) {
         const s = cp.readString(i);
         console.error(s);
       },
@@ -594,7 +594,7 @@ export class CurrentPlugin {
    * @returns {void}
    */
   reset() {
-    return (this.#extism.exports.extism_reset as Function)();
+    return (this.#extism.exports.reset as Function)();
   }
 
   /**
@@ -603,7 +603,7 @@ export class CurrentPlugin {
    * @returns {bigint} Offset in the memory.
    */
   alloc(length: bigint): bigint {
-    return (this.#extism.exports.extism_alloc as Function)(length);
+    return (this.#extism.exports.alloc as Function)(length);
   }
 
   /**
@@ -682,11 +682,11 @@ export class CurrentPlugin {
    * @returns {bigint} Length of the memory block.
    */
   getLength(offset: bigint): bigint {
-    return (this.#extism.exports.extism_length as Function)(offset);
+    return (this.#extism.exports.length as Function)(offset);
   }
 
   inputLength(): bigint {
-    return (this.#extism.exports.extism_input_length as Function)();
+    return (this.#extism.exports.input_length as Function)();
   }
 
   /**
@@ -699,6 +699,6 @@ export class CurrentPlugin {
       return;
     }
 
-    (this.#extism.exports.extism_free as Function)(offset);
+    (this.#extism.exports.free as Function)(offset);
   }
 }

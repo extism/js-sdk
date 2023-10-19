@@ -13,12 +13,12 @@ async function main() {
   console.log(kernelHash);
 
   pluginContents = pluginContents.replace(
-    /embeddedRuntime = '.*'/,
-    `embeddedRuntime = '${kernelBase64}'`,
+    /embeddedRuntime =[ \n]*'.*'/,
+    `embeddedRuntime =\n    '${kernelBase64}'`,
   );
   pluginContents = pluginContents.replace(
-    /embeddedRuntimeHash = '.*'/,
-    `embeddedRuntimeHash = '${kernelHash}'`,
+    /embeddedRuntimeHash =[ \n]*'[.\n]*'/,
+    `embeddedRuntimeHash =\n    '${kernelHash}'`,
   );
 
   await fs.promises.writeFile(pluginPath, pluginContents);
