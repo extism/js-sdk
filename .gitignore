@@ -1,3 +1,6 @@
+# test artifacts
+tests/artifacts
+
 # Logs
 logs
 *.log

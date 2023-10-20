@@ -39,7 +39,7 @@
 <body>
 
     <label for="url">WASM file URL:</label>
-    <input id="url" placeholder="Enter WASM file URL" value="http://127.0.0.1:5500/wasm/hello.wasm" />
+    <input id="url" placeholder="Enter WASM file URL" value="http://127.0.0.1:8124/wasm/hello.wasm" />
 
     <label for="funcname">Function Name:</label>
     <input id="funcname" placeholder="Enter function name" value="run_test" />
@@ -47,7 +47,7 @@
     <label for="inputText">Input:</label>
     <input id="inputText" placeholder="Enter input" value="this is a test" />
 
-    <label for="hostsText">Output:</label>
+    <label for="hostsText">Allowed hosts:</label>
     <textarea id="hostsText" placeholder="Allowed hosts, one per line">*.typicode.com</textarea>
 
     <button id="runButton">Run</button>
@@ -55,10 +55,8 @@
     <label for="outputText">Output:</label>
     <textarea id="outputText" placeholder="Output will be shown here..." readonly></textarea>
 
-    <script type="module" src="/dist/browser/index.mjs"></script>
-
     <script type="module">
-        import createPlugin from '/dist/browser/index.mjs';
+        import createPlugin from '/dist/browser/mod.js';
 
         async function runPlugin() {
             // Get values from input fields
@@ -67,11 +65,7 @@
             const input = document.getElementById('inputText').value || "this is a test";
             const hosts = (document.getElementById('hostsText').value || "").split(/\r?\n|\r|\n/g)
 
-            const wasm = {
-                url: url
-            }
-
-            const plugin = await createPlugin(wasm, {
+            const plugin = await createPlugin(url, {
                 useWasi: true,
                 config: { "thing": "testing" },
                 allowedHosts: [ ...hosts ]
@@ -80,6 +74,8 @@
             const res = await plugin.call(funcname, new TextEncoder().encode(input));
             const s = new TextDecoder().decode(res.buffer);
             document.getElementById('outputText').value = s;
+
+            await plugin.close()
         }
 
         document.getElementById('runButton').addEventListener('click', runPlugin);

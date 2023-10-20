@@ -1,0 +1,8 @@
+{
+  "imports": {
+    "js-sdk:worker-url": "./src/worker-url.ts",
+    "js-sdk:features": "./src/polyfills/deno:features.ts",
+    "js-sdk:wasi": "./src/polyfills/deno:wasi.ts",
+    "js-sdk:fs": "./src/polyfills/node:fs.ts"
+  }
+}

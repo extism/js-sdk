@@ -44,19 +44,17 @@ The primary concept in Extism is the [plug-in](https://extism.org/docs/concepts/
 Plug-in code can come from a file on disk, object storage or any number of places. Since you may not have one handy let's load a demo plug-in from the web:
 
 ```js
-const wasm = {
-    url: 'https://github.com/extism/plugins/releases/latest/download/count_vowels.wasm'
-}
-
-const plugin = await createPlugin(wasm, {
-    // NOTE: If you get an error like "TypeError: WebAssembly.instantiate(): Import #0 module="wasi_snapshot_preview1": module is not an object or function", then your plugin requires WASI support
-    useWasi: true,
+const plugin = await createPlugin(
+    'https://github.com/extism/plugins/releases/latest/download/count_vowels.wasm',
+    { useWasi: true }
 });
 ```
 
 ## Calling A Plug-in's Exports
 
-This plug-in was written in Rust and it does one thing, it counts vowels in a string. As such, it exposes one "export" function: `count_vowels`. We can call exports using `ExtismPlugin.call`:
+This plug-in was written in Rust and it does one thing, it counts vowels in a
+string. As such, it exposes one "export" function: `count_vowels`. We can call
+exports using `ExtismPlugin.call`:
 
 ```js
 let out = await plugin.call("count_vowels", new TextEncoder().encode(input));
@@ -65,11 +63,16 @@ console.log(new TextDecoder().decode(out.buffer))
 // => {"count": 3, "total": 3, "vowels": "aeiouAEIOU"}
 ```
 
-All exports have a simple interface of optional bytes in, and optional bytes out. This plug-in happens to take a string and return a JSON encoded string with a report of results.
+All exports have a simple interface of optional bytes in, and optional bytes
+out. This plug-in happens to take a string and return a JSON encoded string
+with a report of results.
 
 ### Plug-in State
 
-Plug-ins may be stateful or stateless. Plug-ins can maintain state b/w calls by the use of variables. Our count vowels plug-in remembers the total number of vowels it's ever counted in the "total" key in the result. You can see this by making subsequent calls to the export:
+Plug-ins may be stateful or stateless. Plug-ins can maintain state b/w calls by
+the use of variables. Our count vowels plug-in remembers the total number of
+vowels it's ever counted in the "total" key in the result. You can see this by
+making subsequent calls to the export:
 
 ```js
 let out = await plugin.call("count_vowels", new TextEncoder().encode("Hello, World!"));
@@ -86,7 +89,9 @@ These variables will persist until this plug-in is freed or you initialize a new
 
 ### Configuration
 
-Plug-ins may optionally take a configuration object. This is a static way to configure the plug-in. Our count-vowels plugin takes an optional configuration to change out which characters are considered vowels. Example:
+Plug-ins may optionally take a configuration object. This is a static way to
+configure the plug-in. Our count-vowels plugin takes an optional configuration
+to change out which characters are considered vowels. Example:
 
 ```js
 const wasm = {
@@ -113,13 +118,20 @@ console.log(new TextDecoder().decode(out.buffer))
 
 ### Host Functions
 
-Let's extend our count-vowels example a little bit: Instead of storing the `total` in an ephemeral plug-in var, let's store it in a persistent key-value store!
+Let's extend our count-vowels example a little bit: Instead of storing the
+`total` in an ephemeral plug-in var, let's store it in a persistent key-value
+store!
 
-Wasm can't use our KV store on it's own. This is where [Host Functions](https://extism.org/docs/concepts/host-functions) come in.
+Wasm can't use our KV store on it's own. This is where [Host
+Functions](https://extism.org/docs/concepts/host-functions) come in.
 
-[Host functions](https://extism.org/docs/concepts/host-functions) allow us to grant new capabilities to our plug-ins from our application. They are simply some JS functions you write which can be passed down and invoked from any language inside the plug-in.
+[Host functions](https://extism.org/docs/concepts/host-functions) allow us to
+grant new capabilities to our plug-ins from our application. They are simply
+some JS functions you write which can be passed down and invoked from any
+language inside the plug-in.
 
-Let's load the manifest like usual but load up this `count_vowels_kvstore` plug-in:
+Let's load the manifest like usual but load up this `count_vowels_kvstore`
+plug-in:
 
 ```js
 const wasm = {
@@ -159,9 +171,12 @@ const options = {
 };
 ```
 
-> *Note*: In order to write host functions you should get familiar with the methods on the `CurrentPlugin` type. `this` is bound to an instance of `CurrentPlugin`.
+> *Note*: In order to write host functions you should get familiar with the
+> methods on the `CurrentPlugin` type. `this` is bound to an instance of
+> `CurrentPlugin`.
 
-We need to pass these imports to the plug-in to create them. All imports of a plug-in must be satisfied for it to be initialized:
+We need to pass these imports to the plug-in to create them. All imports of a
+plug-in must be satisfied for it to be initialized:
 
 ```js
 const plugin = await createPlugin(wasm, options);
@@ -193,12 +208,4 @@ node --experimental-wasi-unstable-preview1 ./examples/node.js wasm/config.wasm
 deno run -A ./examples/deno.ts ./wasm/config.wasm
 
 bun run ./examples/node.js wasm/config.wasm
-```
-
-## Update `extism-kernel.wasm`:
-
-We are shipping an embedded kernel in base64 form in plugin.ts. To update it, you can run:
-
-```
-make update-kernel
 ```
