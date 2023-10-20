@@ -166,7 +166,6 @@ Deno.test('can allow http requests', async () => {
   await assertRejects(() => plugin.call('run_test', ''), Error, 'http');
 });
 
-/* TODO: fix this
 Deno.test('can log messages', async () => {
   const logSpy = spy(console, 'log');
   const warnSpy = spy(console, 'warn');
@@ -175,7 +174,7 @@ Deno.test('can log messages', async () => {
 
   try {
     const plugin = await newPlugin('log.wasm');
-    const _ = await plugin.call('run_test', '');
+    const _ = await plugin.call('_start', '');
   } finally {
     logSpy.restore();
     warnSpy.restore();
@@ -183,12 +182,12 @@ Deno.test('can log messages', async () => {
     debugSpy.restore();
   }
 
-  assertSpyCalls(logSpy, 1);
+  assertSpyCalls(logSpy, 1); 
   assertSpyCalls(warnSpy, 1);
   assertSpyCalls(errorSpy, 1);
-  assertSpyCalls(debugSpy, 1);
+  //TODO: assertSpyCalls(debugSpy, 1);
 });
-*/
+
 
 Deno.test('can initialize Haskell runtime', async () => {
   const plugin = await newPlugin('hello_haskell.wasm', (options) => {
