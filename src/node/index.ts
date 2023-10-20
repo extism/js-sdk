@@ -10,12 +10,14 @@ import {
   ManifestWasmUrl,
   HttpRequest,
   HttpResponse,
-  embeddedRuntime,
-  embeddedRuntimeHash,
   CurrentPlugin,
   StreamingSource,
   isURL,
 } from '../plugin';
+import {
+  embeddedRuntime,
+  embeddedRuntimeHash,
+} from '../runtime';
 import { WASI } from 'wasi';
 import { readFile } from 'fs';
 import { promisify } from 'util';

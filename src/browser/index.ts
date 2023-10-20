@@ -10,13 +10,14 @@ import {
   ManifestWasmUrl,
   HttpRequest,
   HttpResponse,
-  embeddedRuntime,
-  embeddedRuntimeHash,
   CurrentPlugin,
   StreamingSource,
   isURL,
 } from '../plugin';
-
+import {
+  embeddedRuntime,
+  embeddedRuntimeHash,
+} from '../runtime';
 import { WASI, Fd, File, OpenFile } from '@bjorn3/browser_wasi_shim';
 import { minimatch } from 'minimatch';
 

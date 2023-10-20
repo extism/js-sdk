@@ -10,12 +10,14 @@ import {
   ManifestWasmUrl,
   HttpRequest,
   HttpResponse,
-  embeddedRuntime,
-  embeddedRuntimeHash,
   CurrentPlugin,
   StreamingSource,
   isURL,
 } from '../plugin.ts';
+import {
+  embeddedRuntime,
+  embeddedRuntimeHash,
+} from '../runtime.ts';
 import Context from 'https://deno.land/std@0.200.0/wasi/snapshot_preview1.ts';
 import minimatch from 'https://deno.land/x/minimatch@v3.0.4/index.js';
 import { createHash } from 'https://deno.land/std@0.108.0/hash/mod.ts';
