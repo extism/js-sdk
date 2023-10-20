@@ -190,7 +190,6 @@ Deno.test('can log messages', async () => {
 });
 */
 
-/* TODO: fix this
 Deno.test('can initialize Haskell runtime', async () => {
   const plugin = await newPlugin('hello_haskell.wasm', (options) => {
     options.config = { 'greeting': 'Howdy' };
@@ -204,7 +203,6 @@ Deno.test('can initialize Haskell runtime', async () => {
   result = decode(output);
   assertEquals(result, 'Howdy, Ben');
 });
-*/
 
 Deno.test('can access fs', async () => {
   const plugin = await newPlugin('fs.wasm', (options) => {
