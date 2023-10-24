@@ -1,6 +1,6 @@
 # Extism JS SDK
 
-> **Note**: This houses the 1.0 version of the JavaScript SDK and is a work in progress. Please use the [Node SDK](https://github.com/extism/extism/tree/main/node) or the [Browser SDK](https://github.com/extism/extism/tree/main/browser) in extism/extism until we hit 1.0.
+> *Note*: This houses the 1.0 pre-release version of the JavaScript SDK. We may push breaking changes in new versions until will hit 1.0 in December, 2023. But it's currently the best place to start a new integration and we welcome any feedback.
 
 This is a universal JavaScript SDK for Extism. We are aiming for it to work in all the major
 JavaScript runtimes:
