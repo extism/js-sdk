@@ -16,4 +16,6 @@ export const FEATURES = {
     ? (window as any).crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'
     : true
   ),
+
+  supportsWasiPreview1: true,
 }

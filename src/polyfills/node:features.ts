@@ -12,4 +12,6 @@ export const FEATURES = {
   fsAccess: true,
 
   hasOffThreadCapability: true,
+
+  supportsWasiPreview1: true,
 }

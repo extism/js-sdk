@@ -212,6 +212,25 @@ build_bun out='bun' args='[]':
     just _build {{ out }} "$config"
     echo '{"type":"module"}' > dist/{{ out }}/package.json
 
+build_bun out='bun' args='[]':
+    #!/bin/bash
+    config="$(<<<'{{ args }}' jq -cM '
+      [{
+        "entryPoints": ["src/mod.ts", "src/worker.ts"],
+        "platform": "node",
+        "format": "esm",
+        "minify": false,
+        "alias": {
+          "js-sdk:worker-url": "./src/polyfills/bun:worker-url.ts",
+          "js-sdk:features": "./src/polyfills/bun:features.ts",
+          "js-sdk:fs": "node:fs/promises",
+          "js-sdk:wasi": "./src/polyfills/node:wasi.ts",
+        }
+      }] + .
+    ')"
+    just _build {{ out }} "$config"
+    echo '{"type":"module"}' > dist/{{ out }}/package.json
+
 build_browser out='browser' args='[]':
     #!/bin/bash
     config="$(<<<'{{ args }}' jq -cM '
