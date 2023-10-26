@@ -101,8 +101,15 @@ build_worker out args='[]':
       }] + .
     ')"
     just _build {{ out }} "$config"
+
+    if [ $(uname) == 'Darwin' ]; then
+      flag="-b"
+    else
+      flag="-w"
+    fi
+
     echo "export const WORKER_URL = new URL($(
-      <dist/{{ out }}/worker.js base64 |
+      <dist/{{ out }}/worker.js base64 ${flag} 0 |
       jq -cMRS '"data:text/javascript;base64," + .'
     ));" > dist/{{ out }}/worker-url.ts
 
