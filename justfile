@@ -190,6 +190,25 @@ build_node_esm out='esm' args='[]':
     just _build {{ out }} "$config"
     echo '{"type":"module"}' > dist/{{ out }}/package.json
 
+build_bun out='bun' args='[]':
+    #!/bin/bash
+    config="$(<<<'{{ args }}' jq -cM '
+      [{
+        "entryPoints": ["src/mod.ts", "src/worker.ts"],
+        "platform": "node",
+        "format": "esm",
+        "minify": false,
+        "alias": {
+          "js-sdk:worker-url": "./src/polyfills/bun:worker-url.ts",
+          "js-sdk:features": "./src/polyfills/bun:features.ts",
+          "js-sdk:fs": "node:fs/promises",
+          "js-sdk:wasi": "./src/polyfills/node:wasi.ts",
+        }
+      }] + .
+    ')"
+    just _build {{ out }} "$config"
+    echo '{"type":"module"}' > dist/{{ out }}/package.json
+
 build_browser out='browser' args='[]':
     #!/bin/bash
     config="$(<<<'{{ args }}' jq -cM '
@@ -214,6 +233,9 @@ _build_node_tests:
     just build_node_cjs 'tests/cjs' '[{"minify": false, "entryPoints":["src/mod.test.ts"]}]'
     just build_node_esm 'tests/esm' '[{"minify": false, "entryPoints":["src/mod.test.ts"]}]'
 
+_build_bun_tests:
+    just build_bun 'tests/bun' '[{"minify": false, "entryPoints":["src/mod.test.ts"], "alias": {"node:test": "tape"}}]'
+
 _build_browser_tests out='tests/browser' args='[]':
     #!/bin/bash
     config="$(<<<'{{ args }}' jq -cM '
@@ -232,7 +254,7 @@ _build_browser_tests out='tests/browser' args='[]':
     cp dist/{{ out }}/mod.test.js dist/{{ out }}/$hashed.js
     echo '<html><script type="module" src="/dist/{{ out }}/'$hashed'.js"></script></html>' > dist/{{ out }}/index.html
 
-build: prepare build_worker_node build_worker_browser build_browser build_node_esm build_node_cjs _build_browser_tests _build_node_tests
+build: prepare build_worker_node build_worker_browser build_browser build_node_esm build_node_cjs build_bun _build_browser_tests _build_node_tests _build_bun_tests
     npm pack --pack-destination dist/
 
 test: build && test-artifacts
@@ -249,6 +271,7 @@ test: build && test-artifacts
     deno test -A src/mod.test.ts
     node --no-warnings --test dist/tests/cjs/*.test.js
     node --no-warnings --test dist/tests/esm/*.test.js
+    bun run dist/tests/bun/*.test.js
     playwright test --browser all tests/playwright.test.js
 
 test-artifacts:
@@ -295,6 +318,22 @@ test-artifacts:
         await plugin.close()
       }
     EOF
+
+    cat >./index.js <<EOF
+      import extism from '@extism/extism'
+      import assert from 'node:assert'
+
+      const plugin = await extism('../../wasm/hello.wasm')
+      try {
+        const text = new TextDecoder().decode(
+          await plugin.call('run_test', 'this is a test')
+        )
+        assert.equal(text, 'Hello, world!')
+      } finally {
+        await plugin.close()
+      }
+    EOF
+    bun run index.js
 
 lint *args:
     eslint src tests examples $args

@@ -21,6 +21,7 @@
   "typings": "./dist/cjs/mod.d.ts",
   "browser": "./dist/browser/mod.js",
   "exports": {
+    "bun": "./dist/bun/mod.js",
     "node": {
       "import": {
         "types": "./dist/esm/mod.d.ts",

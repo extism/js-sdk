@@ -297,7 +297,7 @@ test('can initialize Haskell runtime', async () => {
   }
 });
 
-if (FEATURES.fsAccess) {
+if (FEATURES.fsAccess && FEATURES.supportsWasiPreview1) {
   test('can access fs', async () => {
     const plugin = await createPlugin('http://localhost:8124/wasm/fs.wasm', {
       allowedPaths: { '/mnt': 'tests/data' },
