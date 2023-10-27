@@ -48,7 +48,6 @@
     "esbuild": "^0.15.13",
     "esbuild-node-builtin": "^0.1.1",
     "eslint": "^8.51.0",
-    "just-install": "^1.0.11",
     "playwright": "^1.39.0",
     "prettier": "^2.7.1",
     "tape": "^5.7.1",

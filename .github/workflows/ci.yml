@@ -19,6 +19,8 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - uses: extractions/setup-just@v1
+
     - uses: actions/setup-node@v3.8.1
 
     - uses: denoland/setup-deno@v1.1.2
