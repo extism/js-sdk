@@ -8,7 +8,7 @@ import { FEATURES } from 'js-sdk:features';
 export interface ExtismPluginOptions {
   useWasi?: boolean | undefined;
   runtime?: ManifestWasm | undefined;
-  offMainThread?: boolean | undefined;
+  runInWorker?: boolean | undefined;
   logger?: Console;
   functions?: { [key: string]: { [key: string]: any } } | undefined;
   allowedPaths?: { [key: string]: string } | undefined;
@@ -29,8 +29,8 @@ export function intoPluginOptions(opts: ExtismPluginOptions): ExtismPluginOption
   opts.allowedHosts ??= <any>[].concat(opts.allowedHosts || []);
   opts.logger ??= console;
 
-  opts.offMainThread ??= FEATURES.hasOffThreadCapability;
-  if (opts.offMainThread && !FEATURES.hasOffThreadCapability) {
+  opts.runInWorker ??= FEATURES.hasWorkerCapability;
+  if (opts.runInWorker && !FEATURES.hasWorkerCapability) {
     throw new Error(
       'Cannot enable off-thread wasm; current context is not `crossOriginIsolated` (see https://mdn.io/crossOriginIsolated)'
     );

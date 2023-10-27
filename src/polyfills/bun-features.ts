@@ -11,7 +11,7 @@ export const FEATURES = {
 
   fsAccess: true,
 
-  hasOffThreadCapability: true,
+  hasWorkerCapability: true,
 
   // See https://github.com/oven-sh/bun/issues/1960
   supportsWasiPreview1: false,
