@@ -221,10 +221,10 @@ build_bun out='bun' args='[]':
         "format": "esm",
         "minify": false,
         "alias": {
-          "js-sdk:worker-url": "./src/polyfills/bun:worker-url.ts",
-          "js-sdk:features": "./src/polyfills/bun:features.ts",
+          "js-sdk:worker-url": "./src/polyfills/bun-worker-url.ts",
+          "js-sdk:features": "./src/polyfills/bun-features.ts",
           "js-sdk:fs": "node:fs/promises",
-          "js-sdk:wasi": "./src/polyfills/node:wasi.ts",
+          "js-sdk:wasi": "./src/polyfills/node-wasi.ts",
         }
       }] + .
     ')"
