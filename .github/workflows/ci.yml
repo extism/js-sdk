@@ -24,6 +24,7 @@ jobs:
     - uses: denoland/setup-deno@v1.1.2
 
     - uses: oven-sh/setup-bun@v1
+      if: ${{ matrix.os != 'windows-latest' }}
       with:
         bun-version: latest
 

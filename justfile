@@ -28,7 +28,7 @@ prepare:
       npm ci
     fi
 
-    playwright install
+    playwright install --with-deps
 
 _build out args='[]': prepare
     #!/bin/bash
@@ -271,7 +271,7 @@ test: build && test-artifacts
     deno test -A src/mod.test.ts
     node --no-warnings --test dist/tests/cjs/*.test.js
     node --no-warnings --test dist/tests/esm/*.test.js
-    bun run dist/tests/bun/*.test.js
+    if &>/dev/null which bun; then bun run dist/tests/bun/*.test.js; fi
     playwright test --browser all tests/playwright.test.js
 
 test-artifacts:
@@ -304,21 +304,6 @@ test-artifacts:
       })
     EOF
 
-    node --input-type=module --no-warnings <<EOF
-      import extism from '@extism/extism'
-      import assert from 'node:assert'
-
-      const plugin = await extism('../../wasm/hello.wasm')
-      try {
-        const text = new TextDecoder().decode(
-          await plugin.call('run_test', 'this is a test')
-        )
-        assert.equal(text, 'Hello, world!')
-      } finally {
-        await plugin.close()
-      }
-    EOF
-
     cat >./index.js <<EOF
       import extism from '@extism/extism'
       import assert from 'node:assert'
@@ -333,6 +318,9 @@ test-artifacts:
         await plugin.close()
       }
     EOF
+
+    node --input-type=module --no-warnings <index.js
+    if &>/dev/null which bun; then bun run index.js; fi
     bun run index.js
 
 lint *args:
