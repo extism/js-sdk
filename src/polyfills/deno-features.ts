@@ -14,4 +14,4 @@ export const FEATURES = {
   hasWorkerCapability: true,
 
   supportsWasiPreview1: true,
-}
+};
