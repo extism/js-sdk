@@ -11,7 +11,7 @@ export const FEATURES = {
 
   fsAccess: true,
 
-  hasOffThreadCapability: true,
+  hasWorkerCapability: true,
 
   supportsWasiPreview1: true,
 }

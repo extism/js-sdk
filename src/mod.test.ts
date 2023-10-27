@@ -185,7 +185,7 @@ test('host functions reject original promise when throwing', async () => {
   }
 })
 
-if (FEATURES.hasOffThreadCapability) {
+if (FEATURES.hasWorkerCapability) {
   test('host functions may be async if worker is off-main-thread', async () => {
     const functions = {
       env: {
@@ -198,7 +198,7 @@ if (FEATURES.hasOffThreadCapability) {
 
     const plugin = await createPlugin({wasm: [
       { url: 'http://localhost:8124/wasm/code-functions.wasm' }
-    ]}, { useWasi: true, functions, offMainThread: true });
+    ]}, { useWasi: true, functions, runInWorker: true });
 
     try {
       const output = await plugin.call('count_vowels', 'hello world');
@@ -220,7 +220,7 @@ if (FEATURES.hasOffThreadCapability) {
 
     const plugin = await createPlugin({wasm: [
       { url: 'http://localhost:8124/wasm/code-functions.wasm' }
-    ]}, { useWasi: true, functions, offMainThread: true });
+    ]}, { useWasi: true, functions, runInWorker: true });
 
     try {
       const [err, data] = await plugin.call('count_vowels', 'hello world').then(

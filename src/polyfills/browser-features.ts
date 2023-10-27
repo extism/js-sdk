@@ -11,7 +11,7 @@ export const FEATURES = {
 
   fsAccess: false,
 
-  hasOffThreadCapability: (
+  hasWorkerCapability: (
     typeof window !== 'undefined'
     ? (window as any).crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'
     : true

@@ -31,7 +31,7 @@ export type PluginConfig = { [key: string]: string };
  */
 export interface ExtismPluginOptions {
   useWasi?: boolean | undefined;
-  offMainThread?: boolean | undefined;
+  runInWorker?: boolean | undefined;
   logger?: Console;
   functions?: { [key: string]: { [key: string]: any } } | undefined;
   allowedPaths?: { [key: string]: string } | undefined;
@@ -93,8 +93,8 @@ export default async function createPlugin(
   opts.logger ??= console;
   opts.config ??= {}
 
-  opts.offMainThread ??= FEATURES.hasOffThreadCapability;
-  if (opts.offMainThread && !FEATURES.hasOffThreadCapability) {
+  opts.runInWorker ??= FEATURES.hasWorkerCapability;
+  if (opts.runInWorker && !FEATURES.hasWorkerCapability) {
     throw new Error(
       'Cannot enable off-thread wasm; current context is not `crossOriginIsolated` (see https://mdn.io/crossOriginIsolated)'
     );
@@ -120,7 +120,7 @@ export default async function createPlugin(
     config,
   }
 
-  return (opts.offMainThread ? _createBackgroundPlugin : _createForegroundPlugin)(
+  return (opts.runInWorker ? _createBackgroundPlugin : _createForegroundPlugin)(
     ic,
     names,
     moduleData,
