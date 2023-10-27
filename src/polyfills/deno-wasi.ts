@@ -1,7 +1,7 @@
 import Context from 'https://deno.land/std@0.200.0/wasi/snapshot_preview1.ts';
 import { type InternalWasi } from '../mod.ts';
 
-export async function loadWasi(allowedPaths: {[from: string]: string}): Promise<InternalWasi> {
+export async function loadWasi(allowedPaths: { [from: string]: string }): Promise<InternalWasi> {
   const context = new Context({
     preopens: allowedPaths,
     exitOnReturn: false,
@@ -9,7 +9,7 @@ export async function loadWasi(allowedPaths: {[from: string]: string}): Promise<
 
   return {
     async importObject() {
-      return context.exports
+      return context.exports;
     },
 
     async initialize(instance: WebAssembly.Instance) {
@@ -22,9 +22,9 @@ export async function loadWasi(allowedPaths: {[from: string]: string}): Promise<
       context.start({
         exports: {
           memory,
-          _start: () => { },
+          _start: () => {},
         },
       });
-    }
-  }
+    },
+  };
 }

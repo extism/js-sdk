@@ -1,13 +1,13 @@
 // This is a polyfill for the main thread in a browser context.
 // We're making the native Worker API look like node's worker_threads
 // implementation.
-export const parentPort = null; 
+export const parentPort = null;
 
 const HANDLER_MAP = new WeakMap();
 
 export class Worker extends (global.Worker || Object) {
   constructor(url: string) {
-    super(url, { type: 'module', credentials: 'omit', name: 'extism-worker', crossOriginIsolated: true } as any)
+    super(url, { type: 'module', credentials: 'omit', name: 'extism-worker', crossOriginIsolated: true } as any);
   }
 
   on(ev: string, action: any) {

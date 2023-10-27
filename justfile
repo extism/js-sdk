@@ -323,6 +323,18 @@ test-artifacts:
 lint *args:
     eslint src tests examples $args
 
+format:
+    prettier --write src/*.ts src/**/*.ts examples/*
+
+docs:
+    typedoc src/mod.ts
+
+serve-docs: docs
+  python3 -m http.server 8000 -d docs/
+
+watch-docs: prepare
+  watchexec -r -w src -w README.md just serve-docs
+
 serve port='8124' logs='true':
     #!/usr/bin/env node
 

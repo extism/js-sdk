@@ -18,13 +18,16 @@ export interface ExtismPluginOptions {
 }
 
 export function intoPluginOptions(opts: ExtismPluginOptions): ExtismPluginOptions {
-  opts = {...opts};
+  opts = { ...opts };
   opts.useWasi ??= false;
   opts.functions = opts.functions || {};
   opts.runtime ??= {
-    data: Uint8Array.from(atob(EMBEDDED_RUNTIME) as ArrayLike<string>, (xs: string, _idx: number) => xs.codePointAt(0) as number),
-    hash: EMBEDDED_RUNTIME_HASH
-  }
+    data: Uint8Array.from(
+      atob(EMBEDDED_RUNTIME) as ArrayLike<string>,
+      (xs: string, _idx: number) => xs.codePointAt(0) as number,
+    ),
+    hash: EMBEDDED_RUNTIME_HASH,
+  };
   opts.allowedPaths ??= {};
   opts.allowedHosts ??= <any>[].concat(opts.allowedHosts || []);
   opts.logger ??= console;
@@ -32,7 +35,7 @@ export function intoPluginOptions(opts: ExtismPluginOptions): ExtismPluginOption
   opts.runInWorker ??= FEATURES.hasWorkerCapability;
   if (opts.runInWorker && !FEATURES.hasWorkerCapability) {
     throw new Error(
-      'Cannot enable off-thread wasm; current context is not `crossOriginIsolated` (see https://mdn.io/crossOriginIsolated)'
+      'Cannot enable off-thread wasm; current context is not `crossOriginIsolated` (see https://mdn.io/crossOriginIsolated)',
     );
   }
 

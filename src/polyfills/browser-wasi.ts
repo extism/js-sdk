@@ -1,7 +1,7 @@
 import { WASI, Fd, File, OpenFile } from '@bjorn3/browser_wasi_shim';
 import { type InternalWasi } from '../mod.ts';
 
-export async function loadWasi(_allowedPaths: {[from: string]: string}): Promise<InternalWasi> {
+export async function loadWasi(_allowedPaths: { [from: string]: string }): Promise<InternalWasi> {
   const args: Array<string> = [];
   const envVars: Array<string> = [];
   const fds: Fd[] = [
@@ -14,7 +14,7 @@ export async function loadWasi(_allowedPaths: {[from: string]: string}): Promise
 
   return {
     async importObject() {
-      return context.wasiImport
+      return context.wasiImport;
     },
 
     async initialize(instance: WebAssembly.Instance) {
@@ -27,9 +27,9 @@ export async function loadWasi(_allowedPaths: {[from: string]: string}): Promise
       context.start({
         exports: {
           memory,
-          _start: () => { },
+          _start: () => {},
         },
       });
-    }
-  }
+    },
+  };
 }

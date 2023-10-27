@@ -4,13 +4,13 @@
 const _parentPort = null;
 
 export const parentPort = _parentPort || {
-  on (ev: string, fn: unknown) {
+  on(ev: string, fn: unknown) {
     addEventListener(ev, (event: MessageEvent) => {
       fn(event.data);
-    })
+    });
   },
 
-  postMessage (data, txf=[]) {
+  postMessage(data, txf = []) {
     self.postMessage(data, txf);
-  }
-}
+  },
+};

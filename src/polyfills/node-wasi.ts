@@ -1,7 +1,7 @@
 import { WASI } from 'wasi';
 import { type InternalWasi } from '../mod.ts';
 
-export async function loadWasi(allowedPaths: {[from: string]: string}): Promise<InternalWasi> {
+export async function loadWasi(allowedPaths: { [from: string]: string }): Promise<InternalWasi> {
   const context = new WASI({
     version: 'preview1',
     preopens: allowedPaths,
@@ -9,7 +9,7 @@ export async function loadWasi(allowedPaths: {[from: string]: string}): Promise<
 
   return {
     async importObject() {
-      return context.wasiImport
+      return context.wasiImport;
     },
 
     async initialize(instance: WebAssembly.Instance) {
@@ -22,9 +22,9 @@ export async function loadWasi(allowedPaths: {[from: string]: string}): Promise<
       context.start({
         exports: {
           memory,
-          _start: () => { },
+          _start: () => {},
         },
       });
-    }
-  }
+    },
+  };
 }

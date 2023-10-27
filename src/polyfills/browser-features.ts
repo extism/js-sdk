@@ -11,11 +11,10 @@ export const FEATURES = {
 
   fsAccess: false,
 
-  hasWorkerCapability: (
+  hasWorkerCapability:
     typeof window !== 'undefined'
-    ? (window as any).crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'
-    : true
-  ),
+      ? (window as any).crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'
+      : true,
 
   supportsWasiPreview1: true,
-}
+};
