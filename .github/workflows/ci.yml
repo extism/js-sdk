@@ -22,6 +22,8 @@ jobs:
     - uses: extractions/setup-just@v1
 
     - uses: actions/setup-node@v3.8.1
+      with:
+        node-version: lts
 
     - uses: denoland/setup-deno@v1.1.2
 
