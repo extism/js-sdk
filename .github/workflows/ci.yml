@@ -23,7 +23,8 @@ jobs:
 
     - uses: actions/setup-node@v3.8.1
       with:
-        node-version: lts
+        node-version: lts/*
+        check-latest: true
 
     - uses: denoland/setup-deno@v1.1.2
 
@@ -31,12 +32,6 @@ jobs:
       if: ${{ matrix.os != 'windows-latest' }}
       with:
         bun-version: latest
-
-    - name: NPM install
-      run: npm ci
-
-    - name: Build
-      run: npm run build
 
     - name: Test
       run: npm run test
