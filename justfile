@@ -249,10 +249,7 @@ _build_browser_tests out='tests/browser' args='[]':
     ')"
     just build_browser {{ out }} "$config"
     echo '{"type":"module"}' > dist/{{ out }}/package.json
-
-    hashed=$(shasum dist/{{ out }}/mod.test.js | awk '{print $1}')
-    cp dist/{{ out }}/mod.test.js dist/{{ out }}/$hashed.js
-    echo '<html><script type="module" src="/dist/{{ out }}/'$hashed'.js"></script></html>' > dist/{{ out }}/index.html
+    echo '<html><script type="module" src="/dist/{{ out }}/mod.test.js"></script></html>' > dist/{{ out }}/index.html
 
 build: prepare build_worker_node build_worker_browser build_browser build_node_esm build_node_cjs build_bun _build_browser_tests _build_node_tests _build_bun_tests
     npm pack --pack-destination dist/
