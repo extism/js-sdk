@@ -32,10 +32,10 @@ build_worker_browser out='worker/browser' args='[]': # <-- we accept args and an
       [{
         "format": "esm",
         "alias": {
-          "js-sdk:features": "./src/polyfills/browser:features.ts",
-          "node:worker_threads": "./src/polyfills/worker:node:worker_threads.ts",
-          "js-sdk:fs": "./src/polyfills/browser:fs.ts",
-          "js-sdk:wasi": "./src/polyfills/browser:wasi.ts",
+          "js-sdk:features": "./src/polyfills/browser-features.ts",
+          "node:worker_threads": "./src/polyfills/worker-node-worker_threads.ts",
+          "js-sdk:fs": "./src/polyfills/browser-fs.ts",
+          "js-sdk:wasi": "./src/polyfills/browser-wasi.ts",
         }
       }] + . # <--- add this recipe's flags to the incoming flags.
     ')"
@@ -54,12 +54,12 @@ differences at module boundaries and replace them as-needed. For example: each
 of Node, Deno, and the Browser have different WASI libraries with slightly different
 interfaces. We define a **virtual module**, `js-sdk:wasi`, and implement it by:
 
-1. Modifying `deno.json`; adding a mapping from `js-sdk:wasi` to `./src/polyfills/deno:wasi.ts`.
+1. Modifying `deno.json`; adding a mapping from `js-sdk:wasi` to `./src/polyfills/deno-wasi.ts`.
 2. Adding a `types/js-sdk:wasi/index.d.ts` file.
 3. Modifying the esbuild `alias` added by `build_worker`, `build_worker_node`,
    `build_node_cjs`, `build_node_esm`, and `build_browser`.
-    - Node overrides are set to `./src/polyfills/node:wasi.ts`.
-    - Browser overrides are set to `./src/polyfills/browser:wasi.ts`.
+    - Node overrides are set to `./src/polyfills/node-wasi.ts`.
+    - Browser overrides are set to `./src/polyfills/browser-wasi.ts`.
 
 In this manner, differences between the platforms are hidden and the core of
 the library can be written in "mutually intelligble" TypeScript.
@@ -67,7 +67,7 @@ the library can be written in "mutually intelligble" TypeScript.
 One notable exception to this rule: Deno implements Node polyfills; for
 complicated imports, like `node:worker_threads`, we instead only polyfill the
 browser. The browser polyfill is split into `host:node:worker_threads.ts` and
-`worker:node:worker_threads.ts`: these polyfill just enough of the Node worker
+`worker-node-worker_threads.ts`: these polyfill just enough of the Node worker
 thread API over the top of builtin workers to make them adhere to the same
 interface.
 

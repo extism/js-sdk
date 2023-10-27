@@ -119,9 +119,9 @@ build_worker_node out='worker/node' args='[]':
       [{
         "platform": "node",
         "alias": {
-          "js-sdk:features": "./src/polyfills/node:features.ts",
+          "js-sdk:features": "./src/polyfills/node-features.ts",
           "js-sdk:fs": "node:fs",
-          "js-sdk:wasi": "./src/polyfills/node:wasi.ts",
+          "js-sdk:wasi": "./src/polyfills/node-wasi.ts",
         }
       }] + .
     ')"
@@ -133,10 +133,10 @@ build_worker_browser out='worker/browser' args='[]':
       [{
         "format": "esm",
         "alias": {
-          "js-sdk:features": "./src/polyfills/browser:features.ts",
-          "node:worker_threads": "./src/polyfills/worker:node:worker_threads.ts",
-          "js-sdk:fs": "./src/polyfills/browser:fs.ts",
-          "js-sdk:wasi": "./src/polyfills/browser:wasi.ts",
+          "js-sdk:features": "./src/polyfills/browser-features.ts",
+          "node:worker_threads": "./src/polyfills/worker-node-worker_threads.ts",
+          "js-sdk:fs": "./src/polyfills/browser-fs.ts",
+          "js-sdk:wasi": "./src/polyfills/browser-wasi.ts",
         }
       }] + .
     ')"
@@ -150,10 +150,10 @@ build_node_cjs out='cjs' args='[]':
         "platform": "node",
         "minify": false,
         "alias": {
-          "js-sdk:features": "./src/polyfills/node:features.ts",
+          "js-sdk:features": "./src/polyfills/node-features.ts",
           "js-sdk:worker-url": "./dist/worker/node/worker-url.ts",
           "js-sdk:fs": "node:fs/promises",
-          "js-sdk:wasi": "./src/polyfills/node:wasi.ts",
+          "js-sdk:wasi": "./src/polyfills/node-wasi.ts",
         },
         "define": {
           "import.meta.url": "__filename"
@@ -180,10 +180,10 @@ build_node_esm out='esm' args='[]':
         "format": "esm",
         "minify": false,
         "alias": {
-          "js-sdk:features": "./src/polyfills/node:features.ts",
+          "js-sdk:features": "./src/polyfills/node-features.ts",
           "js-sdk:worker-url": "./dist/worker/node/worker-url.ts",
           "js-sdk:fs": "node:fs/promises",
-          "js-sdk:wasi": "./src/polyfills/node:wasi.ts",
+          "js-sdk:wasi": "./src/polyfills/node-wasi.ts",
         }
       }] + .
     ')"
@@ -199,10 +199,10 @@ build_bun out='bun' args='[]':
         "format": "esm",
         "minify": false,
         "alias": {
-          "js-sdk:worker-url": "./src/polyfills/bun:worker-url.ts",
-          "js-sdk:features": "./src/polyfills/bun:features.ts",
+          "js-sdk:worker-url": "./src/polyfills/bun-worker-url.ts",
+          "js-sdk:features": "./src/polyfills/bun-features.ts",
           "js-sdk:fs": "node:fs/promises",
-          "js-sdk:wasi": "./src/polyfills/node:wasi.ts",
+          "js-sdk:wasi": "./src/polyfills/node-wasi.ts",
         }
       }] + .
     ')"
@@ -218,11 +218,11 @@ build_browser out='browser' args='[]':
         "define": {"global": "window"},
         "format": "esm",
         "alias": {
-          "js-sdk:features": "./src/polyfills/browser:features.ts",
-          "node:worker_threads": "./src/polyfills/host:node:worker_threads.ts",
-          "js-sdk:fs": "./src/polyfills/browser:fs.ts",
+          "js-sdk:features": "./src/polyfills/browser-features.ts",
+          "node:worker_threads": "./src/polyfills/host-node-worker_threads.ts",
+          "js-sdk:fs": "./src/polyfills/browser-fs.ts",
           "js-sdk:worker-url": "./dist/worker/browser/worker-url.ts",
-          "js-sdk:wasi": "./src/polyfills/browser:wasi.ts",
+          "js-sdk:wasi": "./src/polyfills/browser-wasi.ts",
         }
       }] + .
     ')"
