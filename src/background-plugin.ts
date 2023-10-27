@@ -1,8 +1,8 @@
 import { CallContext, IMPORT_STATE, EXPORT_STATE, STORE, GET_BLOCK } from './call-context.ts';
-import { type InternalConfig } from './mod.ts';
+import { type InternalConfig } from './interfaces.ts';
 import { WORKER_URL } from 'js-sdk:worker-url';
 import { Worker } from 'node:worker_threads';
-import { FEATURES } from 'js-sdk:features';
+import { CAPABILITIES } from 'js-sdk:capabilities';
 
 const MAX_WAIT = 5000;
 
@@ -149,7 +149,7 @@ class BackgroundPlugin {
     }
 
     let buf;
-    if (FEATURES.allowSharedBufferCodec) {
+    if (CAPABILITIES.allowSharedBufferCodec) {
       buf = new Uint8Array(block.buffer);
     } else {
       // This platform doesn't support encoding/decoding SharedArrayBuffers.

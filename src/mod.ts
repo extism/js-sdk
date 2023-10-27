@@ -1,82 +1,74 @@
-export type {
-  Manifest,
-  ManifestWasm,
-  ManifestWasmUrl,
-  ManifestWasmData,
-  ManifestLike as IntoManifest,
-} from './manifest.ts';
-import { FEATURES } from 'js-sdk:features';
-export { FEATURES } from 'js-sdk:features';
+import { CAPABILITIES } from 'js-sdk:capabilities';
 
-import { ManifestLike, intoManifest as _intoManifest, toWasmModuleData as _toWasmModuleData } from './manifest.ts';
+import type {
+  ManifestLike,
+  InternalConfig,
+  ExtismPluginOptions,
+  Plugin,
+} from './interfaces.ts';
+
+import { intoManifest as _intoManifest, toWasmModuleData as _toWasmModuleData } from './manifest.ts';
 
 import { createForegroundPlugin as _createForegroundPlugin } from './foreground-plugin.ts';
 import { createBackgroundPlugin as _createBackgroundPlugin } from './background-plugin.ts';
-export { type CallContext } from './call-context.ts';
+
+export { CAPABILITIES } from 'js-sdk:capabilities';
+
+export type {
+  Capabilities,
+  ExtismPluginOptions,
+  ManifestLike,
+  ManifestWasmData,
+  ManifestWasmUrl,
+  ManifestWasmPath,
+  ManifestWasm,
+  Manifest,
+  Plugin
+} from './interfaces.ts';
+
+export type {
+  CallContext,
+  CallContext as CurrentPlugin,
+} from './call-context.ts'
 
 /**
- * {@link Plugin} Config
+ * Create a {@link Plugin} given a {@link ManifestLike} and {@link ExtismPluginOptions}.
+ *
+ * Plugins wrap Wasm modules, exposing rich access to exported functions.
+ *
+ * ```ts
+ * const plugin = await createPlugin(
+ *   'https://github.com/extism/plugins/releases/download/v0.3.0/count_vowels.wasm',
+ *   { useWasi: true }
+ * );
+ *
+ * try {
+ *   const resultBytes = await plugin.call('count_vowels', 'hello world')
+ *   const parsed = JSON.parse(new TextDecoder().decode(resultBytes))
+ *
+ *   console.log(parsed) // { count: 3, total: 3, vowels: "aeiouAEIOU" }
+ * } finally {
+ *   await plugin.close()
+ * }
+ * ```
+ *
+ * {@link Plugin | `Plugin`} default to running on a background thread when the
+ * environment supports it. You can see if the current environment supports
+ * background plugins by checking the {@link Capabilities#hasWorkerCapability |
+ * `hasWorkerCapability`} property of {@link CAPABILITIES}.
+ *
+ * @param manifest A {@link ManifestLike | `ManifestLike`}. May be a `string`
+ * representing a URL, JSON, a path to a wasm file ({@link
+ * Capabilities#manifestSupportsPaths | in environments} where paths are
+ * supported); an [ArrayBuffer](https://mdn.io/ArrayBuffer); or a {@link
+ * Manifest}.
+ *
+ * @param opts {@link ExtismPluginOptions | options} for controlling the behavior
+ * of the plugin.
+ *
+ * @returns a promise for a {@link Plugin}.
  */
-export interface PluginConfigLike {
-  [key: string]: string;
-}
-export type PluginConfig = { [key: string]: string };
-
-/**
- * Options for initializing an Extism plugin.
- */
-export interface ExtismPluginOptions {
-  useWasi?: boolean | undefined;
-  runInWorker?: boolean | undefined;
-  logger?: Console;
-  functions?: { [key: string]: { [key: string]: any } } | undefined;
-  allowedPaths?: { [key: string]: string } | undefined;
-  allowedHosts?: string[] | undefined;
-  config?: PluginConfigLike | undefined;
-  fetch?: typeof fetch;
-}
-
-export interface Plugin {
-  /**
-   * Check if a function exists in the WebAssembly module.
-   *
-   * @param {string | [string, string]} funcName The function's name, or a tuple of target module name and function name.
-   * @returns {Promise<boolean>} true if the function exists, otherwise false
-   */
-  functionExists(funcName: string | [string, string]): Promise<boolean>;
-  close(): Promise<void>;
-
-  /**
-   * Call a specific function from the WebAssembly module with provided input.
-   *
-   * @param {string | [string, string]} funcName The name of the function to call
-   * @param {Uint8Array | string} input The input to pass to the function
-   * @returns {Promise<Uint8Array>} The result from the function call
-   */
-  call(funcName: string | [string, string], input?: string | number | Uint8Array): Promise<Uint8Array | null>;
-  callBlock(funcName: string | [string, string], input?: number | null): Promise<[number | null, number | null]>;
-  getExports(name?: string): Promise<WebAssembly.ModuleExportDescriptor[]>;
-  getImports(name?: string): Promise<WebAssembly.ModuleImportDescriptor[]>;
-  getInstance(name?: string): Promise<WebAssembly.Instance>;
-}
-
-// TODO: move these into another module...
-export interface InternalConfig {
-  logger: Console;
-  allowedHosts: string[];
-  allowedPaths: { [key: string]: string };
-  functions: { [namespace: string]: { [func: string]: any } };
-  fetch: typeof fetch;
-  wasiEnabled: boolean;
-  config: PluginConfig;
-}
-
-export interface InternalWasi {
-  importObject(): Promise<Record<string, WebAssembly.ImportValue>>;
-  initialize(instance: WebAssembly.Instance): Promise<void>;
-}
-
-export default async function createPlugin(
+export async function createPlugin(
   manifest: ManifestLike | PromiseLike<ManifestLike>,
   opts: ExtismPluginOptions = {},
 ): Promise<Plugin> {
@@ -89,8 +81,8 @@ export default async function createPlugin(
   opts.logger ??= console;
   opts.config ??= {};
 
-  opts.runInWorker ??= FEATURES.hasWorkerCapability;
-  if (opts.runInWorker && !FEATURES.hasWorkerCapability) {
+  opts.runInWorker ??= CAPABILITIES.hasWorkerCapability;
+  if (opts.runInWorker && !CAPABILITIES.hasWorkerCapability) {
     throw new Error(
       'Cannot enable off-thread wasm; current context is not `crossOriginIsolated` (see https://mdn.io/crossOriginIsolated)',
     );
@@ -98,23 +90,17 @@ export default async function createPlugin(
 
   const [names, moduleData] = await _toWasmModuleData(manifest, opts.fetch ?? fetch);
 
-  const config = { ...opts.config, ...manifest.config };
-  const allowedHosts = [...(manifest.allowed_hosts || []), ...(opts.allowedHosts || [])];
-  const allowedPaths = opts.allowedPaths || {};
-  const functions = opts.functions || {};
-  const logger = opts.logger || console;
-  const _fetch = opts.fetch || fetch;
-  const wasiEnabled = Boolean(opts.useWasi);
-
   const ic: InternalConfig = {
-    allowedHosts,
-    allowedPaths,
-    functions,
-    fetch: _fetch,
-    wasiEnabled,
-    logger,
-    config,
+    allowedHosts: opts.allowedHosts as [],
+    allowedPaths: opts.allowedPaths,
+    functions: opts.functions,
+    fetch: opts.fetch || fetch,
+    wasiEnabled: opts.useWasi,
+    logger: opts.logger,
+    config: opts.config,
   };
 
   return (opts.runInWorker ? _createBackgroundPlugin : _createForegroundPlugin)(ic, names, moduleData);
 }
+
+export default createPlugin;

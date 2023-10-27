@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import createPlugin, { CallContext, FEATURES } from './mod.ts';
+import createPlugin, { CallContext, CAPABILITIES } from './mod.ts';
 
 if (typeof WebAssembly === 'undefined') {
   test('this platform lacks WebAssembly support', async () => {
@@ -25,7 +25,7 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  if (!FEATURES.crossOriginChecksEnforced) {
+  if (!CAPABILITIES.crossOriginChecksEnforced) {
     test('can create plugin from url with hash check', async () => {
       const plugin = await createPlugin({
         wasm: [
@@ -210,7 +210,7 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  if (FEATURES.hasWorkerCapability) {
+  if (CAPABILITIES.hasWorkerCapability) {
     test('host functions may be async if worker is off-main-thread', async () => {
       const functions = {
         env: {
@@ -323,7 +323,7 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  if (FEATURES.fsAccess && FEATURES.supportsWasiPreview1) {
+  if (CAPABILITIES.fsAccess && CAPABILITIES.supportsWasiPreview1) {
     test('can access fs', async () => {
       const plugin = await createPlugin('http://localhost:8124/wasm/fs.wasm', {
         allowedPaths: { '/mnt': 'tests/data' },

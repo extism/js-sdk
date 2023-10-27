@@ -1,5 +1,5 @@
-import { type PluginConfig } from './mod.ts';
-import { FEATURES } from 'js-sdk:features';
+import { type PluginConfig } from './interfaces.ts';
+import { CAPABILITIES } from 'js-sdk:capabilities';
 
 export const BEGIN = Symbol('begin');
 export const END = Symbol('end');
@@ -59,7 +59,7 @@ export class CallContext {
     }
 
     const buffer =
-      !(block.buffer instanceof ArrayBuffer) && !FEATURES.allowSharedBufferCodec
+      !(block.buffer instanceof ArrayBuffer) && !CAPABILITIES.allowSharedBufferCodec
         ? new Uint8Array(block.buffer).slice().buffer
         : block.buffer;
 
@@ -74,6 +74,7 @@ export class CallContext {
     return Block.indexToAddress(idx);
   }
 
+  /** @hidden */
   [ENV] = {
     extism_alloc: (n: bigint): bigint => {
       const block = this.alloc(n);
@@ -265,6 +266,7 @@ export class CallContext {
     return index;
   }
 
+  /** @hidden */
   [GET_BLOCK](index: number): Block {
     const block = this.#blocks[index];
     if (!block) {
@@ -273,6 +275,7 @@ export class CallContext {
     return block;
   }
 
+  /** @hidden */
   [IMPORT_STATE](state: CallState, copy: boolean = false) {
     // eslint-disable-next-line prefer-const
     for (let [buf, idx] of state.blocks) {
@@ -286,6 +289,7 @@ export class CallContext {
     this.#stack = state.stack;
   }
 
+  /** @hidden */
   [EXPORT_STATE](): CallState {
     return {
       stack: this.#stack.slice(),
@@ -305,6 +309,7 @@ export class CallContext {
     };
   }
 
+  /** @hidden */
   [STORE](input?: string | Uint8Array | number) {
     if (!input) {
       return null;
@@ -331,10 +336,12 @@ export class CallContext {
     return input;
   }
 
+  /** @hidden */
   [BEGIN](input: number | null) {
     this.#stack.push([input, null, null]);
   }
 
+  /** @hidden */
   [END](): [number | null, number | null] {
     const [, outputIdx, errorIdx] = this.#stack.pop() as (number | null)[];
     const outputPosition = errorIdx === null ? 1 : 0;

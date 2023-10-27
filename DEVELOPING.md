@@ -32,7 +32,7 @@ build_worker_browser out='worker/browser' args='[]': # <-- we accept args and an
       [{
         "format": "esm",
         "alias": {
-          "js-sdk:features": "./src/polyfills/browser-features.ts",
+          "js-sdk:capabilities": "./src/polyfills/browser-capabilities.ts",
           "node:worker_threads": "./src/polyfills/worker-node-worker_threads.ts",
           "js-sdk:fs": "./src/polyfills/browser-fs.ts",
           "js-sdk:wasi": "./src/polyfills/browser-wasi.ts",

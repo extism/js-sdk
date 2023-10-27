@@ -1,60 +1,5 @@
-import { PluginConfigLike } from './mod.ts';
+import type { Manifest, ManifestWasmUrl, ManifestWasmData, ManifestWasmPath, ManifestLike } from './interfaces.ts';
 import { readFile } from 'js-sdk:fs';
-
-/**
- * Represents the raw bytes of a WASM file loaded into memory
- */
-export interface ManifestWasmData {
-  data: Uint8Array;
-}
-
-/**
- * Represents a url to a WASM module
- */
-export interface ManifestWasmUrl {
-  url: URL | string;
-}
-
-/**
- * Represents a path to a WASM module
- */
-export interface ManifestWasmPath {
-  path: string;
-}
-
-/**
- * The WASM to load as bytes, a path, or a url
- */
-export type ManifestWasm = (ManifestWasmUrl | ManifestWasmData | ManifestWasmPath) & {
-  name?: string | undefined;
-  hash?: string | undefined;
-};
-
-/**
- * The manifest which describes the {@link ExtismPlugin} code and
- * runtime constraints.
- *
- * @see [Extism > Concepts > Manifest](https://extism.org/docs/concepts/manifest)
- */
-export interface Manifest {
-  wasm: Array<ManifestWasm>;
-  config?: PluginConfigLike | undefined;
-  allowed_hosts?: Array<string> | undefined;
-}
-
-/**
- * Any type that can be converted into an Extism {@link Manifest}.
- * - `object` instances that implement {@link Manifest} are validated.
- * - `ArrayBuffer` instances are converted into {@link Manifest}s with a single {@link ManifestWasmData} member.
- * - `URL` instances are fetched and their responses interpreted according to their `content-type` response header. `application/wasm` and `application/octet-stream` items
- *   are treated as {@link ManifestWasmData} items; `application/json` and `text/json` are treated as JSON-encoded {@link Manifest}s.
- * - `string` instances that start with `http://`, `https://`, or `file://` are treated as URLs.
- * - `string` instances that DO NOT start with `http://`, `https://`, or `file://` are treated as JSON-encoded {@link Manifest}s.
- *
- * @throws {@link TypeError} when `URL` parameters don't resolve to a known `content-type`
- * @throws {@link TypeError} when the resulting {@link Manifest} does not contain a `wasm` member with valid {@link ManifestWasm} items.
- */
-export type ManifestLike = Manifest | ArrayBuffer | string | URL;
 
 async function _populateWasmField(candidate: ManifestLike, _fetch: typeof fetch): Promise<ManifestLike> {
   if (candidate instanceof ArrayBuffer) {
@@ -112,7 +57,6 @@ async function _populateWasmField(candidate: ManifestLike, _fetch: typeof fetch)
 export async function intoManifest(candidate: ManifestLike, _fetch: typeof fetch = fetch): Promise<Manifest> {
   const manifest = (await _populateWasmField(candidate, _fetch)) as Manifest;
   manifest.config ??= {};
-  manifest.allowed_hosts = <any>[].concat(manifest.allowed_hosts || ([] as any));
   return manifest;
 }
 

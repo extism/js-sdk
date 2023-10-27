@@ -2,7 +2,7 @@ import { parentPort } from 'node:worker_threads';
 
 import { createForegroundPlugin as _createForegroundPlugin } from './foreground-plugin.ts';
 import { CallContext, EXPORT_STATE, CallState, IMPORT_STATE } from './call-context.ts';
-import { type Plugin, type InternalConfig } from './mod.ts';
+import { type Plugin, type InternalConfig } from './interfaces.ts';
 
 // TODO: make this configurable
 const MAX_WAIT = 5000;

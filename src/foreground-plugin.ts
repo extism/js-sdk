@@ -1,5 +1,5 @@
 import { CallContext, GET_BLOCK, BEGIN, END, ENV, STORE } from './call-context.ts';
-import { type InternalConfig } from './mod.ts';
+import { type InternalConfig } from './interfaces.ts';
 import { loadWasi } from 'js-sdk:wasi';
 
 const DYLIBSO_ENV = 'env';

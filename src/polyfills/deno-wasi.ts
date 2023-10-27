@@ -1,5 +1,5 @@
 import Context from 'https://deno.land/std@0.200.0/wasi/snapshot_preview1.ts';
-import { type InternalWasi } from '../mod.ts';
+import { type InternalWasi } from '../interfaces.ts';
 
 export async function loadWasi(allowedPaths: { [from: string]: string }): Promise<InternalWasi> {
   const context = new Context({

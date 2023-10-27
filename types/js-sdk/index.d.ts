@@ -1,5 +1,13 @@
-declare module 'js-sdk:features' {
-  export const FEATURES: Record<string, any>;
+declare module 'js-sdk:capabilities' {
+  import type { Capabilities } from '../../src/interfaces';
+
+  /**
+   *
+   * The {@link Capabilities} supported by the current platform.
+   *
+   * @see {@link Capabilities}
+   */
+  export const CAPABILITIES: Capabilities;
 }
 declare module 'js-sdk:fs' {
   function readFile(path: string): Promise<Buffer>;
