@@ -318,7 +318,6 @@ test-artifacts:
 
     node --input-type=module --no-warnings <index.js
     if &>/dev/null which bun; then bun run index.js; fi
-    bun run index.js
 
 lint *args:
     eslint src tests examples $args
