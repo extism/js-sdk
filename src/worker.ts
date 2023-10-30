@@ -1,8 +1,8 @@
 import { parentPort } from 'node:worker_threads';
 
-import { createForegroundPlugin as _createForegroundPlugin } from './foreground-plugin.ts';
+import { ForegroundPlugin, createForegroundPlugin as _createForegroundPlugin } from './foreground-plugin.ts';
 import { CallContext, EXPORT_STATE, CallState, IMPORT_STATE } from './call-context.ts';
-import { type Plugin, type InternalConfig } from './interfaces.ts';
+import { type InternalConfig } from './interfaces.ts';
 
 // TODO: make this configurable
 const MAX_WAIT = 5000;
@@ -11,7 +11,7 @@ class Reactor {
   hostFlag: Int32Array | null;
   sharedData: SharedArrayBuffer | null;
   sharedDataView: DataView | null;
-  plugin?: Plugin;
+  plugin?: ForegroundPlugin;
   port: Exclude<typeof parentPort, null>;
   dynamicHandlers: Map<string, (...args: any[]) => Promise<any>>;
   context?: CallContext;

@@ -43,12 +43,12 @@ export type {
  * );
  *
  * try {
- *   const resultBytes = await plugin.call('count_vowels', 'hello world')
- *   const parsed = JSON.parse(new TextDecoder().decode(resultBytes))
+ *   const result = await plugin.call('count_vowels', 'hello world');
+ *   const parsed = result.json();
  *
- *   console.log(parsed) // { count: 3, total: 3, vowels: "aeiouAEIOU" }
+ *   console.log(parsed); // { count: 3, total: 3, vowels: "aeiouAEIOU" }
  * } finally {
- *   await plugin.close()
+ *   await plugin.close();
  * }
  * ```
  *

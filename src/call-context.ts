@@ -1,4 +1,4 @@
-import { type PluginConfig } from './interfaces.ts';
+import { PluginOutput, type PluginConfig } from './interfaces.ts';
 import { CAPABILITIES } from 'js-sdk:capabilities';
 
 export const BEGIN = Symbol('begin');
@@ -50,8 +50,84 @@ export class CallContext {
   #encoder: TextEncoder;
   #arrayBufferType: { new (size: number): ArrayBufferLike };
   #config: PluginConfig;
+  #vars: Map<string, number> = new Map()
 
-  readString(addr: bigint | number): string | null {
+  /** @hidden */
+  constructor(
+    type: { new (size: number): ArrayBufferLike },
+    logger: Console,
+    config: PluginConfig
+  ) {
+    this.#arrayBufferType = type;
+    this.#logger = logger;
+    this.#decoder = new TextDecoder();
+    this.#encoder = new TextEncoder();
+
+    this.#stack = [];
+
+    // reserve the null page.
+    this.alloc(1);
+
+    this.#config = config;
+  }
+
+  /**
+   * Allocate a chunk of host memory visible to plugins via other extism host functions.
+   * Returns the start address of the block.
+   */
+  alloc(size: bigint | number): bigint {
+    const block = new Block(new this.#arrayBufferType(Number(size)), true);
+    const index = this.#blocks.length;
+    this.#blocks.push(block);
+    return Block.indexToAddress(index);
+  }
+
+  /**
+   * Read a variable from extism memory by name.
+   *
+   * @returns {@link PluginOutput}
+   */
+  getVariable(name: string): PluginOutput | null {
+    if (!this.#vars.has(name)) {
+      return null;
+    }
+    return this.read(this.#vars.get(name) as number)
+  }
+
+  /**
+   * Set a variable to a given string or byte array value. Returns the start
+   * address of the variable. The start address is reused when changing the
+   * value of an existing variable.
+   *
+   * @returns bigint
+   */
+  setVariable(name: string, value: string | Uint8Array): bigint {
+    const newIdx = this[STORE](value);
+    if (newIdx === null) {
+      return 0n;
+    }
+
+    // Re-use the old address mapping.
+    const oldIdx = this.#vars.get(name) ?? null;
+    if (oldIdx !== null) {
+      this.#blocks[oldIdx] = this.#blocks[newIdx];
+      this.#blocks[newIdx] = null;
+      if (newIdx === this.#blocks.length - 1) {
+        this.#blocks.pop();
+      }
+    }
+
+    this.#vars.set(name, oldIdx ?? newIdx);
+    return Block.indexToAddress(oldIdx ?? newIdx);
+  }
+
+  /**
+   * Given an address in extism memory, return a {@link PluginOutput} that represents
+   * a view of that memory. Returns null if the address is invalid.
+   *
+   * @returns bigint
+   */
+  read(addr: bigint | number): PluginOutput | null {
     const blockIdx = Block.addressToIndex(addr);
     const block = this.#blocks[blockIdx];
     if (!block) {
@@ -63,10 +139,15 @@ export class CallContext {
         ? new Uint8Array(block.buffer).slice().buffer
         : block.buffer;
 
-    return this.#decoder.decode(buffer);
+    return new PluginOutput(buffer)
   }
 
-  store(input: string | Uint8Array | number): bigint {
+  /**
+   * Store a string or Uint8Array value in extism memory.
+   *
+   * @returns bigint
+   */
+  store(input: string | Uint8Array): bigint {
     const idx = this[STORE](input);
     if (!idx) {
       throw new Error('failed to store output');
@@ -77,9 +158,7 @@ export class CallContext {
   /** @hidden */
   [ENV] = {
     extism_alloc: (n: bigint): bigint => {
-      const block = this.alloc(n);
-      const addr = Block.indexToAddress(block);
-      return addr;
+      return this.alloc(n);
     },
 
     extism_free: (addr: number) => {
@@ -153,11 +232,13 @@ export class CallContext {
     },
 
     extism_config_get: (addr: bigint): bigint => {
-      const key = this.readString(addr);
+      const item = this.read(addr);
 
-      if (key === null) {
+      if (item === null) {
         return 0n;
       }
+
+      const key = item.string();
 
       if (key in this.#config) {
         return this.store(this.#config[key]);
@@ -166,11 +247,32 @@ export class CallContext {
       return 0n;
     },
 
-    extism_var_get(_i: bigint): bigint {
-      return 0n;
+    extism_var_get: (addr: bigint): bigint => {
+      const item = this.read(addr);
+
+      if (item === null) {
+        return 0n;
+      }
+
+      const key = item.string();
+      return this.#vars.has(key) ? Block.indexToAddress(this.#vars.get(key) as number) : 0n;
     },
 
-    extism_var_set(_n: bigint, _i: bigint) {},
+    extism_var_set: (addr: bigint, valueaddr: bigint) => {
+      const item = this.read(addr);
+
+      if (item === null) {
+        return 0n;
+      }
+
+      const key = item.string();
+      if (valueaddr === 0n) {
+        this.#vars.delete(key);
+        return 0n;
+      }
+
+      this.#vars.set(key, Block.addressToIndex(valueaddr));
+    },
 
     extism_http_request(_requestOffset: bigint, _bodyOffset: bigint): bigint {
       return 0n;
@@ -238,32 +340,13 @@ export class CallContext {
     },
   };
 
+  /** @hidden */
   get #input(): Block | null {
     const idx = this.#stack[this.#stack.length - 1][0];
     if (idx === null) {
       return null;
     }
     return this.#blocks[idx];
-  }
-
-  constructor(type: { new (size: number): ArrayBufferLike }, logger: Console, config: PluginConfig) {
-    this.#arrayBufferType = type;
-    this.#logger = logger;
-    this.#decoder = new TextDecoder();
-    this.#encoder = new TextEncoder();
-    this.#stack = [];
-
-    // reserve the null page.
-    this.alloc(1);
-
-    this.#config = config;
-  }
-
-  alloc(size: bigint | number): number {
-    const block = new Block(new this.#arrayBufferType(Number(size)), true);
-    const index = this.#blocks.length;
-    this.#blocks.push(block);
-    return index;
   }
 
   /** @hidden */
@@ -310,7 +393,7 @@ export class CallContext {
   }
 
   /** @hidden */
-  [STORE](input?: string | Uint8Array | number) {
+  [STORE](input?: string | Uint8Array) {
     if (!input) {
       return null;
     }
@@ -326,7 +409,7 @@ export class CallContext {
         this.#blocks.push(new Block(input.buffer, true));
         return idx;
       }
-      const idx = this.alloc(input.length);
+      const idx = Block.addressToIndex(this.alloc(input.length));
       const block = this.#blocks[idx] as Block;
       const buf = new Uint8Array(block.buffer);
       buf.set(input, 0);

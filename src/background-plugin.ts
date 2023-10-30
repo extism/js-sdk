@@ -1,5 +1,5 @@
 import { CallContext, IMPORT_STATE, EXPORT_STATE, STORE, GET_BLOCK } from './call-context.ts';
-import { type InternalConfig } from './interfaces.ts';
+import { PluginOutput, type InternalConfig } from './interfaces.ts';
 import { WORKER_URL } from 'js-sdk:worker-url';
 import { Worker } from 'node:worker_threads';
 import { CAPABILITIES } from 'js-sdk:capabilities';
@@ -130,7 +130,7 @@ class BackgroundPlugin {
   }
 
   // host -> guest invoke()
-  async call(funcName: string | [string, string], input?: string | Uint8Array): Promise<Uint8Array | null> {
+  async call(funcName: string | [string, string], input?: string | Uint8Array): Promise<PluginOutput | null> {
     const index = this.#context[STORE](input);
 
     const [errorIdx, outputIdx] = await this.callBlock(funcName, index);
@@ -148,15 +148,11 @@ class BackgroundPlugin {
       return null;
     }
 
-    let buf;
-    if (CAPABILITIES.allowSharedBufferCodec) {
-      buf = new Uint8Array(block.buffer);
-    } else {
-      // This platform doesn't support encoding/decoding SharedArrayBuffers.
-      // Copy into a non-sharedarraybuffer so that the output works with TextDecoder.
-      buf = new Uint8Array(block.buffer.byteLength);
-      buf.set(new Uint8Array(block.buffer));
-    }
+    const buf = new PluginOutput(
+      CAPABILITIES.allowSharedBufferCodec
+      ? block.buffer
+      : new Uint8Array(block.buffer).slice().buffer
+    );
 
     if (shouldThrow) {
       const msg = new TextDecoder().decode(buf);

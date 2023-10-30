@@ -5,6 +5,80 @@ export interface PluginConfigLike {
   [key: string]: string;
 }
 
+/**
+ * `PluginOutput` is a view around some memory exposed by the plugin. Typically
+ * returned by {@link Plugin#call | `plugin.call()`} or {@link CallContext#read
+ * | `callContext.read()`}. It implements the read side of
+ * [`DataView`](https://mdn.io/dataview) along with methods for reading string
+ * and JSON data out of the backing buffer.
+ */
+export class PluginOutput extends DataView {
+  static #decoder = new TextDecoder();
+  #bytes: Uint8Array | null = null;
+
+  /** @hidden */
+  constructor(buffer: ArrayBufferLike) {
+    super(buffer)
+  }
+
+  json(): any {
+    return JSON.parse(this.string())
+  }
+
+  arrayBuffer(): ArrayBufferLike {
+    return this.buffer
+  }
+
+  string(): string {
+    return PluginOutput.#decoder.decode(this.buffer)
+  }
+
+  bytes(): Uint8Array {
+    this.#bytes ??= new Uint8Array(this.buffer)
+    return this.#bytes
+  }
+
+  setInt8(_byteOffset: number, _value: number): void {
+    throw new Error('Cannot set values on output')
+  }
+
+  setInt16(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
+    throw new Error('Cannot set values on output')
+  }
+
+  setInt32(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
+    throw new Error('Cannot set values on output')
+  }
+
+  setUint8(_byteOffset: number, _value: number): void {
+    throw new Error('Cannot set values on output')
+  }
+
+  setUint16(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
+    throw new Error('Cannot set values on output')
+  }
+
+  setUint32(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
+    throw new Error('Cannot set values on output')
+  }
+
+  setFloat32(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
+    throw new Error('Cannot set values on output')
+  }
+
+  setFloat64(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
+    throw new Error('Cannot set values on output')
+  }
+
+  setBigInt64(_byteOffset: number, _value: bigint, _littleEndian?: boolean | undefined): void {
+    throw new Error('Cannot set values on output')
+  }
+
+  setBigUint64(_byteOffset: number, _value: bigint, _littleEndian?: boolean | undefined): void {
+    throw new Error('Cannot set values on output')
+  }
+}
+
 export type PluginConfig = Record<string, string>;
 
 export interface Plugin {
@@ -22,10 +96,9 @@ export interface Plugin {
    *
    * @param {string | [string, string]} funcName The name of the function to call
    * @param {Uint8Array | string} input The input to pass to the function
-   * @returns {Promise<Uint8Array>} The result from the function call
+   * @returns {Promise<PluginOutput | null>} The result from the function call
    */
-  call(funcName: string | [string, string], input?: string | number | Uint8Array): Promise<Uint8Array | null>;
-  callBlock(funcName: string | [string, string], input?: number | null): Promise<[number | null, number | null]>;
+  call(funcName: string | [string, string], input?: string | number | Uint8Array): Promise<PluginOutput | null>;
   getExports(name?: string): Promise<WebAssembly.ModuleExportDescriptor[]>;
   getImports(name?: string): Promise<WebAssembly.ModuleImportDescriptor[]>;
   getInstance(name?: string): Promise<WebAssembly.Instance>;

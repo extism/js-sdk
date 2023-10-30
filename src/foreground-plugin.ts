@@ -1,10 +1,10 @@
 import { CallContext, GET_BLOCK, BEGIN, END, ENV, STORE } from './call-context.ts';
-import { type InternalConfig } from './interfaces.ts';
+import { PluginOutput, type InternalConfig } from './interfaces.ts';
 import { loadWasi } from 'js-sdk:wasi';
 
 const DYLIBSO_ENV = 'env';
 
-class ForegroundPlugin {
+export class ForegroundPlugin {
   #context: CallContext;
   #modules: { guestType: string; module: WebAssembly.WebAssemblyInstantiatedSource }[];
   #names: string[];
@@ -85,7 +85,7 @@ class ForegroundPlugin {
     }
   }
 
-  async call(funcName: string | [string, string], input?: string | Uint8Array): Promise<Uint8Array | null> {
+  async call(funcName: string | [string, string], input?: string | Uint8Array): Promise<PluginOutput | null> {
     const inputIdx = this.#context[STORE](input);
     const [errorIdx, outputIdx] = await this.callBlock(funcName, inputIdx);
     const shouldThrow = errorIdx !== null;
@@ -100,12 +100,11 @@ class ForegroundPlugin {
       return null;
     }
 
-    const buf = new Uint8Array(block.buffer);
+    const output = new PluginOutput(block.buffer);
     if (shouldThrow) {
-      const msg = new TextDecoder().decode(buf);
-      throw new Error(`Plugin-originated error: ${msg}`);
+      throw new Error(`Plugin-originated error: ${output.string()}`);
     }
-    return buf;
+    return output;
   }
 
   private lookupTarget(name: any): { guestType: string; module: WebAssembly.WebAssemblyInstantiatedSource } {

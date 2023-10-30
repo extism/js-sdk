@@ -30,7 +30,7 @@ if (typeof WebAssembly === 'undefined') {
       const plugin = await createPlugin({
         wasm: [
           {
-            url: 'https://raw.githubusercontent.com/extism/extism/main/wasm/code.wasm',
+            url: 'https://raw.githubusercontent.com/extism/extism/v0.5.4/wasm/code.wasm',
             hash: '7def5bb4aa3843a5daf5d6078f1e8540e5ef10b035a9d9387e9bd5156d2b2565',
           },
         ],
@@ -164,7 +164,7 @@ if (typeof WebAssembly === 'undefined') {
     const functions = {
       env: {
         hello_world(context: CallContext, off: bigint) {
-          executed = context.readString(off);
+          executed = context.read(off)?.string();
           return context.store('wow okay then');
         },
       },
@@ -176,7 +176,7 @@ if (typeof WebAssembly === 'undefined') {
 
     try {
       const output = await plugin.call('count_vowels', 'hello world');
-      assert.equal(new TextDecoder().decode(output as Uint8Array), 'wow okay then');
+      assert.equal(output?.string(), 'wow okay then');
       assert.equal(executed, '{"count": 3}');
     } finally {
       await plugin.close();
@@ -228,7 +228,7 @@ if (typeof WebAssembly === 'undefined') {
 
       try {
         const output = await plugin.call('count_vowels', 'hello world');
-        assert.equal(new TextDecoder().decode(output as Uint8Array), 'it works');
+        assert.equal(output?.string(), 'it works');
       } finally {
         await plugin.close();
       }
@@ -302,6 +302,21 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
+  test('plugin can get/set variables', async () => {
+    const plugin = await createPlugin('http://localhost:8124/wasm/var.wasm', { useWasi: true });
+    try {
+      const [err, data] = await plugin.call('run_test').then(
+        (data) => [null, data],
+        (err) => [err, null],
+      );
+
+      assert.equal(err, null);
+      assert.equal(data.string(), 'a: 200');
+    } finally {
+      await plugin.close();
+    }
+  });
+
   test('can initialize Haskell runtime', async () => {
     const plugin = await createPlugin('http://localhost:8124/wasm/hello_haskell.wasm', {
       config: { greeting: 'Howdy' },
@@ -311,13 +326,11 @@ if (typeof WebAssembly === 'undefined') {
     try {
       let output = await plugin.call('testing', 'John');
 
-      let result = decode(output as Uint8Array);
-      assert.equal(result, 'Howdy, John');
+      assert.equal(output?.string(), 'Howdy, John');
 
       output = await plugin.call('testing', 'Ben');
       assert(output !== null);
-      result = decode(output as Uint8Array);
-      assert.equal(result, 'Howdy, Ben');
+      assert.equal(output?.string(), 'Howdy, Ben');
     } finally {
       await plugin.close();
     }
@@ -333,16 +346,11 @@ if (typeof WebAssembly === 'undefined') {
       try {
         const output = await plugin.call('run_test', '');
         assert(output !== null);
-        const result = decode(output as Uint8Array);
+        const result = output.string()
         assert.equal(result, 'hello world!');
       } finally {
         await plugin.close();
       }
     });
   }
-}
-
-function decode(buffer: Uint8Array) {
-  const decoder = new TextDecoder();
-  return decoder.decode(buffer);
 }
