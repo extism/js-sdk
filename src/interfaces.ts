@@ -18,64 +18,64 @@ export class PluginOutput extends DataView {
 
   /** @hidden */
   constructor(buffer: ArrayBufferLike) {
-    super(buffer)
+    super(buffer);
   }
 
   json(): any {
-    return JSON.parse(this.string())
+    return JSON.parse(this.string());
   }
 
   arrayBuffer(): ArrayBufferLike {
-    return this.buffer
+    return this.buffer;
   }
 
   string(): string {
-    return PluginOutput.#decoder.decode(this.buffer)
+    return PluginOutput.#decoder.decode(this.buffer);
   }
 
   bytes(): Uint8Array {
-    this.#bytes ??= new Uint8Array(this.buffer)
-    return this.#bytes
+    this.#bytes ??= new Uint8Array(this.buffer);
+    return this.#bytes;
   }
 
   setInt8(_byteOffset: number, _value: number): void {
-    throw new Error('Cannot set values on output')
+    throw new Error('Cannot set values on output');
   }
 
   setInt16(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
-    throw new Error('Cannot set values on output')
+    throw new Error('Cannot set values on output');
   }
 
   setInt32(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
-    throw new Error('Cannot set values on output')
+    throw new Error('Cannot set values on output');
   }
 
   setUint8(_byteOffset: number, _value: number): void {
-    throw new Error('Cannot set values on output')
+    throw new Error('Cannot set values on output');
   }
 
   setUint16(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
-    throw new Error('Cannot set values on output')
+    throw new Error('Cannot set values on output');
   }
 
   setUint32(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
-    throw new Error('Cannot set values on output')
+    throw new Error('Cannot set values on output');
   }
 
   setFloat32(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
-    throw new Error('Cannot set values on output')
+    throw new Error('Cannot set values on output');
   }
 
   setFloat64(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
-    throw new Error('Cannot set values on output')
+    throw new Error('Cannot set values on output');
   }
 
   setBigInt64(_byteOffset: number, _value: bigint, _littleEndian?: boolean | undefined): void {
-    throw new Error('Cannot set values on output')
+    throw new Error('Cannot set values on output');
   }
 
   setBigUint64(_byteOffset: number, _value: bigint, _littleEndian?: boolean | undefined): void {
-    throw new Error('Cannot set values on output')
+    throw new Error('Cannot set values on output');
   }
 }
 
@@ -232,7 +232,7 @@ export interface Capabilities {
    * - ❌ chrome
    * - ❌ webkit
    */
-  allowSharedBufferCodec: boolean,
+  allowSharedBufferCodec: boolean;
 
   /**
    * Whether or not {@link ManifestWasm} items support the "path:" key.
@@ -244,7 +244,7 @@ export interface Capabilities {
    * - ❌ chrome
    * - ❌ webkit
    */
-  manifestSupportsPaths: boolean,
+  manifestSupportsPaths: boolean;
 
   /**
    * Whether or not cross-origin checks are enforced for outgoing HTTP requests on this platform.
@@ -256,7 +256,7 @@ export interface Capabilities {
    * - ✅ chrome
    * - ✅ webkit
    */
-  crossOriginChecksEnforced: boolean,
+  crossOriginChecksEnforced: boolean;
 
   /**
    * Whether or not the host environment has access to a filesystem.
@@ -268,7 +268,7 @@ export interface Capabilities {
    * - ❌ chrome
    * - ❌ webkit
    */
-  fsAccess: boolean,
+  fsAccess: boolean;
 
   /**
    * Whether or not the host environment supports moving Wasm plugin workloads to a worker. This requires
@@ -283,7 +283,7 @@ export interface Capabilities {
    * - 🔒 chrome
    * - 🔒 webkit
    */
-  hasWorkerCapability: boolean,
+  hasWorkerCapability: boolean;
 
   /**
    * Whether or not the host environment supports WASI preview 1.
@@ -297,6 +297,5 @@ export interface Capabilities {
    * - ✅ chrome (via [`@bjorn3/browser_wasi_shim`](https://www.npmjs.com/package/@bjorn3/browser_wasi_shim))
    * - ✅ webkit (via [`@bjorn3/browser_wasi_shim`](https://www.npmjs.com/package/@bjorn3/browser_wasi_shim))
    */
-  supportsWasiPreview1: boolean,
+  supportsWasiPreview1: boolean;
 }
-

@@ -150,9 +150,7 @@ class BackgroundPlugin {
     }
 
     const buf = new PluginOutput(
-      CAPABILITIES.allowSharedBufferCodec
-      ? block.buffer
-      : new Uint8Array(block.buffer).slice().buffer
+      CAPABILITIES.allowSharedBufferCodec ? block.buffer : new Uint8Array(block.buffer).slice().buffer,
     );
 
     if (shouldThrow) {
@@ -275,18 +273,19 @@ class BackgroundPlugin {
 }
 
 class HttpContext {
-  fetch: typeof fetch
-  lastStatusCode: number
+  fetch: typeof fetch;
+  lastStatusCode: number;
 
   constructor(_fetch: typeof fetch) {
-    this.fetch = _fetch
-    this.lastStatusCode = 0
+    this.fetch = _fetch;
+    this.lastStatusCode = 0;
   }
 
   contribute(functions: Record<string, Record<string, any>>) {
     functions[DYLIBSO_ENV] ??= {};
-    functions[DYLIBSO_ENV].extism_http_request = (callContext: CallContext, reqaddr: bigint, bodyaddr: bigint) => this.makeRequest(callContext, reqaddr, bodyaddr)
-    functions[DYLIBSO_ENV].extism_http_status_code = () => this.lastStatusCode
+    functions[DYLIBSO_ENV].extism_http_request = (callContext: CallContext, reqaddr: bigint, bodyaddr: bigint) =>
+      this.makeRequest(callContext, reqaddr, bodyaddr);
+    functions[DYLIBSO_ENV].extism_http_status_code = () => this.lastStatusCode;
   }
 
   async makeRequest(callContext: CallContext, reqaddr: bigint, bodyaddr: bigint) {
@@ -295,24 +294,19 @@ class HttpContext {
       return 0n;
     }
 
-
     const { header, url, method } = req.json();
-    const body = (
-      bodyaddr === 0n || method === 'GET' || method === 'HEAD'
-      ? null
-      : callContext.read(bodyaddr)?.bytes()
-    )
+    const body = bodyaddr === 0n || method === 'GET' || method === 'HEAD' ? null : callContext.read(bodyaddr)?.bytes();
 
     const response = await this.fetch(url, {
       headers: header,
       method,
-      ...(body ? { body: body.slice() } : {})
-    })
+      ...(body ? { body: body.slice() } : {}),
+    });
 
-    this.lastStatusCode = response.status
+    this.lastStatusCode = response.status;
     const result = callContext.store(new Uint8Array(await response.arrayBuffer()));
 
-    return result
+    return result;
   }
 }
 
@@ -324,7 +318,7 @@ export async function createBackgroundPlugin(
   const worker = new Worker(WORKER_URL);
   const context = new CallContext(SharedArrayBuffer, opts.logger, opts.config);
   const httpContext = new HttpContext(opts.fetch);
-  httpContext.contribute(opts.functions)
+  httpContext.contribute(opts.functions);
 
   await new Promise((resolve, reject) => {
     worker.on('message', function handler(ev) {

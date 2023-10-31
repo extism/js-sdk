@@ -50,14 +50,10 @@ export class CallContext {
   #encoder: TextEncoder;
   #arrayBufferType: { new (size: number): ArrayBufferLike };
   #config: PluginConfig;
-  #vars: Map<string, number> = new Map()
+  #vars: Map<string, number> = new Map();
 
   /** @hidden */
-  constructor(
-    type: { new (size: number): ArrayBufferLike },
-    logger: Console,
-    config: PluginConfig
-  ) {
+  constructor(type: { new (size: number): ArrayBufferLike }, logger: Console, config: PluginConfig) {
     this.#arrayBufferType = type;
     this.#logger = logger;
     this.#decoder = new TextDecoder();
@@ -91,7 +87,7 @@ export class CallContext {
     if (!this.#vars.has(name)) {
       return null;
     }
-    return this.read(this.#vars.get(name) as number)
+    return this.read(this.#vars.get(name) as number);
   }
 
   /**
@@ -139,7 +135,7 @@ export class CallContext {
         ? new Uint8Array(block.buffer).slice().buffer
         : block.buffer;
 
-    return new PluginOutput(buffer)
+    return new PluginOutput(buffer);
   }
 
   /**
@@ -275,12 +271,12 @@ export class CallContext {
     },
 
     extism_http_request: (_requestOffset: bigint, _bodyOffset: bigint): bigint => {
-      this.#logger.error('http_request is not enabled')
+      this.#logger.error('http_request is not enabled');
       return 0n;
     },
 
     extism_http_status_code: (): number => {
-      this.#logger.error('http_status_code is not enabled')
+      this.#logger.error('http_status_code is not enabled');
       return 0;
     },
 

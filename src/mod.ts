@@ -1,11 +1,6 @@
 import { CAPABILITIES } from 'js-sdk:capabilities';
 
-import type {
-  ManifestLike,
-  InternalConfig,
-  ExtismPluginOptions,
-  Plugin,
-} from './interfaces.ts';
+import type { ManifestLike, InternalConfig, ExtismPluginOptions, Plugin } from './interfaces.ts';
 
 import { intoManifest as _intoManifest, toWasmModuleData as _toWasmModuleData } from './manifest.ts';
 
@@ -23,13 +18,10 @@ export type {
   ManifestWasmPath,
   ManifestWasm,
   Manifest,
-  Plugin
+  Plugin,
 } from './interfaces.ts';
 
-export type {
-  CallContext,
-  CallContext as CurrentPlugin,
-} from './call-context.ts'
+export type { CallContext, CallContext as CurrentPlugin } from './call-context.ts';
 
 /**
  * Create a {@link Plugin} given a {@link ManifestLike} and {@link ExtismPluginOptions}.
