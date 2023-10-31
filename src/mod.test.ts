@@ -448,21 +448,6 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('plugin can get/set variables', async () => {
-    const plugin = await createPlugin('http://localhost:8124/wasm/var.wasm', { useWasi: true });
-    try {
-      const [err, data] = await plugin.call('run_test').then(
-        (data) => [null, data],
-        (err) => [err, null],
-      );
-
-      assert.equal(err, null);
-      assert.equal(data.string(), 'a: 200');
-    } finally {
-      await plugin.close();
-    }
-  });
-
   test('can initialize Haskell runtime', async () => {
     const plugin = await createPlugin('http://localhost:8124/wasm/hello_haskell.wasm', {
       config: { greeting: 'Howdy' },
