@@ -3,6 +3,7 @@ import { PluginOutput, type InternalConfig } from './interfaces.ts';
 import { WORKER_URL } from 'js-sdk:worker-url';
 import { Worker } from 'node:worker_threads';
 import { CAPABILITIES } from 'js-sdk:capabilities';
+import { DYLIBSO_ENV } from './foreground-plugin.ts';
 
 const MAX_WAIT = 5000;
 
@@ -273,6 +274,48 @@ class BackgroundPlugin {
   }
 }
 
+class HttpContext {
+  fetch: typeof fetch
+  lastStatusCode: number
+
+  constructor(_fetch: typeof fetch) {
+    this.fetch = _fetch
+    this.lastStatusCode = 0
+  }
+
+  contribute(functions: Record<string, Record<string, any>>) {
+    functions[DYLIBSO_ENV] ??= {};
+    functions[DYLIBSO_ENV].extism_http_request = (callContext: CallContext, reqaddr: bigint, bodyaddr: bigint) => this.makeRequest(callContext, reqaddr, bodyaddr)
+    functions[DYLIBSO_ENV].extism_http_status_code = () => this.lastStatusCode
+  }
+
+  async makeRequest(callContext: CallContext, reqaddr: bigint, bodyaddr: bigint) {
+    const req = callContext.read(reqaddr);
+    if (req === null) {
+      return 0n;
+    }
+
+
+    const { header, url, method } = req.json();
+    const body = (
+      bodyaddr === 0n || method === 'GET' || method === 'HEAD'
+      ? null
+      : callContext.read(bodyaddr)?.bytes()
+    )
+
+    const response = await this.fetch(url, {
+      headers: header,
+      method,
+      ...(body ? { body: body.slice() } : {})
+    })
+
+    this.lastStatusCode = response.status
+    const result = callContext.store(new Uint8Array(await response.arrayBuffer()));
+
+    return result
+  }
+}
+
 export async function createBackgroundPlugin(
   opts: InternalConfig,
   names: string[],
@@ -280,6 +323,8 @@ export async function createBackgroundPlugin(
 ): Promise<BackgroundPlugin> {
   const worker = new Worker(WORKER_URL);
   const context = new CallContext(SharedArrayBuffer, opts.logger, opts.config);
+  const httpContext = new HttpContext(opts.fetch);
+  httpContext.contribute(opts.functions)
 
   await new Promise((resolve, reject) => {
     worker.on('message', function handler(ev) {

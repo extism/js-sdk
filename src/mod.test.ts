@@ -210,6 +210,21 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
+  test('plugin can get/set variables', async () => {
+    const plugin = await createPlugin('http://localhost:8124/wasm/var.wasm', { useWasi: true });
+    try {
+      const [err, data] = await plugin.call('run_test').then(
+        (data) => [null, data],
+        (err) => [err, null],
+      );
+
+      assert.equal(err, null);
+      assert.equal(data.string(), 'a: 200');
+    } finally {
+      await plugin.close();
+    }
+  });
+
   if (CAPABILITIES.hasWorkerCapability) {
     test('host functions may be async if worker is off-main-thread', async () => {
       const functions = {
@@ -261,6 +276,40 @@ if (typeof WebAssembly === 'undefined') {
         await plugin.close();
       }
     });
+
+    if (!CAPABILITIES.crossOriginChecksEnforced) test('http works as expected', async () => {
+      const functions = {
+        env: {
+          async hello_world(context: CallContext, _off: bigint) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            return context.store('it works');
+          },
+        },
+      };
+
+      const plugin = await createPlugin(
+        { wasm: [{ name: 'http', url: 'http://localhost:8124/wasm/http.wasm' }] },
+        { useWasi: true, functions, runInWorker: true },
+      );
+
+      try {
+        const [err, data] = await plugin.call('http_get').then(
+          (data) => [null, data],
+          (err) => [err, null],
+        );
+
+        assert(err === null);
+        assert.deepEqual(data.json(), {
+          "userId": 1,
+          "id": 1,
+          "title": "delectus aut autem",
+          "completed": false
+        })
+      } finally {
+        await plugin.close();
+      }
+    });
+
   }
 
   test('createPlugin fails as expected when calling unknown function', async () => {
@@ -297,21 +346,6 @@ if (typeof WebAssembly === 'undefined') {
       );
       assert(data === null);
       assert.equal(err.message, 'Plugin-originated error: Some error message');
-    } finally {
-      await plugin.close();
-    }
-  });
-
-  test('plugin can get/set variables', async () => {
-    const plugin = await createPlugin('http://localhost:8124/wasm/var.wasm', { useWasi: true });
-    try {
-      const [err, data] = await plugin.call('run_test').then(
-        (data) => [null, data],
-        (err) => [err, null],
-      );
-
-      assert.equal(err, null);
-      assert.equal(data.string(), 'a: 200');
     } finally {
       await plugin.close();
     }

@@ -211,7 +211,7 @@ export class CallContext {
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
-        throw new Error('cannot assign to this block');
+        throw new Error(`cannot assign to this block (addr=${addr.toString(16).padStart(16, '0')}; length=${length})`);
       }
 
       if (length > block.buffer.byteLength) {
@@ -274,11 +274,13 @@ export class CallContext {
       this.#vars.set(key, Block.addressToIndex(valueaddr));
     },
 
-    extism_http_request(_requestOffset: bigint, _bodyOffset: bigint): bigint {
+    extism_http_request: (_requestOffset: bigint, _bodyOffset: bigint): bigint => {
+      this.#logger.error('http_request is not enabled')
       return 0n;
     },
 
-    extism_http_status_code(): number {
+    extism_http_status_code: (): number => {
+      this.#logger.error('http_status_code is not enabled')
       return 0;
     },
 

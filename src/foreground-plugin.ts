@@ -2,7 +2,7 @@ import { CallContext, GET_BLOCK, BEGIN, END, ENV, STORE } from './call-context.t
 import { PluginOutput, type InternalConfig } from './interfaces.ts';
 import { loadWasi } from 'js-sdk:wasi';
 
-const DYLIBSO_ENV = 'env';
+export const DYLIBSO_ENV = 'env';
 
 export class ForegroundPlugin {
   #context: CallContext;
