@@ -155,9 +155,8 @@ export async function createForegroundPlugin(
 
   const modules = await Promise.all(
     sources.map(async (source, idx, all) => {
-      const isRuntime = idx === all.length;
-      const module = await WebAssembly.instantiate(source, (isRuntime ? {} : imports) as WebAssembly.Imports);
-      if (!isRuntime && module.instance.exports._start) {
+      const module = await WebAssembly.instantiate(source, imports);
+      if (wasi && module.instance.exports._start) {
         await wasi?.initialize(module.instance);
       }
 
