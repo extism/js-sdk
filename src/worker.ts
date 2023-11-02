@@ -176,7 +176,6 @@ class Reactor {
 
     const state = context[EXPORT_STATE]();
 
-    Atomics.store(this.hostFlag, 0, 0);
     this.port.postMessage({
       type: 'invoke',
       namespace,
@@ -188,16 +187,16 @@ class Reactor {
     const reader = new RingBufferReader(this.sharedData as SharedArrayBuffer);
     const blocks: [ArrayBufferLike | null, number][] = [];
     let retval: any;
-    reader.pull();
 
     do {
-      switch (reader.readUint8()) {
+      const sectionType = reader.readUint8();
+      switch (sectionType) {
         // end
         case 0:
           state.blocks = blocks;
           context[IMPORT_STATE](state);
-          Atomics.store(this.hostFlag, 0, 0);
-          Atomics.notify(this.hostFlag, 0);
+          reader.close();
+          this.hostFlag[0] = RingBufferReader.SAB_BASE_OFFSET;
           return retval;
 
         // ret i64
@@ -230,8 +229,10 @@ class Reactor {
           }
           break;
 
-        // error
-        case 255:
+        default:
+          throw new Error(
+            `invalid section type="${sectionType}"; please open an issue (https://github.com/extism/js-sdk/issues/new?title=shared+array+buffer+bad+section+type+${sectionType}&labels=bug)`,
+          );
           break;
       }
     } while (1);
@@ -247,22 +248,46 @@ class RingBufferReader {
   scratch: ArrayBuffer;
   scratchView: DataView;
 
+  static SAB_IDX = 0;
+  static SAB_BASE_OFFSET = 4;
+
   constructor(input: SharedArrayBuffer) {
     this.input = input;
-    this.inputOffset = 4;
+    this.inputOffset = RingBufferReader.SAB_BASE_OFFSET;
     this.flag = new Int32Array(this.input);
     this.scratch = new ArrayBuffer(8);
     this.scratchView = new DataView(this.scratch);
+    this.pull(false);
   }
 
   get available() {
-    return this.flag[0];
+    return this.flag[0] - this.inputOffset;
   }
 
-  pull() {
-    if (Atomics.wait(this.flag, 0, 0, MAX_WAIT) === 'timed-out') {
-      throw new Error(`Worker timed out waiting for response from host after ${MAX_WAIT}ms`);
+  close() {
+    const expected = this.flag[0];
+    while (
+      Atomics.compareExchange(this.flag, RingBufferReader.SAB_IDX, expected, RingBufferReader.SAB_BASE_OFFSET) !==
+      RingBufferReader.SAB_BASE_OFFSET
+    ) {}
+    Atomics.notify(this.flag, RingBufferReader.SAB_IDX, MAX_WAIT);
+  }
+
+  pull(reset: boolean = true) {
+    const expected = this.flag[0];
+    if (reset) {
+      while (
+        Atomics.compareExchange(this.flag, RingBufferReader.SAB_IDX, expected, RingBufferReader.SAB_BASE_OFFSET) !==
+        RingBufferReader.SAB_BASE_OFFSET
+      ) {}
+      Atomics.notify(this.flag, RingBufferReader.SAB_IDX, MAX_WAIT);
     }
+    // host now copies out, once it's done it writes the available bytes to the flag.
+    const v = Atomics.wait(this.flag, 0, RingBufferReader.SAB_BASE_OFFSET, MAX_WAIT);
+    if (v === 'timed-out') {
+      throw new Error(`Worker timed out waiting for response from host after ${MAX_WAIT}ms ${this.flag[0]}`);
+    }
+    this.inputOffset = RingBufferReader.SAB_BASE_OFFSET;
   }
 
   read(output: Uint8Array) {
@@ -273,21 +298,24 @@ class RingBufferReader {
     }
 
     let outputOffset = 0;
-    let inputOffset = this.inputOffset;
-    let extent = this.available - outputOffset;
+    let extent = this.available;
     // read ::= [outputoffset, inputoffset, extent]
     // firstread = [this.outputOffset, 0, this.available - this.outputOffset]
     do {
-      output.set(new Uint8Array(this.input).subarray(inputOffset, inputOffset + extent), outputOffset);
+      output.set(new Uint8Array(this.input).subarray(this.inputOffset, this.inputOffset + extent), outputOffset);
       outputOffset += extent;
-      Atomics.store(this.flag, 0, 0);
-      Atomics.notify(this.flag, 0);
-      this.pull();
-      inputOffset = 4;
-      extent = Math.min(this.available - inputOffset, output.byteLength - outputOffset);
-    } while (outputOffset !== output.byteLength);
+      this.inputOffset += extent;
+      if (outputOffset === output.byteLength) {
+        break;
+      }
 
-    this.inputOffset = inputOffset;
+      if (this.available < 0) {
+        break;
+      }
+
+      this.pull();
+      extent = Math.min(Math.max(this.available, 0), output.byteLength - outputOffset);
+    } while (outputOffset !== output.byteLength);
   }
 
   readUint8(): number {

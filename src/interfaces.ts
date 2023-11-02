@@ -1,3 +1,5 @@
+import { CallContext } from './call-context.ts';
+
 /**
  * {@link Plugin} Config
  */
@@ -108,14 +110,45 @@ export interface Plugin {
  * Options for initializing an Extism plugin.
  */
 export interface ExtismPluginOptions {
+  /**
+   * Whether or not to enable WASI preview 1.
+   */
   useWasi?: boolean | undefined;
+
+  /**
+   * Whether or not to run the Wasm module in a Worker thread. Requires
+   * {@link Capabilities#hasWorkerCapability | `CAPABILITIES.hasWorkerCapability`} to
+   * be true.
+   */
   runInWorker?: boolean | undefined;
+
+  /**
+   * A logger implementation. Must provide `info`, `debug`, `warn`, and `error` methods.
+   */
   logger?: Console;
-  functions?: { [key: string]: { [key: string]: any } } | undefined;
+
+  /**
+   * A map of namespaces to function names to host functions.
+   *
+   * ```js
+   * const functions = {
+   *   'my_great_namespace': {
+   *     'my_func': (callContext: CallContext, input: bigint) => {
+   *       const output = callContext.read(input);
+   *       if (output !== null) {
+   *         console.log(output.string());
+   *       }
+   *     }
+   *   }
+   * }
+   * ```
+   */
+  functions?: { [key: string]: { [key: string]: (callContext: CallContext, ...args: any[]) => any } } | undefined;
   allowedPaths?: { [key: string]: string } | undefined;
   allowedHosts?: string[] | undefined;
   config?: PluginConfigLike | undefined;
   fetch?: typeof fetch;
+  sharedArrayBufferSize?: number;
 }
 
 export interface InternalConfig {
@@ -126,6 +159,7 @@ export interface InternalConfig {
   fetch: typeof fetch;
   wasiEnabled: boolean;
   config: PluginConfig;
+  sharedArrayBufferSize: number;
 }
 
 export interface InternalWasi {

@@ -90,6 +90,7 @@ export async function createPlugin(
     wasiEnabled: opts.useWasi,
     logger: opts.logger,
     config: opts.config,
+    sharedArrayBufferSize: Number(opts.sharedArrayBufferSize) || 1 << 16,
   };
 
   return (opts.runInWorker ? _createBackgroundPlugin : _createForegroundPlugin)(ic, names, moduleData);

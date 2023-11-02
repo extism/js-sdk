@@ -249,6 +249,36 @@ if (typeof WebAssembly === 'undefined') {
       }
     });
 
+    test('test writes that span multiple blocks (w/small buffer)', async () => {
+      const res = await fetch('http://localhost:8124/src/mod.test.ts');
+      const result = await res.text();
+      const functions = {
+        env: {
+          async hello_world(context: CallContext, _off: bigint) {
+            context.setVariable('hmmm okay storing a variable', 'hello world hello.');
+            const res = await fetch('http://localhost:8124/src/mod.test.ts');
+            const result = await res.text();
+            return context.store(result);
+          },
+        },
+      };
+
+      const plugin = await createPlugin(
+        { wasm: [{ url: 'http://localhost:8124/wasm/code-functions.wasm' }] },
+        { useWasi: true, functions, runInWorker: true, sharedArrayBufferSize: 1 << 6 },
+      );
+
+      try {
+        const output = await plugin.call('count_vowels', 'hello world');
+        assert.equal(output?.string(), result);
+
+        const again = await plugin.call('count_vowels', 'hello world');
+        assert.equal(again?.string(), result);
+      } finally {
+        await plugin.close();
+      }
+    });
+
     test('host functions may not be reentrant off-main-thread', async () => {
       const functions = {
         env: {
