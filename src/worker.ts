@@ -254,6 +254,9 @@ class RingBufferReader {
   static SAB_IDX = 0;
   static SAB_BASE_OFFSET = 4;
 
+  static SAB_IDX = 0;
+  static SAB_BASE_OFFSET = 4;
+
   constructor(input: SharedArrayBuffer) {
     this.input = input;
     this.inputOffset = RingBufferReader.SAB_BASE_OFFSET;
