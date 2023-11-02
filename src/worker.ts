@@ -247,6 +247,7 @@ class RingBufferReader {
   inputOffset: number;
   scratch: ArrayBuffer;
   scratchView: DataView;
+  expected: number;
 
   static SAB_IDX = 0;
   static SAB_BASE_OFFSET = 4;
@@ -257,6 +258,7 @@ class RingBufferReader {
     this.flag = new Int32Array(this.input);
     this.scratch = new ArrayBuffer(8);
     this.scratchView = new DataView(this.scratch);
+    this.expected = 0;
     this.pull(false);
   }
 
@@ -267,23 +269,23 @@ class RingBufferReader {
   close() {
     const expected = this.flag[0];
     while (
-      Atomics.compareExchange(this.flag, RingBufferReader.SAB_IDX, expected, RingBufferReader.SAB_BASE_OFFSET) !==
+      Atomics.compareExchange(this.flag, RingBufferReader.SAB_IDX, this.expected, RingBufferReader.SAB_BASE_OFFSET) !==
       RingBufferReader.SAB_BASE_OFFSET
     ) {}
     Atomics.notify(this.flag, RingBufferReader.SAB_IDX, MAX_WAIT);
   }
 
   pull(reset: boolean = true) {
-    const expected = this.flag[0];
     if (reset) {
       while (
-        Atomics.compareExchange(this.flag, RingBufferReader.SAB_IDX, expected, RingBufferReader.SAB_BASE_OFFSET) !==
+        Atomics.compareExchange(this.flag, RingBufferReader.SAB_IDX, this.expected, RingBufferReader.SAB_BASE_OFFSET) !==
         RingBufferReader.SAB_BASE_OFFSET
       ) {}
       Atomics.notify(this.flag, RingBufferReader.SAB_IDX, MAX_WAIT);
     }
     // host now copies out, once it's done it writes the available bytes to the flag.
     const v = Atomics.wait(this.flag, 0, RingBufferReader.SAB_BASE_OFFSET, MAX_WAIT);
+    this.expected = Atomics.load(this.flag, 0);
     if (v === 'timed-out') {
       throw new Error(`Worker timed out waiting for response from host after ${MAX_WAIT}ms ${this.flag[0]}`);
     }
