@@ -8,6 +8,7 @@ export const GET_BLOCK = Symbol('get-block');
 export const IMPORT_STATE = Symbol('import-state');
 export const EXPORT_STATE = Symbol('export-state');
 export const STORE = Symbol('store-value');
+export const RESET = Symbol('reset');
 
 export class Block {
   buffer: ArrayBufferLike;
@@ -345,6 +346,15 @@ export class CallContext {
       return null;
     }
     return this.#blocks[idx];
+  }
+
+  /** @hidden */
+  [RESET]() {
+    // preserve the null page.
+    this.#blocks.length = 1;
+
+    // ... but dump the stack items.
+    this.#stack.length = 0;
   }
 
   /** @hidden */

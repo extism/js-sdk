@@ -183,6 +183,42 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
+  test('resetting the plugin unsets all existing pages', async () => {
+    const offsets: bigint[] = [0n, 0n];
+    let callContext: CallContext | null = null;
+
+    const functions = {
+      env: {
+        hello_world(context: CallContext, off: bigint) {
+          callContext = context;
+
+          offsets[0] = off;
+          offsets[1] = context.store('wow okay then');
+          return offsets[1];
+        },
+      },
+    };
+    const plugin = await createPlugin(
+      { wasm: [{ url: 'http://localhost:8124/wasm/code-functions.wasm' }] },
+      { useWasi: true, functions },
+    );
+
+    try {
+      const output = await plugin.call('count_vowels', 'hello world');
+      assert.equal(output?.string(), 'wow okay then');
+
+      await plugin.reset();
+
+      assert(callContext !== null);
+      assert.notEqual(offsets[0], 0n);
+      assert.notEqual(offsets[1], 0n);
+      assert.equal((callContext as CallContext).read(offsets[0]), null);
+      assert.equal((callContext as CallContext).read(offsets[1]), null);
+    } finally {
+      await plugin.close();
+    }
+  });
+
   test('host functions reject original promise when throwing', async () => {
     const expected = String(Math.random());
     const functions = {
@@ -308,7 +344,7 @@ if (typeof WebAssembly === 'undefined') {
     });
 
     if (!CAPABILITIES.crossOriginChecksEnforced)
-      test('http works as expected', async () => {
+      test('http works fails as expected when no allowed hosts match', async () => {
         const functions = {
           env: {
             async hello_world(context: CallContext, _off: bigint) {
@@ -320,7 +356,7 @@ if (typeof WebAssembly === 'undefined') {
 
         const plugin = await createPlugin(
           { wasm: [{ name: 'http', url: 'http://localhost:8124/wasm/http.wasm' }] },
-          { useWasi: true, functions, runInWorker: true },
+          { useWasi: true, functions, runInWorker: true, allowedHosts: ['*.example.com'] },
         );
 
         try {
@@ -329,17 +365,48 @@ if (typeof WebAssembly === 'undefined') {
             (err) => [err, null],
           );
 
-          assert(err === null);
-          assert.deepEqual(data.json(), {
-            userId: 1,
-            id: 1,
-            title: 'delectus aut autem',
-            completed: false,
-          });
+          assert(data === null);
+          assert.equal(
+            err.message,
+            `Call error: HTTP request to "https://jsonplaceholder.typicode.com/todos/1" is not allowed (no allowedHosts match "jsonplaceholder.typicode.com")`,
+          );
         } finally {
           await plugin.close();
         }
       });
+
+    test('http works as expected when host is allowed', async () => {
+      const functions = {
+        env: {
+          async hello_world(context: CallContext, _off: bigint) {
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            return context.store('it works');
+          },
+        },
+      };
+
+      const plugin = await createPlugin(
+        { wasm: [{ name: 'http', url: 'http://localhost:8124/wasm/http.wasm' }] },
+        { useWasi: true, functions, runInWorker: true, allowedHosts: ['*.typicode.com'] },
+      );
+
+      try {
+        const [err, data] = await plugin.call('http_get').then(
+          (data) => [null, data],
+          (err) => [err, null],
+        );
+
+        assert(err === null);
+        assert.deepEqual(data.json(), {
+          userId: 1,
+          id: 1,
+          title: 'delectus aut autem',
+          completed: false,
+        });
+      } finally {
+        await plugin.close();
+      }
+    });
   }
 
   test('createPlugin fails as expected when calling unknown function', async () => {

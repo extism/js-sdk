@@ -104,6 +104,18 @@ export interface Plugin {
   getExports(name?: string): Promise<WebAssembly.ModuleExportDescriptor[]>;
   getImports(name?: string): Promise<WebAssembly.ModuleImportDescriptor[]>;
   getInstance(name?: string): Promise<WebAssembly.Instance>;
+
+  /**
+   * Whether the plugin is currently processing a call.
+   */
+  isActive(): boolean;
+
+  /**
+   * Reset Plugin memory. If called while the plugin is {@link Plugin#isActive|actively executing}, memory will not be reset.
+   *
+   * @returns {Promise<boolean>} Whether or not the reset was successful.
+   */
+  reset(): Promise<boolean>;
 }
 
 /**

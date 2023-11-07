@@ -1,4 +1,4 @@
-import { CallContext, GET_BLOCK, BEGIN, END, ENV, STORE } from './call-context.ts';
+import { CallContext, RESET, GET_BLOCK, BEGIN, END, ENV, STORE } from './call-context.ts';
 import { PluginOutput, type InternalConfig } from './interfaces.ts';
 import { loadWasi } from 'js-sdk:wasi';
 
@@ -8,6 +8,7 @@ export class ForegroundPlugin {
   #context: CallContext;
   #modules: { guestType: string; module: WebAssembly.WebAssemblyInstantiatedSource }[];
   #names: string[];
+  #active: boolean = false;
 
   constructor(
     context: CallContext,
@@ -17,6 +18,19 @@ export class ForegroundPlugin {
     this.#context = context;
     this.#names = names;
     this.#modules = modules;
+  }
+
+  async reset(): Promise<boolean> {
+    if (this.isActive()) {
+      return false;
+    }
+
+    this.#context[RESET]();
+    return true;
+  }
+
+  isActive() {
+    return this.#active;
   }
 
   async functionExists(funcName: string | [string, string]): Promise<boolean> {
@@ -53,6 +67,7 @@ export class ForegroundPlugin {
   }
 
   async callBlock(funcName: string | [string, string], input: number | null): Promise<[number | null, number | null]> {
+    this.#active = true;
     const search: string[] = [].concat(<any>funcName);
     const [target, name] =
       search.length === 2
@@ -82,6 +97,8 @@ export class ForegroundPlugin {
     } catch (err) {
       this.#context[END]();
       throw err;
+    } finally {
+      this.#active = false;
     }
   }
 

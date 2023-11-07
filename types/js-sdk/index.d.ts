@@ -22,3 +22,6 @@ declare module 'js-sdk:wasi' {
 declare module 'js-sdk:worker-url' {
   declare const WORKER_URL: URL;
 }
+declare module 'js-sdk:minimatch' {
+  function matches(text: string, pattern: string): boolean;
+}

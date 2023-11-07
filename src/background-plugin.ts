@@ -1,9 +1,10 @@
-import { CallContext, IMPORT_STATE, EXPORT_STATE, STORE, GET_BLOCK } from './call-context.ts';
+import { CallContext, RESET, IMPORT_STATE, EXPORT_STATE, STORE, GET_BLOCK } from './call-context.ts';
 import { PluginOutput, type InternalConfig } from './interfaces.ts';
 import { WORKER_URL } from 'js-sdk:worker-url';
 import { Worker } from 'node:worker_threads';
 import { CAPABILITIES } from 'js-sdk:capabilities';
 import { DYLIBSO_ENV } from './foreground-plugin.ts';
+import { matches } from 'js-sdk:minimatch';
 
 const MAX_WAIT = 5000;
 
@@ -64,6 +65,21 @@ class BackgroundPlugin {
     this.hostFlag[0] = RingBufferWriter.SAB_BASE_OFFSET;
 
     this.worker.on('message', (ev) => this.#handleMessage(ev));
+  }
+
+  async reset(): Promise<boolean> {
+    if (this.isActive()) {
+      return false;
+    }
+
+    await this.#invoke('reset');
+
+    this.#context[RESET]();
+    return true;
+  }
+
+  isActive() {
+    return Boolean(this.#request);
   }
 
   async #handleMessage(ev: any) {
@@ -282,9 +298,11 @@ class BackgroundPlugin {
 class HttpContext {
   fetch: typeof fetch;
   lastStatusCode: number;
+  allowedHosts: string[];
 
-  constructor(_fetch: typeof fetch) {
+  constructor(_fetch: typeof fetch, allowedHosts: string[]) {
     this.fetch = _fetch;
+    this.allowedHosts = allowedHosts;
     this.lastStatusCode = 0;
   }
 
@@ -301,10 +319,21 @@ class HttpContext {
       return 0n;
     }
 
-    const { header, url, method } = req.json();
-    const body = bodyaddr === 0n || method === 'GET' || method === 'HEAD' ? null : callContext.read(bodyaddr)?.bytes();
+    const { header, url: rawUrl, method } = req.json();
+    const url = new URL(rawUrl);
 
-    const response = await this.fetch(url, {
+    const isAllowed = this.allowedHosts.some((allowedHost) => {
+      return allowedHost === url.hostname || matches(url.hostname, allowedHost);
+    });
+
+    if (!isAllowed) {
+      throw new Error(`Call error: HTTP request to "${url}" is not allowed (no allowedHosts match "${url.hostname}")`);
+    }
+
+    const body = bodyaddr === 0n || method === 'GET' || method === 'HEAD' ? null : callContext.read(bodyaddr)?.bytes();
+    const fetch = this.fetch;
+
+    const response = await fetch(rawUrl, {
       headers: header,
       method,
       ...(body ? { body: body.slice() } : {}),
@@ -324,7 +353,7 @@ export async function createBackgroundPlugin(
 ): Promise<BackgroundPlugin> {
   const worker = new Worker(WORKER_URL);
   const context = new CallContext(SharedArrayBuffer, opts.logger, opts.config);
-  const httpContext = new HttpContext(opts.fetch);
+  const httpContext = new HttpContext(opts.fetch, opts.allowedHosts);
   httpContext.contribute(opts.functions);
 
   await new Promise((resolve, reject) => {
@@ -401,8 +430,7 @@ class RingBufferWriter {
     while (
       Atomics.compareExchange(this.flag, RingBufferWriter.SAB_IDX, RingBufferWriter.SAB_BASE_OFFSET, targetOffset) !==
       targetOffset
-    ) {
-    }
+    ) {} // eslint-disable-line no-empty
     Atomics.notify(this.flag, RingBufferWriter.SAB_IDX, 1);
 
     // wait for the thread to read the data out...

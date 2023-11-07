@@ -65,6 +65,10 @@ class Reactor {
       },
     );
 
+    this.dynamicHandlers.set('reset', async (_txf) => {
+      return this.plugin?.reset();
+    });
+
     this.dynamicHandlers.set('getExports', async (_txf, name) => {
       return this.plugin?.getExports(name);
     });
@@ -267,20 +271,23 @@ class RingBufferReader {
   }
 
   close() {
-    const expected = this.flag[0];
     while (
       Atomics.compareExchange(this.flag, RingBufferReader.SAB_IDX, this.expected, RingBufferReader.SAB_BASE_OFFSET) !==
       RingBufferReader.SAB_BASE_OFFSET
-    ) {}
+    ) {} // eslint-disable-line no-empty
     Atomics.notify(this.flag, RingBufferReader.SAB_IDX, MAX_WAIT);
   }
 
   pull(reset: boolean = true) {
     if (reset) {
       while (
-        Atomics.compareExchange(this.flag, RingBufferReader.SAB_IDX, this.expected, RingBufferReader.SAB_BASE_OFFSET) !==
-        RingBufferReader.SAB_BASE_OFFSET
-      ) {}
+        Atomics.compareExchange(
+          this.flag,
+          RingBufferReader.SAB_IDX,
+          this.expected,
+          RingBufferReader.SAB_BASE_OFFSET,
+        ) !== RingBufferReader.SAB_BASE_OFFSET
+      ) {} // eslint-disable-line no-empty
       Atomics.notify(this.flag, RingBufferReader.SAB_IDX, MAX_WAIT);
     }
     // host now copies out, once it's done it writes the available bytes to the flag.
