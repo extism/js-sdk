@@ -96,4 +96,6 @@ export async function createPlugin(
   return (opts.runInWorker ? _createBackgroundPlugin : _createForegroundPlugin)(ic, names, moduleData);
 }
 
+export { createPlugin as newPlugin };
+
 export default createPlugin;
