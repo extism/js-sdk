@@ -2,7 +2,7 @@ import { CallContext, RESET, GET_BLOCK, BEGIN, END, ENV, STORE } from './call-co
 import { PluginOutput, type InternalConfig } from './interfaces.ts';
 import { loadWasi } from 'js-sdk:wasi';
 
-export const EXTISM_ENV = 'env';
+export const EXTISM_ENV = 'extism:host/env';
 
 export class ForegroundPlugin {
   #context: CallContext;

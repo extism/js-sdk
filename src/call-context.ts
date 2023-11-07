@@ -3,7 +3,7 @@ import { CAPABILITIES } from 'js-sdk:capabilities';
 
 export const BEGIN = Symbol('begin');
 export const END = Symbol('end');
-export const ENV = Symbol('env');
+export const ENV = Symbol('extism:host/env');
 export const GET_BLOCK = Symbol('get-block');
 export const IMPORT_STATE = Symbol('import-state');
 export const EXPORT_STATE = Symbol('export-state');
@@ -154,57 +154,57 @@ export class CallContext {
 
   /** @hidden */
   [ENV] = {
-    extism_alloc: (n: bigint): bigint => {
+    alloc: (n: bigint): bigint => {
       return this.alloc(n);
     },
 
-    extism_free: (addr: number) => {
+    free: (addr: number) => {
       this.#blocks[Block.addressToIndex(addr)] = null;
     },
 
-    extism_load_u8: (addr: bigint): number => {
+    load_u8: (addr: bigint): number => {
       const blockIdx = Block.addressToIndex(addr);
       const offset = Block.maskAddress(addr);
       const block = this.#blocks[blockIdx];
       return block?.view.getUint8(Number(offset)) as number;
     },
 
-    extism_load_u64: (addr: bigint): bigint => {
+    load_u64: (addr: bigint): bigint => {
       const blockIdx = Block.addressToIndex(addr);
       const offset = Block.maskAddress(addr);
       const block = this.#blocks[blockIdx];
       return block?.view.getBigUint64(Number(offset), true) as bigint;
     },
 
-    extism_store_u8: (addr: bigint, n: number) => {
+    store_u8: (addr: bigint, n: number) => {
       const blockIdx = Block.addressToIndex(addr);
       const offset = Block.maskAddress(addr);
       const block = this.#blocks[blockIdx];
       block?.view.setUint8(Number(offset), Number(n));
     },
 
-    extism_store_u64: (addr: bigint, n: bigint) => {
+    store_u64: (addr: bigint, n: bigint) => {
       const blockIdx = Block.addressToIndex(addr);
       const offset = Block.maskAddress(addr);
       const block = this.#blocks[blockIdx];
       block?.view.setBigUint64(Number(offset), n, true);
     },
 
-    extism_input_length: () => {
+    input_length: () => {
       return BigInt(this.#input?.byteLength ?? 0);
     },
 
-    extism_input_load_u8: (addr: bigint): number => {
+    input_load_u8: (addr: bigint): number => {
       const offset = Block.maskAddress(addr);
       return this.#input?.view.getUint8(Number(offset)) as number;
     },
 
-    extism_input_load_u64: (addr: bigint): bigint => {
+    input_load_u64: (addr: bigint): bigint => {
       const offset = Block.maskAddress(addr);
       return this.#input?.view.getBigUint64(Number(offset), true) as bigint;
     },
 
-    extism_output_set: (addr: bigint, length: bigint) => {
+    output_set: (addr: bigint, length: bigint) => {
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
@@ -218,7 +218,7 @@ export class CallContext {
       this.#stack[this.#stack.length - 1][1] = blockIdx;
     },
 
-    extism_error_set: (addr: bigint) => {
+    error_set: (addr: bigint) => {
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
@@ -228,7 +228,7 @@ export class CallContext {
       this.#stack[this.#stack.length - 1][2] = blockIdx;
     },
 
-    extism_config_get: (addr: bigint): bigint => {
+    config_get: (addr: bigint): bigint => {
       const item = this.read(addr);
 
       if (item === null) {
@@ -244,7 +244,7 @@ export class CallContext {
       return 0n;
     },
 
-    extism_var_get: (addr: bigint): bigint => {
+    var_get: (addr: bigint): bigint => {
       const item = this.read(addr);
 
       if (item === null) {
@@ -255,7 +255,7 @@ export class CallContext {
       return this.#vars.has(key) ? Block.indexToAddress(this.#vars.get(key) as number) : 0n;
     },
 
-    extism_var_set: (addr: bigint, valueaddr: bigint) => {
+    var_set: (addr: bigint, valueaddr: bigint) => {
       const item = this.read(addr);
 
       if (item === null) {
@@ -271,17 +271,17 @@ export class CallContext {
       this.#vars.set(key, Block.addressToIndex(valueaddr));
     },
 
-    extism_http_request: (_requestOffset: bigint, _bodyOffset: bigint): bigint => {
+    ttp_request: (_requestOffset: bigint, _bodyOffset: bigint): bigint => {
       this.#logger.error('http_request is not enabled');
       return 0n;
     },
 
-    extism_http_status_code: (): number => {
+    http_status_code: (): number => {
       this.#logger.error('http_status_code is not enabled');
       return 0;
     },
 
-    extism_length: (addr: bigint): bigint => {
+    length: (addr: bigint): bigint => {
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
@@ -290,7 +290,7 @@ export class CallContext {
       return BigInt(block.buffer.byteLength);
     },
 
-    extism_log_warn: (addr: bigint) => {
+    log_warn: (addr: bigint) => {
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
@@ -302,7 +302,7 @@ export class CallContext {
       this.#logger.warn(text);
     },
 
-    extism_log_info: (addr: bigint) => {
+    log_info: (addr: bigint) => {
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
@@ -314,7 +314,7 @@ export class CallContext {
       this.#logger.info(text);
     },
 
-    extism_log_debug: (addr: bigint) => {
+    log_debug: (addr: bigint) => {
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
@@ -326,7 +326,7 @@ export class CallContext {
       this.#logger.debug(text);
     },
 
-    extism_log_error: (addr: bigint) => {
+    log_error: (addr: bigint) => {
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
