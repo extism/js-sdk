@@ -420,8 +420,8 @@ class RingBufferWriter {
 
   async flush() {
     if (this.outputOffset === RingBufferWriter.SAB_BASE_OFFSET) {
-      // always make sure we flush *something*
-      this.writeUint8(0);
+      // no need to flush -- we haven't written anything!
+      return;
     }
 
     const targetOffset = this.outputOffset;

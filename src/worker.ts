@@ -177,7 +177,6 @@ class Reactor {
     if (!this.hostFlag) {
       throw new Error('attempted to call host before receiving shared array buffer');
     }
-
     const state = context[EXPORT_STATE]();
 
     this.port.postMessage({
