@@ -319,8 +319,10 @@ class HttpContext {
       return 0n;
     }
 
-    const { header, url: rawUrl, method } = req.json();
+    let { header, url: rawUrl, method } = req.json();
     const url = new URL(rawUrl);
+    method = method ?? "GET";
+    header = header ?? {};
 
     const isAllowed = this.allowedHosts.some((allowedHost) => {
       return allowedHost === url.hostname || matches(url.hostname, allowedHost);
@@ -332,14 +334,12 @@ class HttpContext {
 
     const body = bodyaddr === 0n || method === 'GET' || method === 'HEAD' ? null : callContext.read(bodyaddr)?.bytes();
     const fetch = this.fetch;
-
     const response = await fetch(rawUrl, {
       headers: header,
       method,
       ...(body ? { body: body.slice() } : {}),
     });
 
-    console.log("HTTP", response);
     this.lastStatusCode = response.status;
     const result = callContext.store(new Uint8Array(await response.arrayBuffer()));
 

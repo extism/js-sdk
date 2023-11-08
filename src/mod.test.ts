@@ -25,13 +25,13 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  /*if (!CAPABILITIES.crossOriginChecksEnforced) {
+  if (!CAPABILITIES.crossOriginChecksEnforced) {
     test('can create plugin from url with hash check', async () => {
       const plugin = await createPlugin({
         wasm: [
           {
-            url: 'https://raw.githubusercontent.com/extism/extism/v0.5.4/wasm/code.wasm',
-            hash: '7def5bb4aa3843a5daf5d6078f1e8540e5ef10b035a9d9387e9bd5156d2b2565',
+            url: 'https://github.com/extism/plugins/releases/download/v0.5.0/count_vowels.wasm',
+            hash: '93898457953d30d016f712ccf4336ce7e9971db5f7f3aff1edd252764f75d5d7',
           },
         ],
       });
@@ -42,7 +42,7 @@ if (typeof WebAssembly === 'undefined') {
         await plugin.close();
       }
     });
-  }*/
+  }
 
   test('createPlugin fails on hash mismatch (bad hash)', async () => {
     const [err, plugin] = await createPlugin(
@@ -73,7 +73,7 @@ if (typeof WebAssembly === 'undefined') {
         wasm: [
           {
             url: 'http://localhost:8124/wasm/code.wasm',
-            hash: '7def5bb4aa3843a5daf5d6078f1e8540e5ef10b035a9d9387e9bd5156d2b256a',
+            hash: '93898457953d30d016f712ccf4336ce7e9971db5f7f3aff1edd252764f75d5d7',
           },
         ],
       },
@@ -393,7 +393,7 @@ if (typeof WebAssembly === 'undefined') {
 
       const plugin = await createPlugin(
         { wasm: [{ name: 'http', url: 'http://localhost:8124/wasm/http.wasm' }] },
-        { useWasi: true, functions, runInWorker: true, allowedHosts: ['*.typicode.com'] },
+        { useWasi: true, functions: {}, runInWorker: true, allowedHosts: ['*.typicode.com'] },
       );
 
       try {
