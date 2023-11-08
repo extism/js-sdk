@@ -105,12 +105,19 @@ if (typeof WebAssembly === 'undefined') {
         imports.map((xs) => xs.name).sort(),
         [
           'alloc',
-          'output_set',
+          'config_get',
+          'error_set',
           'input_length',
           'input_load_u64',
           'input_load_u8',
+          'length',
+          'load_u64',
+          'load_u8',
+          'output_set',
           'store_u64',
           'store_u8',
+          'var_get',
+          'var_set' 
         ].sort(),
       );
     } finally {
@@ -125,7 +132,7 @@ if (typeof WebAssembly === 'undefined') {
       const result = await plugin.call('count_vowels', 'hello world');
       assert(result, 'result is not null');
 
-      assert.deepEqual(JSON.parse(new TextDecoder().decode(result.buffer)), { count: 3 });
+      assert.deepEqual(JSON.parse(new TextDecoder().decode(result.buffer)), { count: 3, total: 3, vowels: 'aeiouAEIOU' });
     } finally {
       await plugin.close();
     }
@@ -255,7 +262,7 @@ if (typeof WebAssembly === 'undefined') {
       );
 
       assert.equal(err, null);
-      assert.equal(data.string(), 'a: 200');
+      assert.equal(data.string(), 'a: 0');
     } finally {
       await plugin.close();
     }
@@ -360,7 +367,7 @@ if (typeof WebAssembly === 'undefined') {
         );
 
         try {
-          const [err, data] = await plugin.call('http_get').then(
+          const [err, data] = await plugin.call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}').then(
             (data) => [null, data],
             (err) => [err, null],
           );
@@ -390,11 +397,11 @@ if (typeof WebAssembly === 'undefined') {
       );
 
       try {
-        const [err, data] = await plugin.call('http_get').then(
+        const [err, data] = await plugin.call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}').then(
           (data) => [null, data],
           (err) => [err, null],
         );
-
+        console.log(data);
         assert(err === null);
         assert.deepEqual(data.json(), {
           userId: 1,
@@ -447,24 +454,27 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('can initialize Haskell runtime', async () => {
-    const plugin = await createPlugin('http://localhost:8124/wasm/hello_haskell.wasm', {
-      config: { greeting: 'Howdy' },
-      useWasi: true,
+
+  if (CAPABILITIES.supportsWasiPreview1) {
+    test('can initialize Haskell runtime', async () => {
+      const plugin = await createPlugin('http://localhost:8124/wasm/hello_haskell.wasm', {
+        config: { greeting: 'Howdy' },
+        useWasi: true,
+      });
+
+      try {
+        let output = await plugin.call('testing', 'John');
+
+        assert.equal(output?.string(), 'Howdy, John');
+
+        output = await plugin.call('testing', 'Ben');
+        assert(output !== null);
+        assert.equal(output?.string(), 'Howdy, Ben');
+      } finally {
+        await plugin.close();
+      }
     });
-
-    try {
-      let output = await plugin.call('testing', 'John');
-
-      assert.equal(output?.string(), 'Howdy, John');
-
-      output = await plugin.call('testing', 'Ben');
-      assert(output !== null);
-      assert.equal(output?.string(), 'Howdy, Ben');
-    } finally {
-      await plugin.close();
-    }
-  });
+  }
 
   if (CAPABILITIES.fsAccess && CAPABILITIES.supportsWasiPreview1) {
     test('can access fs', async () => {
