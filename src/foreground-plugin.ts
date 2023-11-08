@@ -183,7 +183,7 @@ export async function createForegroundPlugin(
         ? 'haskell'
         : module.instance.exports._initialize
         ? 'reactor'
-        : module.instance.exports.__wasm_call_ctors
+        : module.instance.exports._start
         ? 'command'
         : 'none';
 
