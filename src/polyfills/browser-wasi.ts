@@ -24,15 +24,20 @@ export async function loadWasi(_allowedPaths: { [from: string]: string }): Promi
         throw new Error('The module has to export a default memory.');
       }
 
-      if (instance.exports._start) {
+      if (instance.exports._initialize) {
+        context.initialize({
+          exports: {
+            memory,
+            _initialize: () => instance.exports._initialize(),
+          }
+        });
+      } else if (instance.exports._start) {
         context.start({
           exports: {
             memory,
             _start: () => {},
           },
         });
-      } else if (instance.exports._initialize) {
-        context.initialize(instance);
       }
     },
   };

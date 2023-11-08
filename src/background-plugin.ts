@@ -320,9 +320,8 @@ class HttpContext {
     }
 
     let { header, url: rawUrl, method } = req.json();
+    method ??= "GET";
     const url = new URL(rawUrl);
-    method = method ?? "GET";
-    header = header ?? {};
 
     const isAllowed = this.allowedHosts.some((allowedHost) => {
       return allowedHost === url.hostname || matches(url.hostname, allowedHost);

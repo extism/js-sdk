@@ -401,7 +401,6 @@ if (typeof WebAssembly === 'undefined') {
           (data) => [null, data],
           (err) => [err, null],
         );
-        console.log(data);
         assert(err === null);
         assert.deepEqual(data.json(), {
           userId: 1,
