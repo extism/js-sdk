@@ -3,7 +3,7 @@ import { PluginOutput, type InternalConfig } from './interfaces.ts';
 import { WORKER_URL } from 'js-sdk:worker-url';
 import { Worker } from 'node:worker_threads';
 import { CAPABILITIES } from 'js-sdk:capabilities';
-import { DYLIBSO_ENV } from './foreground-plugin.ts';
+import { EXTISM_ENV } from './foreground-plugin.ts';
 import { matches } from 'js-sdk:minimatch';
 
 const MAX_WAIT = 5000;
@@ -307,10 +307,10 @@ class HttpContext {
   }
 
   contribute(functions: Record<string, Record<string, any>>) {
-    functions[DYLIBSO_ENV] ??= {};
-    functions[DYLIBSO_ENV].extism_http_request = (callContext: CallContext, reqaddr: bigint, bodyaddr: bigint) =>
+    functions[EXTISM_ENV] ??= {};
+    functions[EXTISM_ENV].extism_http_request = (callContext: CallContext, reqaddr: bigint, bodyaddr: bigint) =>
       this.makeRequest(callContext, reqaddr, bodyaddr);
-    functions[DYLIBSO_ENV].extism_http_status_code = () => this.lastStatusCode;
+    functions[EXTISM_ENV].extism_http_status_code = () => this.lastStatusCode;
   }
 
   async makeRequest(callContext: CallContext, reqaddr: bigint, bodyaddr: bigint) {

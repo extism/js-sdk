@@ -1,7 +1,7 @@
 import { parentPort } from 'node:worker_threads';
 
 import {
-  DYLIBSO_ENV,
+  EXTISM_ENV,
   ForegroundPlugin,
   createForegroundPlugin as _createForegroundPlugin,
 } from './foreground-plugin.ts';

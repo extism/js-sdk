@@ -2,7 +2,7 @@ import { CallContext, RESET, GET_BLOCK, BEGIN, END, ENV, STORE } from './call-co
 import { PluginOutput, type InternalConfig } from './interfaces.ts';
 import { loadWasi } from 'js-sdk:wasi';
 
-export const DYLIBSO_ENV = 'env';
+export const EXTISM_ENV = 'env';
 
 export class ForegroundPlugin {
   #context: CallContext;
@@ -160,7 +160,7 @@ export async function createForegroundPlugin(
 
   const imports: Record<string, Record<string, any>> = {
     ...(wasi ? { wasi_snapshot_preview1: await wasi.importObject() } : {}),
-    [DYLIBSO_ENV]: context[ENV],
+    [EXTISM_ENV]: context[ENV],
   };
 
   for (const namespace in opts.functions) {
