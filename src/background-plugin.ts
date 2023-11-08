@@ -339,6 +339,7 @@ class HttpContext {
       ...(body ? { body: body.slice() } : {}),
     });
 
+    console.log("HTTP", response);
     this.lastStatusCode = response.status;
     const result = callContext.store(new Uint8Array(await response.arrayBuffer()));
 

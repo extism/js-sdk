@@ -351,7 +351,7 @@ if (typeof WebAssembly === 'undefined') {
     });
 
     if (!CAPABILITIES.crossOriginChecksEnforced)
-      test('http works fails as expected when no allowed hosts match', async () => {
+      test('http fails as expected when no allowed hosts match', async () => {
         const functions = {
           "extism:host/user": {
             async hello_world(context: CallContext, _off: bigint) {
@@ -382,7 +382,7 @@ if (typeof WebAssembly === 'undefined') {
         }
       });
 
-    /*test('http works as expected when host is allowed', async () => {
+    test('http works as expected when host is allowed', async () => {
       const functions = {
         "extism:host/user": {
           async hello_world(context: CallContext, _off: bigint) {
@@ -412,7 +412,7 @@ if (typeof WebAssembly === 'undefined') {
       } finally {
         await plugin.close();
       }
-    });*/
+    });
   }
 
   test('createPlugin fails as expected when calling unknown function', async () => {
