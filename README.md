@@ -21,6 +21,8 @@ npm install @extism/extism@1.0.0-rc1 --save
 
 > **Note**: Keep in mind we will possibly have breaking changes b/w rc versions until we hit 1.0.
 
+> **Note**: Node v18 users will need to invoke node with `--experimental-global-webcrypto` to use hash checking.
+
 ## Getting Started
 
 This guide should walk you through some of the concepts in Extism and this JS library.

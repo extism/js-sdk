@@ -270,8 +270,8 @@ test: build && test-artifacts
 
     sleep 0.5
     deno test -A src/mod.test.ts
-    node --no-warnings --test dist/tests/cjs/*.test.js
-    node --no-warnings --test dist/tests/esm/*.test.js
+    node --no-warnings --test --experimental-global-webcrypto dist/tests/cjs/*.test.js
+    node --no-warnings --test --experimental-global-webcrypto dist/tests/esm/*.test.js
     if &>/dev/null which bun; then bun run dist/tests/bun/*.test.js; fi
     playwright test --browser all tests/playwright.test.js
 

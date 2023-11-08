@@ -209,7 +209,8 @@ export interface ManifestWasmPath {
  * plugin embeds multiple Wasm modules.
  *
  * @property hash The expected SHA-256 hash of the associated Wasm module data. {@link createPlugin} validates incoming Wasm against
- * provided hashes.
+ * provided hashes. If running on Node v18, `node` must be invoked using the `--experimental-global-webcrypto` flag.
+ *
  */
 export type ManifestWasm = (ManifestWasmUrl | ManifestWasmData | ManifestWasmPath) & {
   name?: string | undefined;
