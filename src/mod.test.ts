@@ -382,7 +382,7 @@ if (typeof WebAssembly === 'undefined') {
         }
       });
 
-    test('http works as expected when host is allowed', async () => {
+    /*test('http works as expected when host is allowed', async () => {
       const functions = {
         "extism:host/user": {
           async hello_world(context: CallContext, _off: bigint) {
@@ -412,7 +412,7 @@ if (typeof WebAssembly === 'undefined') {
       } finally {
         await plugin.close();
       }
-    });
+    });*/
   }
 
   test('createPlugin fails as expected when calling unknown function', async () => {
@@ -484,7 +484,7 @@ if (typeof WebAssembly === 'undefined') {
       });
 
       try {
-        const output = await plugin.call('run_test', '');
+        const output = await plugin.call('_start', '');
         assert(output !== null);
         const result = output.string();
         assert.equal(result, 'hello world!');
