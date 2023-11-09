@@ -389,7 +389,8 @@ if (typeof WebAssembly === 'undefined') {
             await new Promise((resolve) => setTimeout(resolve, 100));
             return context.store('it works');
           },
-        };
+        }
+      };
 
       const plugin = await createPlugin(
         { wasm: [{ name: 'http', url: 'http://localhost:8124/wasm/http.wasm' }] },
