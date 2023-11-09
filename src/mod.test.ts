@@ -484,7 +484,7 @@ if (typeof WebAssembly === 'undefined') {
       });
 
       try {
-        const output = await plugin.call('_start', '');
+        const output = await plugin.call('run_test', '');
         assert(output !== null);
         const result = output.string();
         assert.equal(result, 'hello world!');

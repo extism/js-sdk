@@ -15,12 +15,21 @@ export async function loadWasi(allowedPaths: { [from: string]: string }): Promis
     async initialize(instance: WebAssembly.Instance) {
       const memory = instance.exports.memory as WebAssembly.Memory;
 
+
       if (!memory) {
         throw new Error('The module has to export a default memory.');
       }
 
       if (instance.exports._initialize) {
-        context.initialize(instance);
+        const init = instance.exports._initialize as CallableFunction;
+        context.initialize({
+          exports: {
+            memory,
+            _initialize: () => {
+              init();
+            }
+          }
+        });
       } else {
         context.start({
           exports: {
