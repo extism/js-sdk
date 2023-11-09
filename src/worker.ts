@@ -1,7 +1,6 @@
 import { parentPort } from 'node:worker_threads';
 
 import {
-  EXTISM_ENV,
   ForegroundPlugin,
   createForegroundPlugin as _createForegroundPlugin,
 } from './foreground-plugin.ts';
@@ -242,7 +241,7 @@ class Reactor {
   }
 }
 
-const _CONTEXT = new Reactor(parentPort);
+new Reactor(parentPort);
 
 class RingBufferReader {
   input: SharedArrayBuffer;

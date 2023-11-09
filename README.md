@@ -2,10 +2,9 @@
 
 > **Note**: This houses the 1.0 version of the JavaScript SDK and is a work in progress. Please use the [Node SDK](https://github.com/extism/extism/tree/main/node) or the [Browser SDK](https://github.com/extism/extism/tree/main/browser) in extism/extism until we hit 1.0.
 
-This is a universal JavaScript SDK for Extism. We are aiming for it to work in all the major
-JavaScript runtimes:
+This is a universal JavaScript SDK for Extism. It works in all the major JavaScript runtimes:
 
-* Browsers
+* Browsers (Firefox, Chrome, WebKit)
 * Node
 * Deno
 * Bun
@@ -21,7 +20,17 @@ npm install @extism/extism@1.0.0-rc1 --save
 
 > **Note**: Keep in mind we will possibly have breaking changes b/w rc versions until we hit 1.0.
 
-> **Note**: Node v18 users will need to invoke node with `--experimental-global-webcrypto` to use hash checking.
+## Compatibility
+
+- **Node.js**: `v18+` (with `--experimental-global-webcrypto`); `v20` with no additional flags
+- **Deno**: `v1.36+`
+- **Bun**: Tested on `v1.0.7`; Bun partially implements WASI.
+
+Browser tests are run using [playwright](https://playwright.dev)'s defaults. In
+browsers, background thread support requires `SharedArrayBuffer` and `Atomic`
+support. This is only available in
+[`crossOriginIsolated`](https://developer.mozilla.org/en-US/docs/Web/API/crossOriginIsolated)
+contexts.
 
 ## Getting Started
 
@@ -36,7 +45,7 @@ const createPlugin = require("@extism/extism")
 import createPlugin from '@extism/extism';
 
 // Deno
-import createPlugin from 'https://raw.githubusercontent.com/extism/js-sdk/main/src/deno/mod.ts';
+import createPlugin from 'https://raw.githubusercontent.com/extism/js-sdk/main/src/mod.ts';
 ```
 
 ## Creating A Plug-in
@@ -54,40 +63,41 @@ const plugin = await createPlugin(
 
 ## Calling A Plug-in's Exports
 
-This plug-in was written in Rust and it does one thing, it counts vowels in a
-string. As such, it exposes one "export" function: `count_vowels`. We can call
-exports using `ExtismPlugin.call`:
+We're using a plug-in, `count_vowels`, which was compiled from Rust.
+`count_vowels` plug-in does one thing: it counts vowels in a string. As such,
+it exposes one "export" function: `count_vowels`. We can call exports using
+`Plugin.call`:
 
 ```js
-let out = await plugin.call("count_vowels", new TextEncoder().encode(input));
-console.log(new TextDecoder().decode(out.buffer))
+let out = await plugin.call("count_vowels", input);
+console.log(out.text())
 
 // => {"count": 3, "total": 3, "vowels": "aeiouAEIOU"}
 ```
 
-All exports have a simple interface of optional bytes in, and optional bytes
-out. This plug-in happens to take a string and return a JSON encoded string
-with a report of results.
+All plug-in exports have a simple interface of optional bytes in, and optional
+bytes out. This plug-in happens to take a string and return a JSON encoded
+string with a report of results.
 
 ### Plug-in State
 
-Plug-ins may be stateful or stateless. Plug-ins can maintain state b/w calls by
-the use of variables. Our count vowels plug-in remembers the total number of
-vowels it's ever counted in the "total" key in the result. You can see this by
+Plug-ins may be stateful or stateless. Plug-ins can maintain state between calls by
+the use of variables. Our `count_vowels` plug-in remembers the total number of
+vowels it's ever counted in the `total` key in the result. You can see this by
 making subsequent calls to the export:
 
 ```js
-let out = await plugin.call("count_vowels", new TextEncoder().encode("Hello, World!"));
-console.log(new TextDecoder().decode(out.buffer))
-
+let out = await plugin.call("count_vowels", "Hello, World!");
+console.log(out.text())
 // => {"count": 3, "total": 9, "vowels": "aeiouAEIOU"}
 
-out = await plugin.call("count_vowels", new TextEncoder().encode("Hello, World!"));
-console.log(new TextDecoder().decode(out.buffer))
+out = await plugin.call("count_vowels", "Hello, World!");
+console.log(out.json())
 // => {"count": 3, "total": 9, "vowels": "aeiouAEIOU"}
 ```
 
-These variables will persist until this plug-in is freed or you initialize a new one.
+These variables will persist until you call `await plugin.reset()`. Variables
+are not shared between plugin instances.
 
 ### Configuration
 
@@ -104,8 +114,8 @@ let plugin = await createPlugin(wasm, {
     useWasi: true,
 });
 
-let out = await plugin.call("count_vowels", new TextEncoder().encode("Yellow, World!"));
-console.log(new TextDecoder().decode(out.buffer))
+let out = await plugin.call("count_vowels", "Yellow, World!");
+console.log(out.text())
 // => {"count": 3, "total": 3, "vowels": "aeiouAEIOU"}
 
 plugin = await createPlugin(wasm, {
@@ -113,8 +123,8 @@ plugin = await createPlugin(wasm, {
     config: { "vowels": "aeiouyAEIOUY" }
 });
 
-out = await plugin.call("count_vowels", new TextEncoder().encode("Yellow, World!"));
-console.log(new TextDecoder().decode(out.buffer))
+out = await plugin.call("count_vowels", "Yellow, World!");
+console.log(out.text())
 // => {"count": 4, "total": 4, "vowels": "aeiouAEIOUY"}
 ```
 
@@ -141,7 +151,7 @@ const wasm = {
 }
 ```
 
-> *Note*: The source code for this is [here](https://github.com/extism/plugins/blob/main/count_vowels_kvstore/src/lib.rs) and is written in rust, but it could be written in any of our PDK languages.
+> *Note*: The source code for this is [here](https://github.com/extism/plugins/blob/main/count_vowels_kvstore/src/lib.rs) and is written in Rust, but it could be written in any of our PDK languages.
 
 Unlike our previous plug-in, this plug-in expects you to provide host functions that satisfy our its import interface for a KV store.
 
@@ -153,20 +163,24 @@ let kvStore = new Map();
 const options = {
     useWasi: true,
     functions: {
-        "env": {
+        env: {
             // NOTE: the first argument is always a CurrentPlugin
-            "kv_read": function (cp: CurrentPlugin, offs: bigint) {
-                const key = cp.readString(offs);
+            kv_read(cp: CurrentPlugin, offs: bigint) {
+                const key = cp.read(offs).text();
                 let value = kvStore.get(key) ?? new Uint8Array([0, 0, 0, 0]);
                 console.log(`Read ${new DataView(value.buffer).getUint32(0, true)} from key=${key}`);
-                return cp.writeBytes(value);
+                return cp.store(value);
             },
-            "kv_write": function (cp: CurrentPlugin, kOffs: bigint, vOffs: bigint) { // this: CurrentPlugin
-                const key = cp.readString(kOffs);
-                const value = cp.readBytes(vOffs);
-                console.log(`Writing value=${new DataView(value.buffer).getUint32(0, true)} from key=${key}`);
+            kv_write(cp: CurrentPlugin, kOffs: bigint, vOffs: bigint) {
+                const key = cp.read(kOffs).text();
 
-                kvStore.set(key, value);
+                // Value is a PluginOutput, which subclasses DataView. Along
+                // with the `text()` and `json()` methods we've seen, we also
+                // get DataView methods, such as `getUint32`.
+                const value = cp.read(vOffs);
+                console.log(`Writing value=${new value.getUint32(0, true)} from key=${key}`);
+
+                kvStore.set(key, value.bytes());
             }
         }
     }
@@ -174,8 +188,7 @@ const options = {
 ```
 
 > *Note*: In order to write host functions you should get familiar with the
-> methods on the `CurrentPlugin` type. `this` is bound to an instance of
-> `CurrentPlugin`.
+> methods on the `CurrentPlugin` type.
 
 We need to pass these imports to the plug-in to create them. All imports of a
 plug-in must be satisfied for it to be initialized:
@@ -187,14 +200,14 @@ const plugin = await createPlugin(wasm, options);
 Now we can invoke the event:
 
 ```js
-let out = await plugin.call("count_vowels", new TextEncoder().encode("Hello World!"));
-console.log(new TextDecoder().decode(out.buffer))
+let out = await plugin.call("count_vowels", "Hello World!");
+console.log(out.text())
 // => Read from key=count-vowels"
 // => Writing value=3 from key=count-vowels"
 // => {"count": 3, "total": 3, "vowels": "aeiouAEIOU"}
 
-out = await plugin.call("count_vowels", new TextEncoder().encode("Hello World!"));
-console.log(new TextDecoder().decode(out.buffer))
+out = await plugin.call("count_vowels", "Hello World!");
+console.log(out.text())
 // => Read from key=count-vowels"
 // => Writing value=6 from key=count-vowels"
 // => {"count": 3, "total": 6, "vowels": "aeiouAEIOU"}
