@@ -19,20 +19,19 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
-    - name: Setup Node.js environment
-      uses: actions/setup-node@v3.8.1
-    
-    - name: Setup Deno
-      uses: denoland/setup-deno@v1.1.2
-    
-    - name: NPM install
-      run: npm ci
+    - uses: extractions/setup-just@v1
 
-    - name: Build
-      run: npm run build
+    - uses: actions/setup-node@v3.8.1
+      with:
+        node-version: lts/*
+        check-latest: true
 
-    - name: Node Test
+    - uses: denoland/setup-deno@v1.1.2
+
+    - uses: oven-sh/setup-bun@v1
+      if: ${{ matrix.os != 'windows-latest' }}
+      with:
+        bun-version: latest
+
+    - name: Test
       run: npm run test
-      
-    - name: Deno Test
-      run: deno test -A ./tests/mod.test.ts
