@@ -3,7 +3,7 @@ import { CAPABILITIES } from 'js-sdk:capabilities';
 
 export const BEGIN = Symbol('begin');
 export const END = Symbol('end');
-export const ENV = Symbol('extism:host/env');
+export const ENV = Symbol('env');
 export const GET_BLOCK = Symbol('get-block');
 export const IMPORT_STATE = Symbol('import-state');
 export const EXPORT_STATE = Symbol('export-state');
