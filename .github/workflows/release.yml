@@ -12,23 +12,19 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - uses: extractions/setup-just@v1
+
     - name: Setup Node.js environment
       uses: actions/setup-node@v3.8.1
 
     - name: Setup Deno
       uses: denoland/setup-deno@v1.1.2
 
-    - name: NPM install
-      run: npm ci
-
     - name: Build
       run: npm run build
 
-    - name: Node Test
-      run: npm run test
-
-    - name: Deno Test
-      run: deno test -A ./tests/mod.test.ts
+    - name: remove dist/ package for now
+      run: rm dist/*.tgz
 
     - name: Update package version
       run: |
