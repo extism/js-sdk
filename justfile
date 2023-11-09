@@ -28,7 +28,7 @@ prepare:
       npm ci
     fi
 
-    #playwright install --with-deps
+    playwright install --with-deps
 
 _build out args='[]': prepare
     #!/bin/bash
