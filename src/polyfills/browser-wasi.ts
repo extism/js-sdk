@@ -25,12 +25,19 @@ export async function loadWasi(_allowedPaths: { [from: string]: string }): Promi
       }
 
       if (instance.exports._initialize) {
-        context.initialize({
-          exports: {
-            memory,
-            _initialize: () => instance.exports._initialize(),
-          }
-        });
+        const init = instance.exports._initialize as CallableFunction;
+        if (context.initialize){
+          context.initialize({
+            exports: {
+              memory,
+              _initialize: () => {
+                init();
+              }
+            }
+          });
+        } else {
+          init();
+        }
       } else if (instance.exports._start) {
         context.start({
           exports: {

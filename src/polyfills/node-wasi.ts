@@ -20,13 +20,14 @@ export async function loadWasi(allowedPaths: { [from: string]: string }): Promis
       }
 
       if (instance.exports._initialize){
+        const init = instance.exports._initialize as CallableFunction;
         context.initialize({
           exports: {
             memory,
             _initialize: () => {
-              instance.exports._initialize();
-            },
-          },
+              init();
+            }
+          }
         });
       } else {
         context.start({
