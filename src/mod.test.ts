@@ -30,8 +30,8 @@ if (typeof WebAssembly === 'undefined') {
       const plugin = await createPlugin({
         wasm: [
           {
-            url: 'https://raw.githubusercontent.com/extism/extism/v0.5.4/wasm/code.wasm',
-            hash: '7def5bb4aa3843a5daf5d6078f1e8540e5ef10b035a9d9387e9bd5156d2b2565',
+            url: 'https://github.com/extism/plugins/releases/download/v0.5.0/count_vowels.wasm',
+            hash: '93898457953d30d016f712ccf4336ce7e9971db5f7f3aff1edd252764f75d5d7',
           },
         ],
       });
@@ -73,7 +73,7 @@ if (typeof WebAssembly === 'undefined') {
         wasm: [
           {
             url: 'http://localhost:8124/wasm/code.wasm',
-            hash: '7def5bb4aa3843a5daf5d6078f1e8540e5ef10b035a9d9387e9bd5156d2b256a',
+            hash: '93898457953d30d016f712ccf4336ce7e9971db5f7f3aff1edd252764f75d5d7',
           },
         ],
       },
@@ -104,13 +104,20 @@ if (typeof WebAssembly === 'undefined') {
       assert.deepEqual(
         imports.map((xs) => xs.name).sort(),
         [
-          'extism_alloc',
-          'extism_output_set',
-          'extism_input_length',
-          'extism_input_load_u64',
-          'extism_input_load_u8',
-          'extism_store_u64',
-          'extism_store_u8',
+          'alloc',
+          'config_get',
+          'error_set',
+          'input_length',
+          'input_load_u64',
+          'input_load_u8',
+          'length',
+          'load_u64',
+          'load_u8',
+          'output_set',
+          'store_u64',
+          'store_u8',
+          'var_get',
+          'var_set',
         ].sort(),
       );
     } finally {
@@ -125,7 +132,11 @@ if (typeof WebAssembly === 'undefined') {
       const result = await plugin.call('count_vowels', 'hello world');
       assert(result, 'result is not null');
 
-      assert.deepEqual(JSON.parse(new TextDecoder().decode(result.buffer)), { count: 3 });
+      assert.deepEqual(JSON.parse(new TextDecoder().decode(result.buffer)), {
+        count: 3,
+        total: 3,
+        vowels: 'aeiouAEIOU',
+      });
     } finally {
       await plugin.close();
     }
@@ -162,7 +173,7 @@ if (typeof WebAssembly === 'undefined') {
   test('host functions may read info from context and return values', async () => {
     let executed: any;
     const functions = {
-      env: {
+      'extism:host/user': {
         hello_world(context: CallContext, off: bigint) {
           executed = context.read(off)?.string();
           return context.store('wow okay then');
@@ -188,7 +199,7 @@ if (typeof WebAssembly === 'undefined') {
     let callContext: CallContext | null = null;
 
     const functions = {
-      env: {
+      'extism:host/user': {
         hello_world(context: CallContext, off: bigint) {
           callContext = context;
 
@@ -222,7 +233,7 @@ if (typeof WebAssembly === 'undefined') {
   test('host functions reject original promise when throwing', async () => {
     const expected = String(Math.random());
     const functions = {
-      env: {
+      'extism:host/user': {
         hello_world(_context: CallContext, _off: bigint) {
           throw new Error(expected);
         },
@@ -255,7 +266,7 @@ if (typeof WebAssembly === 'undefined') {
       );
 
       assert.equal(err, null);
-      assert.equal(data.string(), 'a: 200');
+      assert.equal(data.string(), 'a: 0');
     } finally {
       await plugin.close();
     }
@@ -264,7 +275,7 @@ if (typeof WebAssembly === 'undefined') {
   if (CAPABILITIES.hasWorkerCapability) {
     test('host functions may be async if worker is off-main-thread', async () => {
       const functions = {
-        env: {
+        'extism:host/user': {
           async hello_world(context: CallContext, _off: bigint) {
             await new Promise((resolve) => setTimeout(resolve, 100));
             return context.store('it works');
@@ -289,7 +300,7 @@ if (typeof WebAssembly === 'undefined') {
       const res = await fetch('http://localhost:8124/src/mod.test.ts');
       const result = await res.text();
       const functions = {
-        env: {
+        'extism:host/user': {
           async hello_world(context: CallContext, _off: bigint) {
             context.setVariable('hmmm okay storing a variable', 'hello world hello.');
             const res = await fetch('http://localhost:8124/src/mod.test.ts');
@@ -317,7 +328,7 @@ if (typeof WebAssembly === 'undefined') {
 
     test('host functions may not be reentrant off-main-thread', async () => {
       const functions = {
-        env: {
+        'extism:host/user': {
           async hello_world(context: CallContext, _off: bigint) {
             await plugin?.call('count_vowels', 'hello world');
             return context.store('it works');
@@ -344,9 +355,9 @@ if (typeof WebAssembly === 'undefined') {
     });
 
     if (!CAPABILITIES.crossOriginChecksEnforced)
-      test('http works fails as expected when no allowed hosts match', async () => {
+      test('http fails as expected when no allowed hosts match', async () => {
         const functions = {
-          env: {
+          'extism:host/user': {
             async hello_world(context: CallContext, _off: bigint) {
               await new Promise((resolve) => setTimeout(resolve, 100));
               return context.store('it works');
@@ -360,10 +371,12 @@ if (typeof WebAssembly === 'undefined') {
         );
 
         try {
-          const [err, data] = await plugin.call('http_get').then(
-            (data) => [null, data],
-            (err) => [err, null],
-          );
+          const [err, data] = await plugin
+            .call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}')
+            .then(
+              (data) => [null, data],
+              (err) => [err, null],
+            );
 
           assert(data === null);
           assert.equal(
@@ -377,7 +390,7 @@ if (typeof WebAssembly === 'undefined') {
 
     test('http works as expected when host is allowed', async () => {
       const functions = {
-        env: {
+        'extism:host/user': {
           async hello_world(context: CallContext, _off: bigint) {
             await new Promise((resolve) => setTimeout(resolve, 100));
             return context.store('it works');
@@ -387,15 +400,16 @@ if (typeof WebAssembly === 'undefined') {
 
       const plugin = await createPlugin(
         { wasm: [{ name: 'http', url: 'http://localhost:8124/wasm/http.wasm' }] },
-        { useWasi: true, functions, runInWorker: true, allowedHosts: ['*.typicode.com'] },
+        { useWasi: true, functions: {}, runInWorker: true, allowedHosts: ['*.typicode.com'] },
       );
 
       try {
-        const [err, data] = await plugin.call('http_get').then(
-          (data) => [null, data],
-          (err) => [err, null],
-        );
-
+        const [err, data] = await plugin
+          .call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}')
+          .then(
+            (data) => [null, data],
+            (err) => [err, null],
+          );
         assert(err === null);
         assert.deepEqual(data.json(), {
           userId: 1,
@@ -448,24 +462,26 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('can initialize Haskell runtime', async () => {
-    const plugin = await createPlugin('http://localhost:8124/wasm/hello_haskell.wasm', {
-      config: { greeting: 'Howdy' },
-      useWasi: true,
+  if (CAPABILITIES.supportsWasiPreview1) {
+    test('can initialize Haskell runtime', async () => {
+      const plugin = await createPlugin('http://localhost:8124/wasm/hello_haskell.wasm', {
+        config: { greeting: 'Howdy' },
+        useWasi: true,
+      });
+
+      try {
+        let output = await plugin.call('testing', 'John');
+
+        assert.equal(output?.string(), 'Howdy, John');
+
+        output = await plugin.call('testing', 'Ben');
+        assert(output !== null);
+        assert.equal(output?.string(), 'Howdy, Ben');
+      } finally {
+        await plugin.close();
+      }
     });
-
-    try {
-      let output = await plugin.call('testing', 'John');
-
-      assert.equal(output?.string(), 'Howdy, John');
-
-      output = await plugin.call('testing', 'Ben');
-      assert(output !== null);
-      assert.equal(output?.string(), 'Howdy, Ben');
-    } finally {
-      await plugin.close();
-    }
-  });
+  }
 
   if (CAPABILITIES.fsAccess && CAPABILITIES.supportsWasiPreview1) {
     test('can access fs', async () => {

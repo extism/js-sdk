@@ -308,9 +308,9 @@ class HttpContext {
 
   contribute(functions: Record<string, Record<string, any>>) {
     functions[EXTISM_ENV] ??= {};
-    functions[EXTISM_ENV].extism_http_request = (callContext: CallContext, reqaddr: bigint, bodyaddr: bigint) =>
+    functions[EXTISM_ENV].http_request = (callContext: CallContext, reqaddr: bigint, bodyaddr: bigint) =>
       this.makeRequest(callContext, reqaddr, bodyaddr);
-    functions[EXTISM_ENV].extism_http_status_code = () => this.lastStatusCode;
+    functions[EXTISM_ENV].http_status_code = () => this.lastStatusCode;
   }
 
   async makeRequest(callContext: CallContext, reqaddr: bigint, bodyaddr: bigint) {
@@ -319,7 +319,8 @@ class HttpContext {
       return 0n;
     }
 
-    const { header, url: rawUrl, method } = req.json();
+    let { header, url: rawUrl, method } = req.json();
+    method ??= 'GET';
     const url = new URL(rawUrl);
 
     const isAllowed = this.allowedHosts.some((allowedHost) => {
@@ -332,7 +333,6 @@ class HttpContext {
 
     const body = bodyaddr === 0n || method === 'GET' || method === 'HEAD' ? null : callContext.read(bodyaddr)?.bytes();
     const fetch = this.fetch;
-
     const response = await fetch(rawUrl, {
       headers: header,
       method,

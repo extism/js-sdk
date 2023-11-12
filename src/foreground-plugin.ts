@@ -2,7 +2,7 @@ import { CallContext, RESET, GET_BLOCK, BEGIN, END, ENV, STORE } from './call-co
 import { PluginOutput, type InternalConfig } from './interfaces.ts';
 import { loadWasi } from 'js-sdk:wasi';
 
-export const EXTISM_ENV = 'env';
+export const EXTISM_ENV = 'extism:host/env';
 
 export class ForegroundPlugin {
   #context: CallContext;
@@ -161,6 +161,7 @@ export async function createForegroundPlugin(
   const imports: Record<string, Record<string, any>> = {
     ...(wasi ? { wasi_snapshot_preview1: await wasi.importObject() } : {}),
     [EXTISM_ENV]: context[ENV],
+    env: {},
   };
 
   for (const namespace in opts.functions) {
@@ -173,27 +174,20 @@ export async function createForegroundPlugin(
   const modules = await Promise.all(
     sources.map(async (source) => {
       const module = await WebAssembly.instantiate(source, imports);
-      if (wasi && module.instance.exports._start) {
+      if (wasi) {
         await wasi?.initialize(module.instance);
       }
 
-      const guestType = module.instance.exports._initialize
-        ? 'reactor'
-        : module.instance.exports.hs_init
+      const guestType = module.instance.exports.hs_init
         ? 'haskell'
-        : module.instance.exports.__wasm_call_ctors
+        : module.instance.exports._initialize
+        ? 'reactor'
+        : module.instance.exports._start
         ? 'command'
         : 'none';
 
-      const init: any = module.instance.exports._initialize
-        ? module.instance.exports._initialize
-        : module.instance.exports.hs_init
-        ? module.instance.exports.hs_init
-        : module.instance.exports.__wasm_call_ctors
-        ? module.instance.exports.__wasm_call_ctors
-        : () => {};
-
-      init();
+      const initRuntime: any = module.instance.exports.hs_init ? module.instance.exports.hs_init : () => {};
+      initRuntime();
 
       return { module, guestType };
     }),
