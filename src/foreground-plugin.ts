@@ -161,7 +161,7 @@ export async function createForegroundPlugin(
   const imports: Record<string, Record<string, any>> = {
     ...(wasi ? { wasi_snapshot_preview1: await wasi.importObject() } : {}),
     [EXTISM_ENV]: context[ENV],
-    "env": {}
+    env: {},
   };
 
   for (const namespace in opts.functions) {
@@ -178,8 +178,7 @@ export async function createForegroundPlugin(
         await wasi?.initialize(module.instance);
       }
 
-      const guestType = 
-        module.instance.exports.hs_init
+      const guestType = module.instance.exports.hs_init
         ? 'haskell'
         : module.instance.exports._initialize
         ? 'reactor'
@@ -187,10 +186,7 @@ export async function createForegroundPlugin(
         ? 'command'
         : 'none';
 
-      const initRuntime: any = 
-        module.instance.exports.hs_init
-        ? module.instance.exports.hs_init
-        : () => {};
+      const initRuntime: any = module.instance.exports.hs_init ? module.instance.exports.hs_init : () => {};
       initRuntime();
 
       return { module, guestType };

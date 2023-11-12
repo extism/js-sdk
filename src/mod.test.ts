@@ -117,7 +117,7 @@ if (typeof WebAssembly === 'undefined') {
           'store_u64',
           'store_u8',
           'var_get',
-          'var_set' 
+          'var_set',
         ].sort(),
       );
     } finally {
@@ -132,7 +132,11 @@ if (typeof WebAssembly === 'undefined') {
       const result = await plugin.call('count_vowels', 'hello world');
       assert(result, 'result is not null');
 
-      assert.deepEqual(JSON.parse(new TextDecoder().decode(result.buffer)), { count: 3, total: 3, vowels: 'aeiouAEIOU' });
+      assert.deepEqual(JSON.parse(new TextDecoder().decode(result.buffer)), {
+        count: 3,
+        total: 3,
+        vowels: 'aeiouAEIOU',
+      });
     } finally {
       await plugin.close();
     }
@@ -169,7 +173,7 @@ if (typeof WebAssembly === 'undefined') {
   test('host functions may read info from context and return values', async () => {
     let executed: any;
     const functions = {
-      "extism:host/user": {
+      'extism:host/user': {
         hello_world(context: CallContext, off: bigint) {
           executed = context.read(off)?.string();
           return context.store('wow okay then');
@@ -195,7 +199,7 @@ if (typeof WebAssembly === 'undefined') {
     let callContext: CallContext | null = null;
 
     const functions = {
-      "extism:host/user": {
+      'extism:host/user': {
         hello_world(context: CallContext, off: bigint) {
           callContext = context;
 
@@ -229,7 +233,7 @@ if (typeof WebAssembly === 'undefined') {
   test('host functions reject original promise when throwing', async () => {
     const expected = String(Math.random());
     const functions = {
-      "extism:host/user": {
+      'extism:host/user': {
         hello_world(_context: CallContext, _off: bigint) {
           throw new Error(expected);
         },
@@ -271,7 +275,7 @@ if (typeof WebAssembly === 'undefined') {
   if (CAPABILITIES.hasWorkerCapability) {
     test('host functions may be async if worker is off-main-thread', async () => {
       const functions = {
-        "extism:host/user": {
+        'extism:host/user': {
           async hello_world(context: CallContext, _off: bigint) {
             await new Promise((resolve) => setTimeout(resolve, 100));
             return context.store('it works');
@@ -296,7 +300,7 @@ if (typeof WebAssembly === 'undefined') {
       const res = await fetch('http://localhost:8124/src/mod.test.ts');
       const result = await res.text();
       const functions = {
-        "extism:host/user": {
+        'extism:host/user': {
           async hello_world(context: CallContext, _off: bigint) {
             context.setVariable('hmmm okay storing a variable', 'hello world hello.');
             const res = await fetch('http://localhost:8124/src/mod.test.ts');
@@ -324,7 +328,7 @@ if (typeof WebAssembly === 'undefined') {
 
     test('host functions may not be reentrant off-main-thread', async () => {
       const functions = {
-        "extism:host/user": {
+        'extism:host/user': {
           async hello_world(context: CallContext, _off: bigint) {
             await plugin?.call('count_vowels', 'hello world');
             return context.store('it works');
@@ -353,7 +357,7 @@ if (typeof WebAssembly === 'undefined') {
     if (!CAPABILITIES.crossOriginChecksEnforced)
       test('http fails as expected when no allowed hosts match', async () => {
         const functions = {
-          "extism:host/user": {
+          'extism:host/user': {
             async hello_world(context: CallContext, _off: bigint) {
               await new Promise((resolve) => setTimeout(resolve, 100));
               return context.store('it works');
@@ -367,10 +371,12 @@ if (typeof WebAssembly === 'undefined') {
         );
 
         try {
-          const [err, data] = await plugin.call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}').then(
-            (data) => [null, data],
-            (err) => [err, null],
-          );
+          const [err, data] = await plugin
+            .call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}')
+            .then(
+              (data) => [null, data],
+              (err) => [err, null],
+            );
 
           assert(data === null);
           assert.equal(
@@ -384,12 +390,12 @@ if (typeof WebAssembly === 'undefined') {
 
     test('http works as expected when host is allowed', async () => {
       const functions = {
-        "extism:host/user": {
+        'extism:host/user': {
           async hello_world(context: CallContext, _off: bigint) {
             await new Promise((resolve) => setTimeout(resolve, 100));
             return context.store('it works');
           },
-        }
+        },
       };
 
       const plugin = await createPlugin(
@@ -398,10 +404,12 @@ if (typeof WebAssembly === 'undefined') {
       );
 
       try {
-        const [err, data] = await plugin.call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}').then(
-          (data) => [null, data],
-          (err) => [err, null],
-        );
+        const [err, data] = await plugin
+          .call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}')
+          .then(
+            (data) => [null, data],
+            (err) => [err, null],
+          );
         assert(err === null);
         assert.deepEqual(data.json(), {
           userId: 1,
@@ -453,7 +461,6 @@ if (typeof WebAssembly === 'undefined') {
       await plugin.close();
     }
   });
-
 
   if (CAPABILITIES.supportsWasiPreview1) {
     test('can initialize Haskell runtime', async () => {
