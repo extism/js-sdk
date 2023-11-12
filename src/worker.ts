@@ -1,9 +1,6 @@
 import { parentPort } from 'node:worker_threads';
 
-import {
-  ForegroundPlugin,
-  createForegroundPlugin as _createForegroundPlugin,
-} from './foreground-plugin.ts';
+import { ForegroundPlugin, createForegroundPlugin as _createForegroundPlugin } from './foreground-plugin.ts';
 import { CallContext, EXPORT_STATE, CallState, IMPORT_STATE } from './call-context.ts';
 import { type InternalConfig } from './interfaces.ts';
 

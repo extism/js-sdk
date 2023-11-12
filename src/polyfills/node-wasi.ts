@@ -19,7 +19,7 @@ export async function loadWasi(allowedPaths: { [from: string]: string }): Promis
         throw new Error('The module has to export a default memory.');
       }
 
-      if (instance.exports._initialize){
+      if (instance.exports._initialize) {
         const init = instance.exports._initialize as CallableFunction;
         if (context.initialize) {
           context.initialize({
@@ -27,8 +27,8 @@ export async function loadWasi(allowedPaths: { [from: string]: string }): Promis
               memory,
               _initialize: () => {
                 init();
-              }
-            }
+              },
+            },
           });
         } else {
           init();
