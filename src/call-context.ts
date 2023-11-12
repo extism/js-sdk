@@ -271,7 +271,7 @@ export class CallContext {
       this.#vars.set(key, Block.addressToIndex(valueaddr));
     },
 
-    ttp_request: (_requestOffset: bigint, _bodyOffset: bigint): bigint => {
+    http_request: (_requestOffset: bigint, _bodyOffset: bigint): bigint => {
       this.#logger.error('http_request is not enabled');
       return 0n;
     },
