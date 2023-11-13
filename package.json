@@ -1,6 +1,6 @@
 {
   "name": "@extism/extism",
-  "version": "1.0.0-rc3",
+  "version": "0.0.0-replaced-by-ci",
   "description": "Extism runtime for JavaScript",
   "scripts": {
     "build": "just build",
@@ -14,7 +14,10 @@
     "access": "public"
   },
   "files": [
-    "dist/*"
+    "dist/browser/*",
+    "dist/bun/*",
+    "dist/cjs/*",
+    "dist/esm/*"
   ],
   "module": "dist/esm/mod.js",
   "main": "dist/cjs/index.js",
