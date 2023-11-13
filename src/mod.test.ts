@@ -389,15 +389,6 @@ if (typeof WebAssembly === 'undefined') {
       });
 
     test('http works as expected when host is allowed', async () => {
-      const functions = {
-        'extism:host/user': {
-          async hello_world(context: CallContext, _off: bigint) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-            return context.store('it works');
-          },
-        },
-      };
-
       const plugin = await createPlugin(
         { wasm: [{ name: 'http', url: 'http://localhost:8124/wasm/http.wasm' }] },
         { useWasi: true, functions: {}, runInWorker: true, allowedHosts: ['*.typicode.com'] },
