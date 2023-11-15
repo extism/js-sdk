@@ -46,3 +46,11 @@ jobs:
       uses: JS-DevTools/npm-publish@v2.2.2
       with:
         token: ${{ secrets.NPM_TOKEN }}
+    
+    - name: typedoc
+      run: npx typedoc .\src\mod.ts
+    
+    - name: Deploy docs to GitHub Pages
+      uses: JamesIves/github-pages-deploy-action@v4
+          with:
+            folder: docs
