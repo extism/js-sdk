@@ -48,7 +48,7 @@ jobs:
         token: ${{ secrets.NPM_TOKEN }}
     
     - name: typedoc
-      run: npx typedoc .\src\mod.ts
+      run: just docs
     
     - name: Deploy docs to GitHub Pages
       uses: peaceiris/actions-gh-pages@v3
