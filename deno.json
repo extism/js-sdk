@@ -1,0 +1,9 @@
+{
+  "imports": {
+    "js-sdk:worker-url": "./src/worker-url.ts",
+    "js-sdk:minimatch": "./src/polyfills/deno-minimatch.ts",
+    "js-sdk:capabilities": "./src/polyfills/deno-capabilities.ts",
+    "js-sdk:wasi": "./src/polyfills/deno-wasi.ts",
+    "js-sdk:fs": "./src/polyfills/node-fs.ts"
+  }
+}
