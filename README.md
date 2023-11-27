@@ -33,6 +33,10 @@ support. This is only available in
 [`crossOriginIsolated`](https://developer.mozilla.org/en-US/docs/Web/API/crossOriginIsolated)
 contexts.
 
+## Reference Docs
+
+Reference docs can be found at [https://extism.github.io/js-sdk/](https://extism.github.io/js-sdk/).
+
 ## Getting Started
 
 This guide should walk you through some of the concepts in Extism and this JS library.
@@ -59,7 +63,7 @@ Plug-in code can come from a file on disk, object storage or any number of place
 const plugin = await createPlugin(
     'https://github.com/extism/plugins/releases/latest/download/count_vowels.wasm',
     { useWasi: true }
-});
+);
 ```
 
 ## Calling A Plug-in's Exports
