@@ -151,6 +151,7 @@ build_node_cjs out='cjs' args='[]':
         "minify": false,
         "alias": {
           "js-sdk:capabilities": "./src/polyfills/node-capabilities.ts",
+          "js-sdk:response-to-module": "./src/polyfills/response-to-module.ts",
           "js-sdk:minimatch": "./src/polyfills/node-minimatch.ts",
           "js-sdk:worker-url": "./dist/worker/node/worker-url.ts",
           "js-sdk:fs": "node:fs/promises",
@@ -182,6 +183,7 @@ build_node_esm out='esm' args='[]':
         "minify": false,
         "alias": {
           "js-sdk:capabilities": "./src/polyfills/node-capabilities.ts",
+          "js-sdk:response-to-module": "./src/polyfills/response-to-module.ts",
           "js-sdk:minimatch": "./src/polyfills/node-minimatch.ts",
           "js-sdk:worker-url": "./dist/worker/node/worker-url.ts",
           "js-sdk:fs": "node:fs/promises",
@@ -202,6 +204,7 @@ build_bun out='bun' args='[]':
         "minify": false,
         "alias": {
           "js-sdk:worker-url": "./src/polyfills/bun-worker-url.ts",
+          "js-sdk:response-to-module": "./src/polyfills/bun-response-to-module.ts",
           "js-sdk:minimatch": "./src/polyfills/node-minimatch.ts",
           "js-sdk:capabilities": "./src/polyfills/bun-capabilities.ts",
           "js-sdk:fs": "node:fs/promises",
@@ -222,6 +225,7 @@ build_browser out='browser' args='[]':
         "format": "esm",
         "alias": {
           "js-sdk:capabilities": "./src/polyfills/browser-capabilities.ts",
+          "js-sdk:response-to-module": "./src/polyfills/response-to-module.ts",
           "js-sdk:minimatch": "./src/polyfills/node-minimatch.ts",
           "node:worker_threads": "./src/polyfills/host-node-worker_threads.ts",
           "js-sdk:fs": "./src/polyfills/browser-fs.ts",

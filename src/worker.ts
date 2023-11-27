@@ -122,7 +122,7 @@ class Reactor {
     ev: InternalConfig & {
       type: string;
       names: string[];
-      modules: ArrayBuffer[];
+      modules: WebAssembly.Module[];
       sharedData: SharedArrayBuffer;
       functions: { [name: string]: string[] };
     },

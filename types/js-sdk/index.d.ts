@@ -1,3 +1,7 @@
+declare module 'js-sdk:response-to-module' {
+  export function responseToModule(response: Response, hasHash?: boolean): Promise<{module: WebAssembly.Module, data?: ArrayBuffer}>; 
+}
+
 declare module 'js-sdk:capabilities' {
   import type { Capabilities } from '../../src/interfaces';
 

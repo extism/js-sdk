@@ -1,9 +1,22 @@
-import type { Manifest, ManifestWasmUrl, ManifestWasmData, ManifestWasmPath, ManifestLike } from './interfaces.ts';
+import type {
+  Manifest,
+  ManifestWasmUrl,
+  ManifestWasmData,
+  ManifestWasmPath,
+  ManifestWasmResponse,
+  ManifestWasmModule,
+  ManifestLike,
+} from './interfaces.ts';
 import { readFile } from 'js-sdk:fs';
+import { responseToModule } from 'js-sdk:response-to-module';
 
 async function _populateWasmField(candidate: ManifestLike, _fetch: typeof fetch): Promise<ManifestLike> {
   if (candidate instanceof ArrayBuffer) {
     return { wasm: [{ data: new Uint8Array(candidate as ArrayBuffer) }] };
+  }
+
+  if (candidate instanceof WebAssembly.Module) {
+    return { wasm: [{ module: candidate as WebAssembly.Module }] };
   }
 
   if (typeof candidate === 'string') {
@@ -18,22 +31,26 @@ async function _populateWasmField(candidate: ManifestLike, _fetch: typeof fetch)
     candidate = new URL(candidate);
   }
 
-  if (candidate instanceof URL) {
-    const response = await _fetch(candidate, { redirect: 'follow' });
+  if (candidate?.constructor?.name === 'Response') {
+    const response: Response = candidate as Response;
     const contentType = response.headers.get('content-type') || 'application/octet-stream';
 
     switch (contentType.split(';')[0]) {
       case 'application/octet-stream':
       case 'application/wasm':
-        return _populateWasmField(await response.arrayBuffer(), _fetch);
+        return { wasm: [{ response }] };
       case 'application/json':
       case 'text/json':
         return _populateWasmField(JSON.parse(await response.text()), _fetch);
       default:
         throw new TypeError(
-          `While processing manifest URL "${candidate}"; expected content-type of "text/json", "application/json", "application/octet-stream", or "application/wasm"; got "${contentType}" after stripping off charset.`,
+          `While processing manifest URL "${response.url}"; expected content-type of "text/json", "application/json", "application/octet-stream", or "application/wasm"; got "${contentType}" after stripping off charset.`,
         );
     }
+  }
+
+  if (candidate instanceof URL) {
+    return _populateWasmField(await _fetch(candidate, { redirect: 'follow' }), _fetch);
   }
 
   if (!('wasm' in candidate)) {
@@ -44,7 +61,10 @@ async function _populateWasmField(candidate: ManifestLike, _fetch: typeof fetch)
     throw new TypeError('Expected "manifest.wasm" to be array');
   }
 
-  const badItemIdx = candidate.wasm.findIndex((item) => !('data' in item) && !('url' in item) && !('path' in item));
+  const badItemIdx = candidate.wasm.findIndex(
+    (item) =>
+      !('data' in item) && !('url' in item) && !('path' in item) && !('module' in item) && !('response' in item),
+  );
   if (badItemIdx > -1) {
     throw new TypeError(
       `Expected every item in "manifest.wasm" to include either a "data", "url", or "path" key; got bad item at index ${badItemIdx}`,
@@ -54,42 +74,61 @@ async function _populateWasmField(candidate: ManifestLike, _fetch: typeof fetch)
   return { ...(candidate as Manifest) };
 }
 
-export async function intoManifest(candidate: ManifestLike, _fetch: typeof fetch = fetch): Promise<Manifest> {
+async function intoManifest(candidate: ManifestLike, _fetch: typeof fetch = fetch): Promise<Manifest> {
   const manifest = (await _populateWasmField(candidate, _fetch)) as Manifest;
   manifest.config ??= {};
   return manifest;
 }
 
-export async function toWasmModuleData(manifest: Manifest, _fetch: typeof fetch): Promise<[string[], ArrayBuffer[]]> {
+export async function toWasmModuleData(
+  input: ManifestLike,
+  _fetch: typeof fetch,
+): Promise<[string[], WebAssembly.Module[]]> {
   const names: string[] = [];
+
+  const manifest = await intoManifest(input, _fetch);
 
   const manifestsWasm = await Promise.all(
     manifest.wasm.map(async (item, idx) => {
-      let buffer: ArrayBuffer;
+      let module: WebAssembly.Module;
+      let buffer: ArrayBuffer | undefined;
       if ((item as ManifestWasmData).data) {
         const data = (item as ManifestWasmData).data;
-
-        if ((data as Uint8Array).buffer) {
-          buffer = data.buffer;
-        } else {
-          buffer = data as ArrayBuffer;
-        }
+        buffer = data.buffer ? data.buffer : data;
+        module = await WebAssembly.compile(data);
       } else if ((item as ManifestWasmPath).path) {
         const path = (item as ManifestWasmPath).path;
         const data = await readFile(path);
         buffer = data.buffer as ArrayBuffer;
-      } else {
+        module = await WebAssembly.compile(data);
+      } else if ((item as ManifestWasmUrl).url) {
         const response = await _fetch((item as ManifestWasmUrl).url, {
           headers: {
             accept: 'application/wasm;q=0.9,application/octet-stream;q=0.8',
             'user-agent': 'extism',
           },
         });
-
-        buffer = await response.arrayBuffer();
+        const result = await responseToModule(response, Boolean(item.hash));
+        buffer = result.data;
+        module = result.module;
+      } else if ((item as ManifestWasmResponse).response) {
+        const result = await responseToModule((item as ManifestWasmResponse).response, Boolean(item.hash));
+        buffer = result.data;
+        module = result.module;
+      } else if ((item as ManifestWasmModule).module) {
+        (<any>names[idx]) = item.name ?? String(idx);
+        module = (item as ManifestWasmModule).module;
+      } else {
+        throw new Error(
+          `Unrecognized wasm item at index ${idx}. Keys include: "${Object.keys(item).sort().join(',')}"`,
+        );
       }
 
       if (item.hash) {
+        if (!buffer) {
+          throw new Error('Item specified a hash but WebAssembly.Module source data is unavailable for hashing');
+        }
+
         const hashBuffer = new Uint8Array(await crypto.subtle.digest('SHA-256', buffer));
         const checkBuffer = new Uint8Array(32);
         let eq = true;
@@ -108,7 +147,7 @@ export async function toWasmModuleData(manifest: Manifest, _fetch: typeof fetch)
       }
 
       (<any>names[idx]) = item.name ?? String(idx);
-      return buffer;
+      return module;
     }),
   );
 
