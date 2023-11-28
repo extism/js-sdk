@@ -349,7 +349,7 @@ class HttpContext {
 export async function createBackgroundPlugin(
   opts: InternalConfig,
   names: string[],
-  modules: ArrayBuffer[],
+  modules: WebAssembly.Module[],
 ): Promise<BackgroundPlugin> {
   const worker = new Worker(WORKER_URL);
   const context = new CallContext(SharedArrayBuffer, opts.logger, opts.config);
@@ -394,7 +394,7 @@ export async function createBackgroundPlugin(
     });
   });
 
-  worker.postMessage(message, modules);
+  worker.postMessage(message);
   await onready;
 
   return new BackgroundPlugin(worker, sharedData, opts, context);

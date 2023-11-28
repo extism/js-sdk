@@ -4,17 +4,15 @@ import { loadWasi } from 'js-sdk:wasi';
 
 export const EXTISM_ENV = 'extism:host/env';
 
+type InstantiatedModule = { guestType: string; module: WebAssembly.Module; instance: WebAssembly.Instance };
+
 export class ForegroundPlugin {
   #context: CallContext;
-  #modules: { guestType: string; module: WebAssembly.WebAssemblyInstantiatedSource }[];
+  #modules: InstantiatedModule[];
   #names: string[];
   #active: boolean = false;
 
-  constructor(
-    context: CallContext,
-    names: string[],
-    modules: { guestType: string; module: WebAssembly.WebAssemblyInstantiatedSource }[],
-  ) {
+  constructor(context: CallContext, names: string[], modules: InstantiatedModule[]) {
     this.#context = context;
     this.#names = names;
     this.#modules = modules;
@@ -41,7 +39,7 @@ export class ForegroundPlugin {
           ? [this.lookupTarget(search[0]), search[1]]
           : [
               this.#modules.find((guest) => {
-                const exports = WebAssembly.Module.exports(guest.module.module);
+                const exports = WebAssembly.Module.exports(guest.module);
                 return exports.find((item) => {
                   return item.name === search[0] && item.kind === 'function';
                 });
@@ -53,7 +51,7 @@ export class ForegroundPlugin {
         return false;
       }
 
-      const func = target.module.instance.exports[name] as any;
+      const func = target.instance.exports[name] as any;
 
       if (!func) {
         return false;
@@ -74,7 +72,7 @@ export class ForegroundPlugin {
         ? [this.lookupTarget(search[0]), search[1]]
         : [
             this.#modules.find((guest) => {
-              const exports = WebAssembly.Module.exports(guest.module.module);
+              const exports = WebAssembly.Module.exports(guest.module);
               return exports.find((item) => {
                 return item.name === search[0] && item.kind === 'function';
               });
@@ -85,7 +83,7 @@ export class ForegroundPlugin {
     if (!target) {
       throw Error(`Plugin error: target "${search.join('" "')}" does not exist`);
     }
-    const func = target.module.instance.exports[name] as any;
+    const func = target.instance.exports[name] as any;
     if (!func) {
       throw Error(`Plugin error: function "${search.join('" "')}" does not exist`);
     }
@@ -124,7 +122,7 @@ export class ForegroundPlugin {
     return output;
   }
 
-  private lookupTarget(name: any): { guestType: string; module: WebAssembly.WebAssemblyInstantiatedSource } {
+  private lookupTarget(name: any): InstantiatedModule {
     const target = String(name ?? '0');
     const idx = this.#names.findIndex((xs) => xs === target);
     if (idx === -1) {
@@ -134,15 +132,15 @@ export class ForegroundPlugin {
   }
 
   async getExports(name?: string): Promise<WebAssembly.ModuleExportDescriptor[]> {
-    return WebAssembly.Module.exports(this.lookupTarget(name).module.module) || [];
+    return WebAssembly.Module.exports(this.lookupTarget(name).module) || [];
   }
 
   async getImports(name?: string): Promise<WebAssembly.ModuleImportDescriptor[]> {
-    return WebAssembly.Module.imports(this.lookupTarget(name).module.module) || [];
+    return WebAssembly.Module.imports(this.lookupTarget(name).module) || [];
   }
 
   async getInstance(name?: string): Promise<WebAssembly.Instance> {
-    return this.lookupTarget(name).module.instance;
+    return this.lookupTarget(name).instance;
   }
 
   async close(): Promise<void> {
@@ -153,7 +151,7 @@ export class ForegroundPlugin {
 export async function createForegroundPlugin(
   opts: InternalConfig,
   names: string[],
-  sources: ArrayBuffer[],
+  modules: WebAssembly.Module[],
   context: CallContext = new CallContext(ArrayBuffer, opts.logger, opts.config),
 ): Promise<ForegroundPlugin> {
   const wasi = opts.wasiEnabled ? await loadWasi(opts.allowedPaths) : null;
@@ -171,27 +169,27 @@ export async function createForegroundPlugin(
     }
   }
 
-  const modules = await Promise.all(
-    sources.map(async (source) => {
-      const module = await WebAssembly.instantiate(source, imports);
+  const instances = await Promise.all(
+    modules.map(async (module) => {
+      const instance = await WebAssembly.instantiate(module, imports);
       if (wasi) {
-        await wasi?.initialize(module.instance);
+        await wasi?.initialize(instance);
       }
 
-      const guestType = module.instance.exports.hs_init
+      const guestType = instance.exports.hs_init
         ? 'haskell'
-        : module.instance.exports._initialize
+        : instance.exports._initialize
         ? 'reactor'
-        : module.instance.exports._start
+        : instance.exports._start
         ? 'command'
         : 'none';
 
-      const initRuntime: any = module.instance.exports.hs_init ? module.instance.exports.hs_init : () => {};
+      const initRuntime: any = instance.exports.hs_init ? instance.exports.hs_init : () => {};
       initRuntime();
 
-      return { module, guestType };
+      return { module, instance, guestType };
     }),
   );
 
-  return new ForegroundPlugin(context, names, modules);
+  return new ForegroundPlugin(context, names, instances);
 }

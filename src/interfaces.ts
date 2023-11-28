@@ -203,7 +203,21 @@ export interface ManifestWasmPath {
 }
 
 /**
- * The WASM to load as bytes, a path, or a url
+ * Represents a WASM module as a response
+ */
+export interface ManifestWasmResponse {
+  response: Response;
+}
+
+/**
+ * Represents a WASM module as a response
+ */
+export interface ManifestWasmModule {
+  module: WebAssembly.Module;
+}
+
+/**
+ * The WASM to load as bytes, a path, a fetch `Response`, a `WebAssembly.Module`, or a url
  *
  * @property name The name of the Wasm module. Used when disambiguating {@link Plugin#call | `Plugin#call`} targets when the
  * plugin embeds multiple Wasm modules.
@@ -211,8 +225,17 @@ export interface ManifestWasmPath {
  * @property hash The expected SHA-256 hash of the associated Wasm module data. {@link createPlugin} validates incoming Wasm against
  * provided hashes. If running on Node v18, `node` must be invoked using the `--experimental-global-webcrypto` flag.
  *
+ * ⚠️ `module` cannot be used in conjunction with `hash`: the Web Platform does not currently provide a way to get source
+ * bytes from a `WebAssembly.Module` in order to hash.
+ *
  */
-export type ManifestWasm = (ManifestWasmUrl | ManifestWasmData | ManifestWasmPath) & {
+export type ManifestWasm = (
+  | ManifestWasmUrl
+  | ManifestWasmData
+  | ManifestWasmPath
+  | ManifestWasmResponse
+  | ManifestWasmModule
+) & {
   name?: string | undefined;
   hash?: string | undefined;
 };
@@ -241,9 +264,9 @@ export interface Manifest {
 /**
  * Any type that can be converted into an Extism {@link Manifest}.
  * - `object` instances that implement {@link Manifest} are validated.
- * - `ArrayBuffer` instances are converted into {@link Manifest}s with a single {@link ManifestWasmData} member.
+ * - `ArrayBuffer` instances are converted into {@link Manifest}s with a single {@link ManifestUint8Array} member.
  * - `URL` instances are fetched and their responses interpreted according to their `content-type` response header. `application/wasm` and `application/octet-stream` items
- *   are treated as {@link ManifestWasmData} items; `application/json` and `text/json` are treated as JSON-encoded {@link Manifest}s.
+ *   are treated as {@link ManifestUint8Array} items; `application/json` and `text/json` are treated as JSON-encoded {@link Manifest}s.
  * - `string` instances that start with `http://`, `https://`, or `file://` are treated as URLs.
  * - `string` instances that start with `{` treated as JSON-encoded {@link Manifest}s.
  * - All other `string` instances are treated as {@link ManifestWasmPath}.
@@ -266,7 +289,7 @@ export interface Manifest {
  * @throws {@link TypeError} when `URL` parameters don't resolve to a known `content-type`
  * @throws {@link TypeError} when the resulting {@link Manifest} does not contain a `wasm` member with valid {@link ManifestWasm} items.
  */
-export type ManifestLike = Manifest | ArrayBuffer | string | URL;
+export type ManifestLike = Manifest | Response | WebAssembly.Module | ArrayBuffer | string | URL;
 
 export interface Capabilities {
   /**

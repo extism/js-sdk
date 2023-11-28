@@ -25,6 +25,72 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
+  test('createPlugin loads a WebAssembly.Module', async () => {
+    const response = await fetch('http://localhost:8124/wasm/code.wasm');
+    const arrayBuffer = await response.arrayBuffer();
+    const module = await WebAssembly.compile(arrayBuffer);
+
+    const plugin = await createPlugin(module, { useWasi: true });
+
+    try {
+      assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
+      assert(await plugin.functionExists(['0', 'count_vowels']), '0:count_vowels should exist');
+      assert(!(await plugin.functionExists(['dne', 'count_vowels'])), 'dne:count_vowels should not exist');
+      assert(!(await plugin.functionExists('count_sheep')), 'count_sheep should not exist');
+    } finally {
+      await plugin.close();
+    }
+  });
+
+  test('createPlugin loads a WebAssembly.Module from manifest', async () => {
+    const response = await fetch('http://localhost:8124/wasm/code.wasm');
+    const arrayBuffer = await response.arrayBuffer();
+    const plugin = await createPlugin(
+      { wasm: [{ module: await WebAssembly.compile(arrayBuffer) }] },
+      { useWasi: true },
+    );
+
+    try {
+      assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
+      assert(await plugin.functionExists(['0', 'count_vowels']), '0:count_vowels should exist');
+      assert(!(await plugin.functionExists(['dne', 'count_vowels'])), 'dne:count_vowels should not exist');
+      assert(!(await plugin.functionExists('count_sheep')), 'count_sheep should not exist');
+    } finally {
+      await plugin.close();
+    }
+  });
+
+  test('createPlugin fails if provided a module and hash', async () => {
+    const response = await fetch('http://localhost:8124/wasm/code.wasm');
+    const arrayBuffer = await response.arrayBuffer();
+    const [err, plugin] = await createPlugin(
+      { wasm: [{ module: await WebAssembly.compile(arrayBuffer), hash: 'anything' }] },
+      { useWasi: true },
+    ).then(
+      (plugin) => [null, plugin],
+      (err) => [err, null],
+    );
+
+    if (plugin) {
+      await plugin.close();
+    }
+    assert.equal(plugin, null);
+    assert.equal(err.message, 'Item specified a hash but WebAssembly.Module source data is unavailable for hashing');
+  });
+
+  test('createPlugin loads a fetch Response', async () => {
+    const plugin = await createPlugin(fetch('http://localhost:8124/wasm/code.wasm'), { useWasi: true });
+
+    try {
+      assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
+      assert(await plugin.functionExists(['0', 'count_vowels']), '0:count_vowels should exist');
+      assert(!(await plugin.functionExists(['dne', 'count_vowels'])), 'dne:count_vowels should not exist');
+      assert(!(await plugin.functionExists('count_sheep')), 'count_sheep should not exist');
+    } finally {
+      await plugin.close();
+    }
+  });
+
   if (!CAPABILITIES.crossOriginChecksEnforced) {
     test('can create plugin from url with hash check', async () => {
       const plugin = await createPlugin({

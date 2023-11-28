@@ -2,7 +2,7 @@ import { CAPABILITIES } from 'js-sdk:capabilities';
 
 import type { ManifestLike, InternalConfig, ExtismPluginOptions, Plugin } from './interfaces.ts';
 
-import { intoManifest as _intoManifest, toWasmModuleData as _toWasmModuleData } from './manifest.ts';
+import { toWasmModuleData as _toWasmModuleData } from './manifest.ts';
 
 import { createForegroundPlugin as _createForegroundPlugin } from './foreground-plugin.ts';
 import { createBackgroundPlugin as _createBackgroundPlugin } from './background-plugin.ts';
@@ -13,6 +13,8 @@ export type {
   Capabilities,
   ExtismPluginOptions,
   ManifestLike,
+  ManifestWasmResponse,
+  ManifestWasmModule,
   ManifestWasmData,
   ManifestWasmUrl,
   ManifestWasmPath,
@@ -64,7 +66,6 @@ export async function createPlugin(
   manifest: ManifestLike | PromiseLike<ManifestLike>,
   opts: ExtismPluginOptions = {},
 ): Promise<Plugin> {
-  manifest = await _intoManifest(await Promise.resolve(manifest));
   opts = { ...opts };
   opts.useWasi ??= false;
   opts.functions = opts.functions || {};
@@ -72,6 +73,7 @@ export async function createPlugin(
   opts.allowedHosts ??= <any>[].concat(opts.allowedHosts || []);
   opts.logger ??= console;
   opts.config ??= {};
+  opts.fetch ??= fetch;
 
   opts.runInWorker ??= CAPABILITIES.hasWorkerCapability;
   if (opts.runInWorker && !CAPABILITIES.hasWorkerCapability) {
@@ -80,7 +82,7 @@ export async function createPlugin(
     );
   }
 
-  const [names, moduleData] = await _toWasmModuleData(manifest, opts.fetch ?? fetch);
+  const [names, moduleData] = await _toWasmModuleData(await Promise.resolve(manifest), opts.fetch ?? fetch);
 
   const ic: InternalConfig = {
     allowedHosts: opts.allowedHosts as [],
