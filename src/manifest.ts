@@ -31,7 +31,7 @@ async function _populateWasmField(candidate: ManifestLike, _fetch: typeof fetch)
     candidate = new URL(candidate);
   }
 
-  if (candidate?.constructor?.name === 'Response') {
+  if (candidate instanceof Response || candidate?.constructor?.name === 'Response') {
     const response: Response = candidate as Response;
     const contentType = response.headers.get('content-type') || 'application/octet-stream';
 
