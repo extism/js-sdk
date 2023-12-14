@@ -31,6 +31,11 @@ export class PluginOutput extends DataView {
     return this.buffer;
   }
 
+  text(): string {
+    return this.string()
+  }
+
+  /** @hidden */
   string(): string {
     return PluginOutput.#decoder.decode(this.buffer);
   }
