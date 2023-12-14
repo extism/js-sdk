@@ -21,6 +21,7 @@ export type {
   ManifestWasm,
   Manifest,
   Plugin,
+  PluginOutput,
 } from './interfaces.ts';
 
 export type { CallContext, CallContext as CurrentPlugin } from './call-context.ts';
