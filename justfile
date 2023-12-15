@@ -221,7 +221,7 @@ build_browser out='browser' args='[]':
       [{
         "entryPoints": ["src/mod.ts"],
         "platform": "browser",
-        "define": {"global": "window"},
+        "define": {"global": "globalThis"},
         "format": "esm",
         "alias": {
           "js-sdk:capabilities": "./src/polyfills/browser-capabilities.ts",

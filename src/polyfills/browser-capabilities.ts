@@ -14,8 +14,8 @@ export const CAPABILITIES: Capabilities = {
   fsAccess: false,
 
   hasWorkerCapability:
-    typeof window !== 'undefined'
-      ? (window as any).crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'
+    typeof globalThis !== 'undefined'
+      ? (globalThis as any).crossOriginIsolated && typeof SharedArrayBuffer !== 'undefined'
       : true,
 
   supportsWasiPreview1: true,
