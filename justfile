@@ -40,6 +40,7 @@ _build out args='[]': prepare
 
     node <<EOF
       const { build } = require("esbuild");
+      const path = require("path");
 
       const args = [{
           sourcemap: true,
@@ -57,16 +58,46 @@ _build out args='[]': prepare
         entryPoints: accValue('entryPoints'),
         external: accValue('external'),
         alias: combValue('alias'),
+        polyfills: combValue('polyfills'),
         define: combValue('define'),
       }
 
-      const config = args.reduce((acc, xs) => {
+      const resolved = args.reduce((acc, xs) => {
         for (var key in xs) {
           const combinator = combine[key] || lastValue(key);
           acc[key] = combinator(acc, xs);
         }
         return acc;
       }, {})
+
+      const { polyfills, ...config } = resolved;
+
+      config.plugins = [{
+        name: 'resolve',
+        setup (build) {
+          const items = Object.keys(polyfills).map(xs => xs.replace(/\./g, '\\.').replace(/\//g, '\\/'));
+          build.onResolve({ namespace: 'file', filter: /^\..*\.ts\$/g }, async args => {
+            if (!args.path.startsWith('.')) {
+              return { path: args.path, external: true }
+            }
+
+            const resolved = path.resolve(args.resolveDir, args.path)
+            const replaced = resolved.replace(process.cwd(), '.').replaceAll(path.sep, path.posix.sep)
+
+            if (!(replaced in polyfills)) {
+              return { path: path.resolve(args.resolveDir, args.path) }
+            }
+
+            const result = polyfills[replaced]
+            if (result[0] === '.') {
+              return { path: path.resolve(result) }
+            }
+
+            return { path: result, external: true }
+          })
+        } 
+      }];
+
 
       if (config.platform === 'browser' && config.outdir.startsWith('dist/tests/')) {
         config.plugins = [].concat(config.plugins || [], [
@@ -88,7 +119,7 @@ _build out args='[]': prepare
     fi
 
     # build types (TODO: switch module target based on incoming args)
-    tsc --emitDeclarationOnly --project ./tsconfig.json --declaration --outDir dist/{{ out }}
+    tsc --emitDeclarationOnly --module esnext --project ./tsconfig.json --declaration --outDir dist/{{ out }}
 
 build_worker out args='[]':
     #!/bin/bash
@@ -118,10 +149,10 @@ build_worker_node out='worker/node' args='[]':
     config="$(<<<'{{ args }}' jq -cM '
       [{
         "platform": "node",
-        "alias": {
-          "js-sdk:capabilities": "./src/polyfills/node-capabilities.ts",
-          "js-sdk:fs": "node:fs",
-          "js-sdk:wasi": "./src/polyfills/node-wasi.ts",
+        "polyfills": {
+          "./src/polyfills/deno-capabilities.ts": "./src/polyfills/node-capabilities.ts",
+          "./src/polyfills/node-fs.ts": "node:fs/promises",
+          "./src/polyfills/deno-wasi.ts": "./src/polyfills/node-wasi.ts",
         }
       }] + .
     ')"
@@ -133,10 +164,12 @@ build_worker_browser out='worker/browser' args='[]':
       [{
         "format": "esm",
         "alias": {
-          "js-sdk:capabilities": "./src/polyfills/browser-capabilities.ts",
-          "node:worker_threads": "./src/polyfills/worker-node-worker_threads.ts",
-          "js-sdk:fs": "./src/polyfills/browser-fs.ts",
-          "js-sdk:wasi": "./src/polyfills/browser-wasi.ts",
+          "node:worker_threads": "./src/polyfills/worker-node-worker_threads.ts"
+        },
+        "polyfills": {
+          "./src/polyfills/deno-capabilities.ts": "./src/polyfills/browser-capabilities.ts",
+          "./src/polyfills/node-fs.ts": "./src/polyfills/browser-fs.ts",
+          "./src/polyfills/deno-wasi.ts": "./src/polyfills/browser-wasi.ts",
         }
       }] + .
     ')"
@@ -149,13 +182,12 @@ build_node_cjs out='cjs' args='[]':
         "entryPoints": ["src/mod.ts"],
         "platform": "node",
         "minify": false,
-        "alias": {
-          "js-sdk:capabilities": "./src/polyfills/node-capabilities.ts",
-          "js-sdk:response-to-module": "./src/polyfills/response-to-module.ts",
-          "js-sdk:minimatch": "./src/polyfills/node-minimatch.ts",
-          "js-sdk:worker-url": "./dist/worker/node/worker-url.ts",
-          "js-sdk:fs": "node:fs/promises",
-          "js-sdk:wasi": "./src/polyfills/node-wasi.ts",
+        "polyfills": {
+          "./src/polyfills/deno-capabilities.ts": "./src/polyfills/node-capabilities.ts",
+          "./src/polyfills/deno-minimatch.ts": "./src/polyfills/node-minimatch.ts",
+          "./src/worker-url.ts": "./dist/worker/node/worker-url.ts",
+          "./src/polyfills/node-fs.ts": "node:fs/promises",
+          "./src/polyfills/deno-wasi.ts": "./src/polyfills/node-wasi.ts",
         },
         "define": {
           "import.meta.url": "__filename"
@@ -181,13 +213,12 @@ build_node_esm out='esm' args='[]':
         "platform": "node",
         "format": "esm",
         "minify": false,
-        "alias": {
-          "js-sdk:capabilities": "./src/polyfills/node-capabilities.ts",
-          "js-sdk:response-to-module": "./src/polyfills/response-to-module.ts",
-          "js-sdk:minimatch": "./src/polyfills/node-minimatch.ts",
-          "js-sdk:worker-url": "./dist/worker/node/worker-url.ts",
-          "js-sdk:fs": "node:fs/promises",
-          "js-sdk:wasi": "./src/polyfills/node-wasi.ts",
+        "polyfills": {
+          "./src/polyfills/deno-capabilities.ts": "./src/polyfills/node-capabilities.ts",
+          "./src/polyfills/deno-minimatch.ts": "./src/polyfills/node-minimatch.ts",
+          "./src/worker-url.ts": "./dist/worker/node/worker-url.ts",
+          "./src/polyfills/node-fs.ts": "node:fs/promises",
+          "./src/polyfills/deno-wasi.ts": "./src/polyfills/node-wasi.ts",
         }
       }] + .
     ')"
@@ -202,13 +233,13 @@ build_bun out='bun' args='[]':
         "platform": "node",
         "format": "esm",
         "minify": false,
-        "alias": {
-          "js-sdk:worker-url": "./src/polyfills/bun-worker-url.ts",
-          "js-sdk:response-to-module": "./src/polyfills/bun-response-to-module.ts",
-          "js-sdk:minimatch": "./src/polyfills/node-minimatch.ts",
-          "js-sdk:capabilities": "./src/polyfills/bun-capabilities.ts",
-          "js-sdk:fs": "node:fs/promises",
-          "js-sdk:wasi": "./src/polyfills/node-wasi.ts",
+        "polyfills": {
+          "./src/worker-url.ts": "./src/polyfills/bun-worker-url.ts",
+          "./src/polyfills/response-to-module.ts": "./src/polyfills/bun-response-to-module.ts",
+          "./src/polyfills/deno-minimatch.ts": "./src/polyfills/node-minimatch.ts",
+          "./src/polyfills/deno-capabilities.ts": "./src/polyfills/bun-capabilities.ts",
+          "./src/polyfills/node-fs.ts": "node:fs/promises",
+          "./src/polyfills/deno-wasi.ts": "./src/polyfills/node-wasi.ts",
         }
       }] + .
     ')"
@@ -224,13 +255,14 @@ build_browser out='browser' args='[]':
         "define": {"global": "globalThis"},
         "format": "esm",
         "alias": {
-          "js-sdk:capabilities": "./src/polyfills/browser-capabilities.ts",
-          "js-sdk:response-to-module": "./src/polyfills/response-to-module.ts",
-          "js-sdk:minimatch": "./src/polyfills/node-minimatch.ts",
-          "node:worker_threads": "./src/polyfills/host-node-worker_threads.ts",
-          "js-sdk:fs": "./src/polyfills/browser-fs.ts",
-          "js-sdk:worker-url": "./dist/worker/browser/worker-url.ts",
-          "js-sdk:wasi": "./src/polyfills/browser-wasi.ts",
+          "node:worker_threads": "./src/polyfills/host-node-worker_threads.ts"
+        },
+        "polyfills": {
+          "./src/polyfills/deno-capabilities.ts": "./src/polyfills/browser-capabilities.ts",
+          "./src/polyfills/deno-minimatch.ts": "./src/polyfills/node-minimatch.ts",
+          "./src/polyfills/node-fs.ts": "./src/polyfills/browser-fs.ts",
+          "./src/worker-url.ts": "./dist/worker/browser/worker-url.ts",
+          "./src/polyfills/deno-wasi.ts": "./src/polyfills/browser-wasi.ts",
         }
       }] + .
     ')"
@@ -262,7 +294,7 @@ _build_browser_tests out='tests/browser' args='[]':
 build: prepare build_worker_node build_worker_browser build_browser build_node_esm build_node_cjs build_bun _build_browser_tests _build_node_tests _build_bun_tests
     npm pack --pack-destination dist/
 
-test: build && test-artifacts
+_test:
     #!/bin/bash
     set -eou pipefail
     just serve 8124 false &
@@ -272,12 +304,17 @@ test: build && test-artifacts
     trap cleanup EXIT
     trap cleanup ERR
 
-    sleep 0.5
+    sleep 0.1
     deno test -A src/mod.test.ts
     node --no-warnings --test --experimental-global-webcrypto dist/tests/cjs/*.test.js
     node --no-warnings --test --experimental-global-webcrypto dist/tests/esm/*.test.js
     if &>/dev/null which bun; then bun run dist/tests/bun/*.test.js; fi
-    playwright test --browser all tests/playwright.test.js
+    playwright test --browser all tests/playwright.test.js --trace retain-on-failure
+
+test: build && _test test-artifacts
+
+bake:
+    while just _test; do true; done
 
 test-artifacts:
     #!/bin/bash
@@ -325,7 +362,7 @@ test-artifacts:
     EOF
 
     node --input-type=module --no-warnings <index.js
-    if &>/dev/null which bun; then bun run index.js; fi
+    # if &>/dev/null which bun; then bun run index.js; fi
 
 lint *args:
     eslint src tests examples $args

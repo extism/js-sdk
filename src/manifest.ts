@@ -7,8 +7,8 @@ import type {
   ManifestWasmModule,
   ManifestLike,
 } from './interfaces.ts';
-import { readFile } from 'js-sdk:fs';
-import { responseToModule } from 'js-sdk:response-to-module';
+import { readFile } from './polyfills/node-fs.ts';
+import { responseToModule } from './polyfills/response-to-module.ts';
 
 async function _populateWasmField(candidate: ManifestLike, _fetch: typeof fetch): Promise<ManifestLike> {
   if (candidate instanceof ArrayBuffer) {

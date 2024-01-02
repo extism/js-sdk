@@ -1,6 +1,6 @@
 import { CallContext, RESET, GET_BLOCK, BEGIN, END, ENV, STORE } from './call-context.ts';
 import { PluginOutput, type InternalConfig } from './interfaces.ts';
-import { loadWasi } from 'js-sdk:wasi';
+import { loadWasi } from './polyfills/deno-wasi.ts';
 
 export const EXTISM_ENV = 'extism:host/env';
 

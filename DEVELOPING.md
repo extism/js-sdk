@@ -32,10 +32,12 @@ build_worker_browser out='worker/browser' args='[]': # <-- we accept args and an
       [{
         "format": "esm",
         "alias": {
-          "js-sdk:capabilities": "./src/polyfills/browser-capabilities.ts",
           "node:worker_threads": "./src/polyfills/worker-node-worker_threads.ts",
-          "js-sdk:fs": "./src/polyfills/browser-fs.ts",
-          "js-sdk:wasi": "./src/polyfills/browser-wasi.ts",
+        },
+        "polyfills": {
+          "./src/polyfills/deno-capabilities.ts": "./src/polyfills/browser-capabilities.ts",
+          "./src/polyfills/deno-fs.ts": "./src/polyfills/browser-fs.ts",
+          "./src/polyfills/deno-wasi.ts": "./src/polyfills/browser-wasi.ts",
         }
       }] + . # <--- add this recipe's flags to the incoming flags.
     ')"
@@ -52,11 +54,22 @@ via `tsc`.
 We use `esbuild` to compile to these targets. This allows us to abstract
 differences at module boundaries and replace them as-needed. For example: each
 of Node, Deno, and the Browser have different WASI libraries with slightly different
-interfaces. We define a **virtual module**, `js-sdk:wasi`, and implement it by:
+interfaces. We default to Deno's definition of the polyfills, then map to polyfills
+for our specific target.
 
-1. Modifying `deno.json`; adding a mapping from `js-sdk:wasi` to `./src/polyfills/deno-wasi.ts`.
-2. Adding a `types/js-sdk:wasi/index.d.ts` file.
-3. Modifying the esbuild `alias` added by `build_worker`, `build_worker_node`,
+> **Note**
+> Polyfills were initially implemented as `js-sdk:POLYFILL` modules, which have the advantage
+> that `esbuild` is able to use its `alias` feature to map them without any extra plugins.
+>
+> However, this required using `deno.json`'s import maps to resolve the modules in the Deno target.
+> At the time of writing, Deno does not support import maps for package dependencies, only for top-level
+> applications, which means we can't make use of those. Deno [notes they are working](https://hachyderm.io/@deno_land@fosstodon.org/111693831461332098)
+> on a feature for to support this use-case, though, so we'll want to track where they end up.
+
+1. If the polyfill introduces dependencies on `deno.land`, add them to `types/deno/index.d.ts` to
+   provide support for other languages.
+    - These typings don't have to be exact -- they can be "best effort" if you have to write them yourself.
+2. Modifying the esbuild `polyfills` added by `build_worker`, `build_worker_node`,
    `build_node_cjs`, `build_node_esm`, and `build_browser`.
     - Node overrides are set to `./src/polyfills/node-wasi.ts`.
     - Browser overrides are set to `./src/polyfills/browser-wasi.ts`.
