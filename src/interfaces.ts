@@ -32,7 +32,7 @@ export class PluginOutput extends DataView {
   }
 
   text(): string {
-    return this.string()
+    return this.string();
   }
 
   /** @hidden */
