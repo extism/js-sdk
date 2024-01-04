@@ -1,5 +1,5 @@
 import { type PluginConfig, PluginOutput } from './interfaces.ts';
-import { CAPABILITIES } from 'js-sdk:capabilities';
+import { CAPABILITIES } from './polyfills/deno-capabilities.ts';
 
 export const BEGIN = Symbol('begin');
 export const END = Symbol('end');

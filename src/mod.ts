@@ -1,4 +1,4 @@
-import { CAPABILITIES } from 'js-sdk:capabilities';
+import { CAPABILITIES } from './polyfills/deno-capabilities.ts';
 
 import type { ManifestLike, InternalConfig, ExtismPluginOptions, Plugin } from './interfaces.ts';
 
@@ -7,7 +7,7 @@ import { toWasmModuleData as _toWasmModuleData } from './manifest.ts';
 import { createForegroundPlugin as _createForegroundPlugin } from './foreground-plugin.ts';
 import { createBackgroundPlugin as _createBackgroundPlugin } from './background-plugin.ts';
 
-export { CAPABILITIES } from 'js-sdk:capabilities';
+export { CAPABILITIES } from './polyfills/deno-capabilities.ts';
 
 export type {
   Capabilities,

@@ -1,10 +1,10 @@
 import { CallContext, RESET, IMPORT_STATE, EXPORT_STATE, STORE, GET_BLOCK } from './call-context.ts';
 import { PluginOutput, type InternalConfig } from './interfaces.ts';
-import { WORKER_URL } from 'js-sdk:worker-url';
+import { WORKER_URL } from './worker-url.ts';
 import { Worker } from 'node:worker_threads';
-import { CAPABILITIES } from 'js-sdk:capabilities';
+import { CAPABILITIES } from './polyfills/deno-capabilities.ts';
 import { EXTISM_ENV } from './foreground-plugin.ts';
-import { matches } from 'js-sdk:minimatch';
+import { matches } from './polyfills/deno-minimatch.ts';
 
 const MAX_WAIT = 5000;
 
