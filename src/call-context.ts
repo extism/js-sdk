@@ -1,4 +1,4 @@
-import { PluginOutput, type PluginConfig } from './interfaces.ts';
+import { type PluginConfig, PluginOutput } from './interfaces.ts';
 import { CAPABILITIES } from 'js-sdk:capabilities';
 
 export const BEGIN = Symbol('begin');
@@ -152,6 +152,15 @@ export class CallContext {
     return Block.indexToAddress(idx);
   }
 
+  length(addr: bigint): bigint {
+    const blockIdx = Block.addressToIndex(addr);
+    const block = this.#blocks[blockIdx];
+    if (!block) {
+      return 0n;
+    }
+    return BigInt(block.buffer.byteLength);
+  }
+
   /** @hidden */
   [ENV] = {
     alloc: (n: bigint): bigint => {
@@ -282,12 +291,11 @@ export class CallContext {
     },
 
     length: (addr: bigint): bigint => {
-      const blockIdx = Block.addressToIndex(addr);
-      const block = this.#blocks[blockIdx];
-      if (!block) {
-        return 0n;
-      }
-      return BigInt(block.buffer.byteLength);
+      return this.length(addr);
+    },
+
+    length_unsafe: (addr: bigint): bigint => {
+      return this.length(addr);
     },
 
     log_warn: (addr: bigint) => {
