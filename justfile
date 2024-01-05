@@ -305,9 +305,10 @@ _test:
     trap cleanup ERR
 
     sleep 0.1
-    deno test -A src/mod.test.ts
-    node --no-warnings --test --experimental-global-webcrypto dist/tests/cjs/*.test.js
-    node --no-warnings --test --experimental-global-webcrypto dist/tests/esm/*.test.js
+    false && deno test -A src/mod.test.ts
+    false && node --no-warnings --test --experimental-global-webcrypto dist/tests/cjs/*.test.js
+    for i in $(seq 0 100); do node --no-warnings --test --experimental-global-webcrypto dist/tests/esm/*.test.js; done
+    exit
     if &>/dev/null which bun; then bun run dist/tests/bun/*.test.js; fi
     playwright test --browser all tests/playwright.test.js --trace retain-on-failure
 

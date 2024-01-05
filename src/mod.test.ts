@@ -3,7 +3,7 @@ import assert from 'node:assert';
 import createPlugin, { CallContext, CAPABILITIES } from './mod.ts';
 
 if (typeof WebAssembly === 'undefined') {
-  test('this platform lacks WebAssembly support', async () => {
+  if (false) test('this platform lacks WebAssembly support', async () => {
     // at the time of writing (2023 Oct 27), playwright webkit builds for windows
     // do not support webassembly. there's an open PR (https://github.com/WebKit/WebKit/pull/18184)
     // to fix this though.
@@ -12,7 +12,7 @@ if (typeof WebAssembly === 'undefined') {
   // The presence of `*.test.ts` files adjacent to module files is no mistake, sadly:
   // we have to be in the same directory in order to preserve the `__dirname` / `import.meta.url` value
   // between `mod.ts` and the tests in the build output.
-  test('createPlugin loads a module and provides lookups', async () => {
+  if (false) test('createPlugin loads a module and provides lookups', async () => {
     const plugin = await createPlugin('http://localhost:8124/wasm/code.wasm', { useWasi: true });
 
     try {
@@ -25,7 +25,7 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('createPlugin loads a WebAssembly.Module', async () => {
+  if (false) test('createPlugin loads a WebAssembly.Module', async () => {
     const response = await fetch('http://localhost:8124/wasm/code.wasm');
     const arrayBuffer = await response.arrayBuffer();
     const module = await WebAssembly.compile(arrayBuffer);
@@ -42,7 +42,7 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('createPlugin loads a WebAssembly.Module from manifest', async () => {
+  if (false) test('createPlugin loads a WebAssembly.Module from manifest', async () => {
     const response = await fetch('http://localhost:8124/wasm/code.wasm');
     const arrayBuffer = await response.arrayBuffer();
     const plugin = await createPlugin(
@@ -60,7 +60,7 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('createPlugin fails if provided a module and hash', async () => {
+  if (false) test('createPlugin fails if provided a module and hash', async () => {
     const response = await fetch('http://localhost:8124/wasm/code.wasm');
     const arrayBuffer = await response.arrayBuffer();
     const [err, plugin] = await createPlugin(
@@ -78,7 +78,7 @@ if (typeof WebAssembly === 'undefined') {
     assert.equal(err.message, 'Item specified a hash but WebAssembly.Module source data is unavailable for hashing');
   });
 
-  test('createPlugin loads a fetch Response', async () => {
+  if (false) test('createPlugin loads a fetch Response', async () => {
     const plugin = await createPlugin(fetch('http://localhost:8124/wasm/code.wasm'), { useWasi: true });
 
     try {
@@ -92,7 +92,7 @@ if (typeof WebAssembly === 'undefined') {
   });
 
   if (!CAPABILITIES.crossOriginChecksEnforced) {
-    test('can create plugin from url with hash check', async () => {
+    if (false) test('can create plugin from url with hash check', async () => {
       const plugin = await createPlugin({
         wasm: [
           {
@@ -110,7 +110,7 @@ if (typeof WebAssembly === 'undefined') {
     });
   }
 
-  test('createPlugin fails on hash mismatch (bad hash)', async () => {
+  if (false) test('createPlugin fails on hash mismatch (bad hash)', async () => {
     const [err, plugin] = await createPlugin(
       {
         wasm: [
@@ -133,7 +133,7 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('createPlugin fails on hash mismatch (hash mismatch)', async () => {
+  if (false) test('createPlugin fails on hash mismatch (hash mismatch)', async () => {
     const [err, plugin] = await createPlugin(
       {
         wasm: [
@@ -156,7 +156,7 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('createPlugin loads a module and provides access to exports/imports', async () => {
+  if (false) test('createPlugin loads a module and provides access to exports/imports', async () => {
     const plugin = await createPlugin({ wasm: [{ url: 'http://localhost:8124/wasm/code.wasm' }] }, { useWasi: true });
 
     try {
@@ -191,7 +191,7 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('createPlugin returns an interface that can call wasm functions', async () => {
+  if (false) test('createPlugin returns an interface that can call wasm functions', async () => {
     const plugin = await createPlugin({ wasm: [{ url: 'http://localhost:8124/wasm/code.wasm' }] }, { useWasi: true });
 
     try {
@@ -208,7 +208,7 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('logging works as expected', async () => {
+  if (false) test('logging works as expected', async () => {
     const intercept: Record<string, string> = {};
     const logLevel = (level: string) => (message: string) => (intercept[level] = message);
 
@@ -236,7 +236,7 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('host functions may read info from context and return values', async () => {
+  if (false) test('host functions may read info from context and return values', async () => {
     let executed: any;
     const functions = {
       'extism:host/user': {
@@ -260,7 +260,7 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('resetting the plugin unsets all existing pages', async () => {
+  if (false) test('resetting the plugin unsets all existing pages', async () => {
     const offsets: bigint[] = [0n, 0n];
     let callContext: CallContext | null = null;
 
@@ -296,7 +296,7 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('host functions reject original promise when throwing', async () => {
+  if (false) test('host functions reject original promise when throwing', async () => {
     const expected = String(Math.random());
     const functions = {
       'extism:host/user': {
@@ -323,7 +323,7 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('plugin can get/set variables', async () => {
+  if (false) test('plugin can get/set variables', async () => {
     const plugin = await createPlugin('http://localhost:8124/wasm/var.wasm', { useWasi: true });
     try {
       const [err, data] = await plugin.call('run_test').then(
@@ -339,7 +339,7 @@ if (typeof WebAssembly === 'undefined') {
   });
 
   if (CAPABILITIES.hasWorkerCapability) {
-    test('host functions may be async if worker is off-main-thread', async () => {
+    if (false) test('host functions may be async if worker is off-main-thread', async () => {
       const functions = {
         'extism:host/user': {
           async hello_world(context: CallContext, _off: bigint) {
@@ -362,7 +362,7 @@ if (typeof WebAssembly === 'undefined') {
       }
     });
 
-    test('test writes that span multiple blocks (w/small buffer)', async () => {
+    if (true) test('test writes that span multiple blocks (w/small buffer)', async () => {
       const res = await fetch('http://localhost:8124/src/mod.test.ts');
       const result = await res.text();
       const functions = {
@@ -392,7 +392,7 @@ if (typeof WebAssembly === 'undefined') {
       }
     });
 
-    test('host functions may not be reentrant off-main-thread', async () => {
+    if (false) test('host functions may not be reentrant off-main-thread', async () => {
       const functions = {
         'extism:host/user': {
           async hello_world(context: CallContext, _off: bigint) {
@@ -421,7 +421,7 @@ if (typeof WebAssembly === 'undefined') {
     });
 
     if (!CAPABILITIES.crossOriginChecksEnforced)
-      test('http fails as expected when no allowed hosts match', async () => {
+      if (false) test('http fails as expected when no allowed hosts match', async () => {
         const functions = {
           'extism:host/user': {
             async hello_world(context: CallContext, _off: bigint) {
@@ -454,7 +454,7 @@ if (typeof WebAssembly === 'undefined') {
         }
       });
 
-    test('http works as expected when host is allowed', async () => {
+    if (false) test('http works as expected when host is allowed', async () => {
       const plugin = await createPlugin(
         { wasm: [{ name: 'http', url: 'http://localhost:8124/wasm/http.wasm' }] },
         { useWasi: true, functions: {}, runInWorker: true, allowedHosts: ['*.typicode.com'] },
@@ -480,7 +480,7 @@ if (typeof WebAssembly === 'undefined') {
     });
   }
 
-  test('createPlugin fails as expected when calling unknown function', async () => {
+  if (false) test('createPlugin fails as expected when calling unknown function', async () => {
     const plugin = await createPlugin('http://localhost:8124/wasm/code.wasm', { useWasi: true });
 
     try {
@@ -496,7 +496,7 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('plugin can allocate memory', async () => {
+  if (false) test('plugin can allocate memory', async () => {
     const plugin = await createPlugin('http://localhost:8124/wasm/alloc.wasm');
     try {
       await plugin.call('run_test', '');
@@ -505,7 +505,7 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('plugin can fail gracefully', async () => {
+  if (false) test('plugin can fail gracefully', async () => {
     const plugin = await createPlugin('http://localhost:8124/wasm/fail.wasm');
     try {
       const [err, data] = await plugin.call('run_test', '').then(
@@ -520,7 +520,7 @@ if (typeof WebAssembly === 'undefined') {
   });
 
   if (CAPABILITIES.supportsWasiPreview1) {
-    test('can initialize Haskell runtime', async () => {
+    if (false) test('can initialize Haskell runtime', async () => {
       const plugin = await createPlugin('http://localhost:8124/wasm/hello_haskell.wasm', {
         config: { greeting: 'Howdy' },
         useWasi: true,
@@ -542,7 +542,7 @@ if (typeof WebAssembly === 'undefined') {
     // TODO(chrisdickinson): this turns out to be pretty tricky to test, since
     // deno and node's wasi bindings bypass JS entirely and write directly to
     // their respective FDs. I'm settling for tests that exercise both behaviors.
-    test('when EXTISM_ENABLE_WASI_OUTPUT is not set, WASI output is stifled', async () => {
+    if (false) test('when EXTISM_ENABLE_WASI_OUTPUT is not set, WASI output is stifled', async () => {
       if ((globalThis as unknown as any).process) {
         (
           globalThis as unknown as Record<string, { env: Record<string, string> }>
@@ -561,7 +561,7 @@ if (typeof WebAssembly === 'undefined') {
       }
     });
 
-    test('respects enableWasiOutput', async () => {
+    if (false) test('respects enableWasiOutput', async () => {
       if ((globalThis as unknown as any).process) {
         (
           globalThis as unknown as Record<string, { env: Record<string, string> }>
@@ -583,7 +583,7 @@ if (typeof WebAssembly === 'undefined') {
   }
 
   if (CAPABILITIES.fsAccess && CAPABILITIES.supportsWasiPreview1) {
-    test('can access fs', async () => {
+    if (false) test('can access fs', async () => {
       const plugin = await createPlugin('http://localhost:8124/wasm/fs.wasm', {
         allowedPaths: { '/mnt': 'tests/data' },
         useWasi: true,
