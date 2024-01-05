@@ -1,10 +1,37 @@
 import { WASI } from 'wasi';
-import { type InternalWasi } from '../mod.ts';
+import { type InternalWasi } from '../interfaces.ts';
+import { devNull } from 'node:os';
+import { open } from 'node:fs/promises';
+import { closeSync } from 'node:fs';
 
-export async function loadWasi(allowedPaths: { [from: string]: string }): Promise<InternalWasi> {
+async function createDevNullFDs() {
+  const [stdin, stdout] = await Promise.all([open(devNull, 'r'), open(devNull, 'w')]);
+
+  const fr = new globalThis.FinalizationRegistry((held: number) => {
+    try {
+      closeSync(held);
+    } catch {
+      // The fd may already be closed.
+    }
+  });
+  fr.register(stdin, stdin.fd);
+  fr.register(stdout, stdout.fd);
+
+  return [stdin.fd, stdout.fd, stdout.fd];
+}
+
+export async function loadWasi(
+  allowedPaths: { [from: string]: string },
+  enableWasiOutput: boolean,
+): Promise<InternalWasi> {
+  const [stdin, stdout, stderr] = enableWasiOutput ? [0, 1, 2] : await createDevNullFDs();
+
   const context = new WASI({
     version: 'preview1',
     preopens: allowedPaths,
+    stdin,
+    stdout,
+    stderr,
   } as any);
 
   return {

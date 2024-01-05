@@ -17,4 +17,6 @@ export const CAPABILITIES: Capabilities = {
 
   // See https://github.com/oven-sh/bun/issues/1960
   supportsWasiPreview1: false,
+
+  extismStdoutEnvVarSet: Boolean(process.env.EXTISM_ENABLE_WASI_OUTPUT),
 };

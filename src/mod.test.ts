@@ -538,6 +538,48 @@ if (typeof WebAssembly === 'undefined') {
         await plugin.close();
       }
     });
+
+    // TODO(chrisdickinson): this turns out to be pretty tricky to test, since
+    // deno and node's wasi bindings bypass JS entirely and write directly to
+    // their respective FDs. I'm settling for tests that exercise both behaviors.
+    test('when EXTISM_ENABLE_WASI_OUTPUT is not set, WASI output is stifled', async () => {
+      if ((globalThis as unknown as any).process) {
+        (
+          globalThis as unknown as Record<string, { env: Record<string, string> }>
+        ).process.env.EXTISM_ENABLE_WASI_OUTPUT = '';
+      } else if ((globalThis as unknown as any).Deno) {
+        globalThis.Deno.env.set('EXTISM_ENABLE_WASI_OUTPUT', '');
+      }
+      const plugin = await createPlugin('http://localhost:8124/wasm/wasistdout.wasm', {
+        useWasi: true,
+      });
+
+      try {
+        await plugin.call('say_hello');
+      } finally {
+        await plugin.close();
+      }
+    });
+
+    test('respects enableWasiOutput', async () => {
+      if ((globalThis as unknown as any).process) {
+        (
+          globalThis as unknown as Record<string, { env: Record<string, string> }>
+        ).process.env.EXTISM_ENABLE_WASI_OUTPUT = '';
+      } else if ((globalThis as unknown as any).Deno) {
+        globalThis.Deno.env.set('EXTISM_ENABLE_WASI_OUTPUT', '');
+      }
+      const plugin = await createPlugin('http://localhost:8124/wasm/wasistdout.wasm', {
+        useWasi: true,
+        enableWasiOutput: true,
+      });
+
+      try {
+        await plugin.call('say_hello');
+      } finally {
+        await plugin.close();
+      }
+    });
   }
 
   if (CAPABILITIES.fsAccess && CAPABILITIES.supportsWasiPreview1) {

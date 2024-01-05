@@ -154,7 +154,7 @@ export async function createForegroundPlugin(
   modules: WebAssembly.Module[],
   context: CallContext = new CallContext(ArrayBuffer, opts.logger, opts.config),
 ): Promise<ForegroundPlugin> {
-  const wasi = opts.wasiEnabled ? await loadWasi(opts.allowedPaths) : null;
+  const wasi = opts.wasiEnabled ? await loadWasi(opts.allowedPaths, opts.enableWasiOutput) : null;
 
   const imports: Record<string, Record<string, any>> = {
     ...(wasi ? { wasi_snapshot_preview1: await wasi.importObject() } : {}),
