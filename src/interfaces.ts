@@ -49,11 +49,11 @@ export class PluginOutput extends DataView {
     throw new Error('Cannot set values on output');
   }
 
-  setInt16(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
+  setInt16(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
     throw new Error('Cannot set values on output');
   }
 
-  setInt32(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
+  setInt32(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
     throw new Error('Cannot set values on output');
   }
 
@@ -61,27 +61,27 @@ export class PluginOutput extends DataView {
     throw new Error('Cannot set values on output');
   }
 
-  setUint16(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
+  setUint16(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
     throw new Error('Cannot set values on output');
   }
 
-  setUint32(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
+  setUint32(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
     throw new Error('Cannot set values on output');
   }
 
-  setFloat32(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
+  setFloat32(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
     throw new Error('Cannot set values on output');
   }
 
-  setFloat64(_byteOffset: number, _value: number, _littleEndian?: boolean | undefined): void {
+  setFloat64(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
     throw new Error('Cannot set values on output');
   }
 
-  setBigInt64(_byteOffset: number, _value: bigint, _littleEndian?: boolean | undefined): void {
+  setBigInt64(_byteOffset: number, _value: bigint, _littleEndian?: boolean): void {
     throw new Error('Cannot set values on output');
   }
 
-  setBigUint64(_byteOffset: number, _value: bigint, _littleEndian?: boolean | undefined): void {
+  setBigUint64(_byteOffset: number, _value: bigint, _littleEndian?: boolean): void {
     throw new Error('Cannot set values on output');
   }
 }
@@ -130,14 +130,14 @@ export interface ExtismPluginOptions {
   /**
    * Whether or not to enable WASI preview 1.
    */
-  useWasi?: boolean | undefined;
+  useWasi?: boolean;
 
   /**
    * Whether or not to run the Wasm module in a Worker thread. Requires
    * {@link Capabilities#hasWorkerCapability | `CAPABILITIES.hasWorkerCapability`} to
    * be true.
    */
-  runInWorker?: boolean | undefined;
+  runInWorker?: boolean;
 
   /**
    * A logger implementation. Must provide `info`, `debug`, `warn`, and `error` methods.
@@ -163,7 +163,14 @@ export interface ExtismPluginOptions {
   functions?: { [key: string]: { [key: string]: (callContext: CallContext, ...args: any[]) => any } } | undefined;
   allowedPaths?: { [key: string]: string } | undefined;
   allowedHosts?: string[] | undefined;
-  config?: PluginConfigLike | undefined;
+
+  /**
+   * Whether WASI stdout should be forwarded to the host.
+   *
+   * Overrides the `EXTISM_ENABLE_WASI_OUTPUT` environment variable.
+   */
+  enableWasiOutput?: boolean;
+  config?: PluginConfigLike;
   fetch?: typeof fetch;
   sharedArrayBufferSize?: number;
 }
@@ -172,6 +179,7 @@ export interface InternalConfig {
   logger: Console;
   allowedHosts: string[];
   allowedPaths: { [key: string]: string };
+  enableWasiOutput: boolean;
   functions: { [namespace: string]: { [func: string]: any } };
   fetch: typeof fetch;
   wasiEnabled: boolean;
@@ -241,8 +249,8 @@ export type ManifestWasm = (
   | ManifestWasmResponse
   | ManifestWasmModule
 ) & {
-  name?: string | undefined;
-  hash?: string | undefined;
+  name?: string;
+  hash?: string;
 };
 
 /**
@@ -263,7 +271,7 @@ export type ManifestWasm = (
  */
 export interface Manifest {
   wasm: Array<ManifestWasm>;
-  config?: PluginConfigLike | undefined;
+  config?: PluginConfigLike;
 }
 
 /**
@@ -373,4 +381,11 @@ export interface Capabilities {
    * - ✅ webkit (via [`@bjorn3/browser_wasi_shim`](https://www.npmjs.com/package/@bjorn3/browser_wasi_shim))
    */
   supportsWasiPreview1: boolean;
+
+  /**
+   * Whether or not the `EXTISM_ENABLE_WASI_OUTPUT` environment variable has been set.
+   *
+   * This value is consulted whenever {@link ExtismPluginOptions#enableWasiOutput} is omitted.
+   */
+  extismStdoutEnvVarSet: boolean;
 }

@@ -69,6 +69,7 @@ export async function createPlugin(
 ): Promise<Plugin> {
   opts = { ...opts };
   opts.useWasi ??= false;
+  opts.enableWasiOutput ??= opts.useWasi ? CAPABILITIES.extismStdoutEnvVarSet : false;
   opts.functions = opts.functions || {};
   opts.allowedPaths ??= {};
   opts.allowedHosts ??= <any>[].concat(opts.allowedHosts || []);
@@ -93,6 +94,7 @@ export async function createPlugin(
     wasiEnabled: opts.useWasi,
     logger: opts.logger,
     config: opts.config,
+    enableWasiOutput: opts.enableWasiOutput,
     sharedArrayBufferSize: Number(opts.sharedArrayBufferSize) || 1 << 16,
   };
 
