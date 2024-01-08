@@ -47,7 +47,7 @@ export type { CallContext, CallContext as CurrentPlugin } from './call-context.t
  * }
  * ```
  *
- * {@link Plugin | `Plugin`} default to running on a background thread when the
+ * {@link Plugin | `Plugin`} can run on a background thread when the
  * environment supports it. You can see if the current environment supports
  * background plugins by checking the {@link Capabilities#hasWorkerCapability |
  * `hasWorkerCapability`} property of {@link CAPABILITIES}.
