@@ -13,8 +13,6 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        rust:
-          - stable
 
     steps:
     - uses: actions/checkout@v3
@@ -35,3 +33,28 @@ jobs:
 
     - name: Test
       run: npm run test
+
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: extractions/setup-just@v1
+
+    - uses: actions/setup-node@v3.8.1
+      with:
+        node-version: lts/*
+        check-latest: true
+
+    - uses: denoland/setup-deno@v1.1.2
+
+    - uses: oven-sh/setup-bun@v1
+      if: ${{ matrix.os != 'windows-latest' }}
+      with:
+        bun-version: latest
+
+    - name: Docs
+      shell: bash
+      run: |
+        just prepare
+        just docs

@@ -119,7 +119,7 @@ _build out args='[]': prepare
     fi
 
     # build types (TODO: switch module target based on incoming args)
-    tsc --emitDeclarationOnly --module esnext --project ./tsconfig.json --declaration --outDir dist/{{ out }}
+    tsc --emitDeclarationOnly --project ./tsconfig.json --declaration --outDir dist/{{ out }}
 
 build_worker out args='[]':
     #!/bin/bash
@@ -371,6 +371,7 @@ format:
     prettier --write src/*.ts src/**/*.ts examples/*
 
 docs:
+    #!/bin/bash
     typedoc src/mod.ts
 
 serve-docs: docs
