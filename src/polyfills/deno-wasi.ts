@@ -6,10 +6,10 @@ import { closeSync } from 'node:fs';
 
 async function createDevNullFDs() {
   const [stdin, stdout] = await Promise.all([open(devNull, 'r'), open(devNull, 'w')]);
-
+  let needsClose = true;
   const fr = new globalThis.FinalizationRegistry((held: number) => {
     try {
-      closeSync(held);
+      if (needsClose) closeSync(held);
     } catch {
       // The fd may already be closed.
     }
@@ -17,14 +17,23 @@ async function createDevNullFDs() {
   fr.register(stdin, stdin.fd);
   fr.register(stdout, stdout.fd);
 
-  return [stdin.fd, stdout.fd, stdout.fd];
+  return {
+    async close() {
+      needsClose = false;
+      await Promise.all([stdin.close(), stdout.close()]).catch(() => {});
+    },
+    fds: [stdin.fd, stdout.fd, stdout.fd],
+  };
 }
 
 export async function loadWasi(
   allowedPaths: { [from: string]: string },
   enableWasiOutput: boolean,
 ): Promise<InternalWasi> {
-  const [stdin, stdout, stderr] = enableWasiOutput ? [0, 1, 2] : await createDevNullFDs();
+  const {
+    close,
+    fds: [stdin, stdout, stderr],
+  } = enableWasiOutput ? { async close() {}, fds: [0, 1, 2] } : await createDevNullFDs();
   const context = new Context({
     preopens: allowedPaths,
     exitOnReturn: false,
@@ -36,6 +45,10 @@ export async function loadWasi(
   return {
     async importObject() {
       return context.exports;
+    },
+
+    async close() {
+      await close();
     },
 
     async initialize(instance: WebAssembly.Instance) {

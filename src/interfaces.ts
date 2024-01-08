@@ -135,7 +135,11 @@ export interface ExtismPluginOptions {
   /**
    * Whether or not to run the Wasm module in a Worker thread. Requires
    * {@link Capabilities#hasWorkerCapability | `CAPABILITIES.hasWorkerCapability`} to
-   * be true.
+   * be true. Defaults to false.
+   *
+   * This feature is marked experimental as we work out [a bug](https://github.com/extism/js-sdk/issues/46).
+   *
+   * @experimental
    */
   runInWorker?: boolean;
 
@@ -190,6 +194,7 @@ export interface InternalConfig {
 export interface InternalWasi {
   importObject(): Promise<Record<string, WebAssembly.ImportValue>>;
   initialize(instance: WebAssembly.Instance): Promise<void>;
+  close(): Promise<void>;
 }
 
 /**

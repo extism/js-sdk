@@ -1,5 +1,5 @@
 import { CallContext, RESET, GET_BLOCK, BEGIN, END, ENV, STORE } from './call-context.ts';
-import { PluginOutput, type InternalConfig } from './interfaces.ts';
+import { PluginOutput, type InternalConfig, InternalWasi } from './interfaces.ts';
 import { loadWasi } from './polyfills/deno-wasi.ts';
 
 export const EXTISM_ENV = 'extism:host/env';
@@ -11,11 +11,13 @@ export class ForegroundPlugin {
   #modules: InstantiatedModule[];
   #names: string[];
   #active: boolean = false;
+  #wasi: InternalWasi | null;
 
-  constructor(context: CallContext, names: string[], modules: InstantiatedModule[]) {
+  constructor(context: CallContext, names: string[], modules: InstantiatedModule[], wasi: InternalWasi | null) {
     this.#context = context;
     this.#names = names;
     this.#modules = modules;
+    this.#wasi = wasi;
   }
 
   async reset(): Promise<boolean> {
@@ -144,7 +146,10 @@ export class ForegroundPlugin {
   }
 
   async close(): Promise<void> {
-    // noop
+    if (this.#wasi) {
+      await this.#wasi.close();
+      this.#wasi = null;
+    }
   }
 }
 
@@ -191,5 +196,5 @@ export async function createForegroundPlugin(
     }),
   );
 
-  return new ForegroundPlugin(context, names, instances);
+  return new ForegroundPlugin(context, names, instances, wasi);
 }
