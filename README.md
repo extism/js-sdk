@@ -1,7 +1,5 @@
 # Extism JS SDK
 
-> *Note*: This houses the 1.0 pre-release version of the JavaScript SDK. We may push breaking changes in new versions until will hit 1.0 in December, 2023. But it's currently the best place to start a new integration and we welcome any feedback.
-
 This is a universal JavaScript SDK for Extism. It works in all the major JavaScript runtimes:
 
 * Browsers (Firefox, Chrome, WebKit)
@@ -18,8 +16,6 @@ Install via npm:
 ```shell
 $ npm install @extism/extism
 ```
-
-> **Note**: Keep in mind we will possibly have breaking changes b/w rc versions until we hit 1.0.
 
 ## Compatibility
 
