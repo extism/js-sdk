@@ -505,6 +505,17 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
+  test('plugin can call input_offset', async () => {
+    const plugin = await createPlugin('http://localhost:8124/wasm/input_offset.wasm');
+    try {
+      const input = 'hello world';
+      const hw = await plugin.call('input_offset_length', input);
+      assert.equal(hw?.getBigUint64(0, true), input.length);
+    } finally {
+      await plugin.close();
+    }
+  });
+
   test('plugin can fail gracefully', async () => {
     const plugin = await createPlugin('http://localhost:8124/wasm/fail.wasm');
     try {
