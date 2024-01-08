@@ -77,7 +77,8 @@ export async function createPlugin(
   opts.config ??= {};
   opts.fetch ??= fetch;
 
-  opts.runInWorker ??= CAPABILITIES.hasWorkerCapability;
+  // TODO(chrisdickinson): reset this to `CAPABILITIES.hasWorkerCapability` once we've fixed https://github.com/extism/js-sdk/issues/46.
+  opts.runInWorker ??= false;
   if (opts.runInWorker && !CAPABILITIES.hasWorkerCapability) {
     throw new Error(
       'Cannot enable off-thread wasm; current context is not `crossOriginIsolated` (see https://mdn.io/crossOriginIsolated)',

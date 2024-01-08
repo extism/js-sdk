@@ -6,25 +6,44 @@ import { closeSync } from 'node:fs';
 
 async function createDevNullFDs() {
   const [stdin, stdout] = await Promise.all([open(devNull, 'r'), open(devNull, 'w')]);
+  let needsClose = true;
+  // TODO: make this check always run when bun fixes [1], so `fs.promises.open()` returns a `FileHandle` as expected.
+  // [1]: https://github.com/oven-sh/bun/issues/5918
+  let close = async () => {
+    closeSync(stdin as any);
+    closeSync(stdout as any);
+  };
+  if (typeof stdin !== 'number') {
+    const fr = new globalThis.FinalizationRegistry((held: number) => {
+      try {
+        if (needsClose) closeSync(held);
+      } catch {
+        // The fd may already be closed.
+      }
+    });
 
-  const fr = new globalThis.FinalizationRegistry((held: number) => {
-    try {
-      closeSync(held);
-    } catch {
-      // The fd may already be closed.
-    }
-  });
-  fr.register(stdin, stdin.fd);
-  fr.register(stdout, stdout.fd);
+    fr.register(stdin, stdin.fd);
+    fr.register(stdout, stdout.fd);
+    close = async () => {
+      needsClose = false;
+      await Promise.all([stdin.close(), stdout.close()]).catch(() => {});
+    };
+  }
 
-  return [stdin.fd, stdout.fd, stdout.fd];
+  return {
+    close,
+    fds: [stdin.fd, stdout.fd, stdout.fd],
+  };
 }
 
 export async function loadWasi(
   allowedPaths: { [from: string]: string },
   enableWasiOutput: boolean,
 ): Promise<InternalWasi> {
-  const [stdin, stdout, stderr] = enableWasiOutput ? [0, 1, 2] : await createDevNullFDs();
+  const {
+    close,
+    fds: [stdin, stdout, stderr],
+  } = enableWasiOutput ? { async close() {}, fds: [0, 1, 2] } : await createDevNullFDs();
 
   const context = new WASI({
     version: 'preview1',
@@ -37,6 +56,10 @@ export async function loadWasi(
   return {
     async importObject() {
       return context.wasiImport;
+    },
+
+    async close() {
+      await close();
     },
 
     async initialize(instance: WebAssembly.Instance) {

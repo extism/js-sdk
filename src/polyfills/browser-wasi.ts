@@ -49,6 +49,10 @@ export async function loadWasi(
       return context.wasiImport;
     },
 
+    async close() {
+      // noop
+    },
+
     async initialize(instance: WebAssembly.Instance) {
       const memory = instance.exports.memory as WebAssembly.Memory;
 
