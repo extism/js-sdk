@@ -199,6 +199,11 @@ export class CallContext {
       block?.view.setBigUint64(Number(offset), n, true);
     },
 
+    input_offset: () => {
+      const blockIdx = this.#stack[this.#stack.length - 1][0];
+      return Block.indexToAddress(blockIdx || 0);
+    },
+
     input_length: () => {
       return BigInt(this.#input?.byteLength ?? 0);
     },
