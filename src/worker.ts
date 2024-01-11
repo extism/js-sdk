@@ -2,10 +2,7 @@ import { parentPort } from 'node:worker_threads';
 
 import { ForegroundPlugin, createForegroundPlugin as _createForegroundPlugin } from './foreground-plugin.ts';
 import { CallContext, EXPORT_STATE, CallState, IMPORT_STATE } from './call-context.ts';
-import { type InternalConfig } from './interfaces.ts';
-
-// TODO: make this configurable
-const MAX_WAIT = 5000;
+import { SharedArrayBufferSection, SAB_BASE_OFFSET, type InternalConfig } from './interfaces.ts';
 
 class Reactor {
   hostFlag: Int32Array | null;
@@ -173,8 +170,9 @@ class Reactor {
     if (!this.hostFlag) {
       throw new Error('attempted to call host before receiving shared array buffer');
     }
-    const state = context[EXPORT_STATE]();
+    Atomics.store(this.hostFlag, 0, SAB_BASE_OFFSET);
 
+    const state = context[EXPORT_STATE]();
     this.port.postMessage({
       type: 'invoke',
       namespace,
@@ -191,30 +189,25 @@ class Reactor {
       const sectionType = reader.readUint8();
       switch (sectionType) {
         // end
-        case 0:
+        case SharedArrayBufferSection.End:
           state.blocks = blocks;
           context[IMPORT_STATE](state);
           reader.close();
-          this.hostFlag[0] = RingBufferReader.SAB_BASE_OFFSET;
           return retval;
 
-        // ret i64
-        case 1:
+        case SharedArrayBufferSection.RetI64:
           retval = reader.readUint64();
           break;
 
-        // ret f64
-        case 2:
+        case SharedArrayBufferSection.RetF64:
           retval = reader.readFloat64();
           break;
 
-        // ret void
-        case 3:
+        case SharedArrayBufferSection.RetVoid:
           retval = undefined;
           break;
 
-        // block
-        case 4:
+        case SharedArrayBufferSection.Block:
           {
             const index = reader.readUint32();
             const len = reader.readUint32();
@@ -228,11 +221,13 @@ class Reactor {
           }
           break;
 
+        // a common invalid state:
+        // case 0:
+        //   console.log({retval, input: reader.input, reader })
         default:
           throw new Error(
-            `invalid section type="${sectionType}"; please open an issue (https://github.com/extism/js-sdk/issues/new?title=shared+array+buffer+bad+section+type+${sectionType}&labels=bug)`,
+            `invalid section type="${sectionType}" at position ${reader.position}; please open an issue (https://github.com/extism/js-sdk/issues/new?title=shared+array+buffer+bad+section+type+${sectionType}&labels=bug)`,
           );
-          break;
       }
     } while (1);
   }
@@ -240,61 +235,70 @@ class Reactor {
 
 new Reactor(parentPort);
 
+// This controls how frequently we "release" control from the Atomic; anecdotally
+// this appears to help with stalled wait() on Bun.
+const MAX_WAIT = 500;
+
 class RingBufferReader {
   input: SharedArrayBuffer;
   flag: Int32Array;
   inputOffset: number;
   scratch: ArrayBuffer;
   scratchView: DataView;
-  expected: number;
+  position: number;
+  #available: number;
 
   static SAB_IDX = 0;
-  static SAB_BASE_OFFSET = 4;
 
   constructor(input: SharedArrayBuffer) {
     this.input = input;
-    this.inputOffset = RingBufferReader.SAB_BASE_OFFSET;
+    this.inputOffset = SAB_BASE_OFFSET;
     this.flag = new Int32Array(this.input);
     this.scratch = new ArrayBuffer(8);
     this.scratchView = new DataView(this.scratch);
-    this.expected = 0;
-    this.pull(false);
-  }
-
-  get available() {
-    return this.flag[0] - this.inputOffset;
+    this.position = 0;
+    this.#available = 0;
+    this.wait();
   }
 
   close() {
-    while (
-      Atomics.compareExchange(this.flag, RingBufferReader.SAB_IDX, this.expected, RingBufferReader.SAB_BASE_OFFSET) !==
-      RingBufferReader.SAB_BASE_OFFSET
-    ) {} // eslint-disable-line no-empty
-    Atomics.notify(this.flag, RingBufferReader.SAB_IDX, MAX_WAIT);
+    this.signal();
+    Atomics.store(this.flag, 0, SAB_BASE_OFFSET);
   }
 
-  pull(reset: boolean = true) {
-    if (reset) {
-      while (
-        Atomics.compareExchange(
-          this.flag,
-          RingBufferReader.SAB_IDX,
-          this.expected,
-          RingBufferReader.SAB_BASE_OFFSET,
-        ) !== RingBufferReader.SAB_BASE_OFFSET
-      ) {} // eslint-disable-line no-empty
-      Atomics.notify(this.flag, RingBufferReader.SAB_IDX, MAX_WAIT);
-    }
-    // host now copies out, once it's done it writes the available bytes to the flag.
-    const v = Atomics.wait(this.flag, 0, RingBufferReader.SAB_BASE_OFFSET, MAX_WAIT);
-    this.expected = Atomics.load(this.flag, 0);
-    if (v === 'timed-out') {
-      throw new Error(`Worker timed out waiting for response from host after ${MAX_WAIT}ms ${this.flag[0]}`);
-    }
-    this.inputOffset = RingBufferReader.SAB_BASE_OFFSET;
+  wait() {
+    let value = SAB_BASE_OFFSET;
+    do {
+      value = Atomics.load(this.flag, 0);
+      if (value === SAB_BASE_OFFSET) {
+        const result = Atomics.wait(this.flag, 0, SAB_BASE_OFFSET, MAX_WAIT);
+        if (result === 'timed-out') {
+          continue;
+        }
+      }
+    } while (value <= SAB_BASE_OFFSET);
+
+    this.#available = Atomics.load(this.flag, 0);
+
+    this.inputOffset = SAB_BASE_OFFSET;
+  }
+
+  get available() {
+    return this.#available - this.inputOffset;
+  }
+
+  signal() {
+    Atomics.store(this.flag, 0, SAB_BASE_OFFSET);
+    Atomics.notify(this.flag, 0, 1);
+  }
+
+  pull() {
+    this.signal();
+    this.wait();
   }
 
   read(output: Uint8Array) {
+    this.position += output.byteLength;
     if (output.byteLength < this.available) {
       output.set(new Uint8Array(this.input).subarray(this.inputOffset, this.inputOffset + output.byteLength));
       this.inputOffset += output.byteLength;

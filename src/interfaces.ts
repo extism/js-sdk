@@ -394,3 +394,13 @@ export interface Capabilities {
    */
   extismStdoutEnvVarSet: boolean;
 }
+
+export const SAB_BASE_OFFSET = 4;
+
+export enum SharedArrayBufferSection {
+  End = 0xff,
+  RetI64 = 1,
+  RetF64 = 2,
+  RetVoid = 3,
+  Block = 4,
+}

@@ -363,15 +363,14 @@ if (typeof WebAssembly === 'undefined') {
     });
 
     test('test writes that span multiple blocks (w/small buffer)', async () => {
-      const res = await fetch('http://localhost:8124/src/mod.test.ts');
-      const result = await res.text();
+      const value = '9:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ'.repeat(18428 / 34);
       const functions = {
         'extism:host/user': {
           async hello_world(context: CallContext, _off: bigint) {
             context.setVariable('hmmm okay storing a variable', 'hello world hello.');
-            const res = await fetch('http://localhost:8124/src/mod.test.ts');
-            const result = await res.text();
-            return context.store(result);
+            const result = new TextEncoder().encode(value);
+            const ret = context.store(result);
+            return ret;
           },
         },
       };
@@ -381,12 +380,15 @@ if (typeof WebAssembly === 'undefined') {
         { useWasi: true, functions, runInWorker: true, sharedArrayBufferSize: 1 << 6 },
       );
 
+      let i = 0;
       try {
-        const output = await plugin.call('count_vowels', 'hello world');
-        assert.equal(output?.string(), result);
+        for (; i < 10; ++i) {
+          const output = await plugin.call('count_vowels', 'hello world');
+          assert.equal(output?.string(), value);
+        }
 
         const again = await plugin.call('count_vowels', 'hello world');
-        assert.equal(again?.string(), result);
+        assert.equal(again?.string(), value);
       } finally {
         await plugin.close();
       }

@@ -21,6 +21,8 @@ export type {
   ManifestWasm,
   Manifest,
   Plugin,
+  PluginConfig,
+  PluginConfigLike,
   PluginOutput,
 } from './interfaces.ts';
 
