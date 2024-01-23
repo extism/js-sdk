@@ -294,7 +294,7 @@ _build_browser_tests out='tests/browser' args='[]':
 build: prepare build_worker_node build_worker_browser build_browser build_node_esm build_node_cjs build_bun _build_browser_tests _build_node_tests _build_bun_tests
     npm pack --pack-destination dist/
 
-_test:
+_test filter='.*':
     #!/bin/bash
     set -eou pipefail
     just serve 8124 false &
@@ -305,16 +305,16 @@ _test:
     trap cleanup ERR
 
     sleep 0.1
-    deno test -A src/mod.test.ts
-    node --no-warnings --test --experimental-global-webcrypto dist/tests/cjs/*.test.js
-    node --no-warnings --test --experimental-global-webcrypto dist/tests/esm/*.test.js
-    if &>/dev/null which bun; then bun run dist/tests/bun/*.test.js; fi
-    playwright test --browser all tests/playwright.test.js --trace retain-on-failure
+    if [[ "deno" =~ {{ filter }} ]]; then deno test -A src/mod.test.ts; fi
+    if [[ "node-cjs" =~ {{ filter }} ]]; then node --no-warnings --test --experimental-global-webcrypto dist/tests/cjs/*.test.js; fi
+    if [[ "node-esm" =~ {{ filter }} ]]; then node --no-warnings --test --experimental-global-webcrypto dist/tests/esm/*.test.js; fi
+    if [[ "bun" =~ {{ filter }} ]]; then if &>/dev/null which bun; then bun run dist/tests/bun/*.test.js; fi; fi
+    if [[ "browsers" =~ {{ filter }} ]]; then playwright test --browser all tests/playwright.test.js --trace retain-on-failure; fi
 
 test: build && _test test-artifacts
 
-bake:
-    while just _test; do true; done
+bake filter='.*':
+    while just _test '{{ filter }}'; do true; done
 
 test-artifacts:
     #!/bin/bash
