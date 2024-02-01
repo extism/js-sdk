@@ -64,7 +64,7 @@ const plugin = await createPlugin(
 );
 ```
 
-> *Note*: Plug-ins can be loaded in a variety of ways, see the reference docs for [createPlugin](https://extism.github.io/js-sdk/functions/createPlugin.html)
+> *Note*: Plug-ins can be loaded in a variety of ways. See the reference docs for [createPlugin](https://extism.github.io/js-sdk/functions/createPlugin.html)
 > and read about the [manifest](https://extism.org/docs/concepts/manifest/).
 
 ## Calling A Plug-in's Exports
