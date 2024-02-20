@@ -125,7 +125,7 @@ export class ForegroundPlugin {
   }
 
   private lookupTarget(name: any): InstantiatedModule {
-    const target = String(name ?? '0');
+    const target = String(name ?? 'main');
     const idx = this.#names.findIndex((xs) => xs === target);
     if (idx === -1) {
       throw new Error(`no module named "${name}"`);
@@ -174,27 +174,39 @@ export async function createForegroundPlugin(
     }
   }
 
+  // find the "main" module and try to instantiate it.
+  
+
   const instances = await Promise.all(
     modules.map(async (module) => {
-      const instance = await WebAssembly.instantiate(module, imports);
-      if (wasi) {
-        await wasi?.initialize(instance);
-      }
-
-      const guestType = instance.exports.hs_init
-        ? 'haskell'
-        : instance.exports._initialize
-        ? 'reactor'
-        : instance.exports._start
-        ? 'command'
-        : 'none';
-
-      const initRuntime: any = instance.exports.hs_init ? instance.exports.hs_init : () => {};
-      initRuntime();
-
-      return { module, instance, guestType };
+      return await instantiateModule(module, imports, wasi)
     }),
   );
 
   return new ForegroundPlugin(context, names, instances, wasi);
+}
+
+
+async function instantiateModule(
+  module: WebAssembly.Module,
+  imports: Record<string, Record<string, any>>,
+  wasi: InternalWasi | null
+) {
+  const instance = await WebAssembly.instantiate(module, imports);
+  if (wasi) {
+    await wasi?.initialize(instance);
+  }
+
+  const guestType = instance.exports.hs_init
+    ? 'haskell'
+    : instance.exports._initialize
+    ? 'reactor'
+    : instance.exports._start
+    ? 'command'
+    : 'none';
+
+  const initRuntime: any = instance.exports.hs_init ? instance.exports.hs_init : () => {};
+  initRuntime();
+
+  return { module, instance, guestType };
 }

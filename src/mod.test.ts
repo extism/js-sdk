@@ -17,7 +17,7 @@ if (typeof WebAssembly === 'undefined') {
 
     try {
       assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
-      assert(await plugin.functionExists(['0', 'count_vowels']), '0:count_vowels should exist');
+      assert(await plugin.functionExists(['main', 'count_vowels']), 'main:count_vowels should exist');
       assert(!(await plugin.functionExists(['dne', 'count_vowels'])), 'dne:count_vowels should not exist');
       assert(!(await plugin.functionExists('count_sheep')), 'count_sheep should not exist');
     } finally {
@@ -34,7 +34,7 @@ if (typeof WebAssembly === 'undefined') {
 
     try {
       assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
-      assert(await plugin.functionExists(['0', 'count_vowels']), '0:count_vowels should exist');
+      assert(await plugin.functionExists(['main', 'count_vowels']), 'main:count_vowels should exist');
       assert(!(await plugin.functionExists(['dne', 'count_vowels'])), 'dne:count_vowels should not exist');
       assert(!(await plugin.functionExists('count_sheep')), 'count_sheep should not exist');
     } finally {
@@ -52,7 +52,7 @@ if (typeof WebAssembly === 'undefined') {
 
     try {
       assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
-      assert(await plugin.functionExists(['0', 'count_vowels']), '0:count_vowels should exist');
+      assert(await plugin.functionExists(['main', 'count_vowels']), 'main:count_vowels should exist');
       assert(!(await plugin.functionExists(['dne', 'count_vowels'])), 'dne:count_vowels should not exist');
       assert(!(await plugin.functionExists('count_sheep')), 'count_sheep should not exist');
     } finally {
@@ -83,7 +83,7 @@ if (typeof WebAssembly === 'undefined') {
 
     try {
       assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
-      assert(await plugin.functionExists(['0', 'count_vowels']), '0:count_vowels should exist');
+      assert(await plugin.functionExists(['main', 'count_vowels']), 'main:count_vowels should exist');
       assert(!(await plugin.functionExists(['dne', 'count_vowels'])), 'dne:count_vowels should not exist');
       assert(!(await plugin.functionExists('count_sheep')), 'count_sheep should not exist');
     } finally {
@@ -434,7 +434,7 @@ if (typeof WebAssembly === 'undefined') {
         };
 
         const plugin = await createPlugin(
-          { wasm: [{ name: 'http', url: 'http://localhost:8124/wasm/http.wasm' }] },
+          { wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http.wasm' }] },
           { useWasi: true, functions, runInWorker: true, allowedHosts: ['*.example.com'] },
         );
 
@@ -458,7 +458,7 @@ if (typeof WebAssembly === 'undefined') {
 
     test('http works as expected when host is allowed', async () => {
       const plugin = await createPlugin(
-        { wasm: [{ name: 'http', url: 'http://localhost:8124/wasm/http.wasm' }] },
+        { wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http.wasm' }] },
         { useWasi: true, functions: {}, runInWorker: true, allowedHosts: ['*.typicode.com'] },
       );
 
