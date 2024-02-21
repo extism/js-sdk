@@ -4,7 +4,7 @@ import { loadWasi } from './polyfills/deno-wasi.ts';
 
 export const EXTISM_ENV = 'extism:host/env';
 
-type InstantiatedModule = { guestType: string; module: WebAssembly.Module; instance: WebAssembly.Instance };
+type InstantiatedModule = [WebAssembly.Module, WebAssembly.Instance];
 
 export class ForegroundPlugin {
   #context: CallContext;
@@ -41,7 +41,7 @@ export class ForegroundPlugin {
           ? [this.lookupTarget(search[0]), search[1]]
           : [
               this.#modules.find((guest) => {
-                const exports = WebAssembly.Module.exports(guest.module);
+                const exports = WebAssembly.Module.exports(guest[0]);
                 return exports.find((item) => {
                   return item.name === search[0] && item.kind === 'function';
                 });
@@ -53,7 +53,7 @@ export class ForegroundPlugin {
         return false;
       }
 
-      const func = target.instance.exports[name] as any;
+      const func = target[1].exports[name] as any;
 
       if (!func) {
         return false;
@@ -74,7 +74,7 @@ export class ForegroundPlugin {
         ? [this.lookupTarget(search[0]), search[1]]
         : [
             this.#modules.find((guest) => {
-              const exports = WebAssembly.Module.exports(guest.module);
+              const exports = WebAssembly.Module.exports(guest[0]);
               return exports.find((item) => {
                 return item.name === search[0] && item.kind === 'function';
               });
@@ -85,7 +85,7 @@ export class ForegroundPlugin {
     if (!target) {
       throw Error(`Plugin error: target "${search.join('" "')}" does not exist`);
     }
-    const func = target.instance.exports[name] as any;
+    const func = target[1].exports[name] as any;
     if (!func) {
       throw Error(`Plugin error: function "${search.join('" "')}" does not exist`);
     }
@@ -134,15 +134,15 @@ export class ForegroundPlugin {
   }
 
   async getExports(name?: string): Promise<WebAssembly.ModuleExportDescriptor[]> {
-    return WebAssembly.Module.exports(this.lookupTarget(name).module) || [];
+    return WebAssembly.Module.exports(this.lookupTarget(name)[0]) || [];
   }
 
   async getImports(name?: string): Promise<WebAssembly.ModuleImportDescriptor[]> {
-    return WebAssembly.Module.imports(this.lookupTarget(name).module) || [];
+    return WebAssembly.Module.imports(this.lookupTarget(name)[0]) || [];
   }
 
   async getInstance(name?: string): Promise<WebAssembly.Instance> {
-    return this.lookupTarget(name).instance;
+    return this.lookupTarget(name)[1];
   }
 
   async close(): Promise<void> {
@@ -175,27 +175,104 @@ export async function createForegroundPlugin(
   }
 
   // find the "main" module and try to instantiate it.
-  
+  const mainIndex = names.indexOf('main');
+  const seen: Map<WebAssembly.Module, WebAssembly.Instance> = new Map();
+  // assert(mainIndex !== -1);
 
-  const instances = await Promise.all(
-    modules.map(async (module) => {
-      return await instantiateModule(module, imports, wasi)
-    }),
-  );
+  await instantiateModule('main', modules[mainIndex], imports, wasi, names, modules, seen);
 
+  const instances = [...seen.entries()];
   return new ForegroundPlugin(context, names, instances, wasi);
 }
 
 
 async function instantiateModule(
+  current: string,
   module: WebAssembly.Module,
   imports: Record<string, Record<string, any>>,
-  wasi: InternalWasi | null
+  wasi: InternalWasi | null,
+  names: string[],
+  modules: WebAssembly.Module[],
+  linked: Map<WebAssembly.Module, WebAssembly.Instance | null>
 ) {
-  const instance = await WebAssembly.instantiate(module, imports);
-  if (wasi) {
-    await wasi?.initialize(instance);
+  linked.set(module, null);
+
+  const instantiationImports: Record<string, Record<string, WebAssembly.ExportValue | Function>> = {}
+  const requested = WebAssembly.Module.imports(module);
+
+  for (const { kind, module, name } of requested) {
+    const nameIdx = names.indexOf(module)
+    if (nameIdx === -1) {
+      // lookup from "imports"
+      if (!Object.hasOwnProperty.call(imports, module)) {
+        throw new Error(`from module "${current}": cannot resolve import "${module}" "${name}": not provided by host imports nor linked manifest items`);
+      }
+
+      if (!Object.hasOwnProperty.call(imports[module], name)) {
+        throw new Error(`from module "${current}": cannot resolve import "${module}" "${name}" ("${module}" is a host module, but does not contain "${name}")`);
+      }
+
+      switch (kind) {
+        case `function`: {
+          instantiationImports[module] ??= {}
+          instantiationImports[module][name] = imports[module][name] as Function;
+          break
+        }
+        default:
+          throw new Error(`from module "${current}": in import "${module}" "${name}", "${kind}"-typed host imports are not supported yet`)
+      }
+
+    } else {
+      // lookup from "linked"
+      const provider = modules[nameIdx]
+      const providerExports = WebAssembly.Module.exports(provider)
+
+      const target = providerExports.find(xs => {
+        return xs.name === name && xs.kind === kind
+      });
+
+      if (!target) {
+        throw new Error(`from module "${current}": cannot import "${module}" "${name}"; no export matched request`)
+      }
+
+      // TODO: IIRC the Wasmtime linking behavior, WASI "command" modules should be instantiated each time they're requested by a module in the
+      // tree. Verify this behavior and adjust the implementation as necessary!
+
+      if (!linked.has(provider)) {
+        await instantiateModule(module, modules[nameIdx], imports, wasi, names, modules, linked)
+      }
+
+      const instance: WebAssembly.Instance | null | undefined = linked.get(modules[nameIdx])
+
+      if (!instance) {
+        // circular import, either make a trampoline or bail
+        if (kind === 'function') {
+          instantiationImports[module] = {}
+          let cached: Function | null = null;
+          instantiationImports[module][name] = (...args: (number | bigint)[]) => {
+            if (cached) {
+              return cached(...args);
+            }
+            const instance = linked.get(modules[nameIdx]);
+            if (!instance) {
+              throw new Error(`from module instance "${current}": target module "${module}" was never instantiated`);
+            }
+            cached = instance.exports[name] as Function;
+            return cached(...args)
+          }
+        } else {
+          throw new Error(`from module "${current}": cannot import "${module}" "${name}"; circular imports of type="${kind}" are not supported`)
+        }
+      } else {
+        // Add each requested import value piecemeal, since we have to validate that _all_ import requests are satisfied by this
+        // module.
+        instantiationImports[module] ??= {};
+        instantiationImports[module][name] = instance.exports[name] as WebAssembly.ExportValue;
+      }
+    }
   }
+
+  const instance = await WebAssembly.instantiate(module, instantiationImports);
 
   const guestType = instance.exports.hs_init
     ? 'haskell'
@@ -205,8 +282,14 @@ async function instantiateModule(
     ? 'command'
     : 'none';
 
+  // TODO: when should we call this?
+  if (wasi) {
+    await wasi?.initialize(instance);
+  }
+
   const initRuntime: any = instance.exports.hs_init ? instance.exports.hs_init : () => {};
   initRuntime();
 
-  return { module, instance, guestType };
+  linked.set(module, instance);
+  return instance
 }
