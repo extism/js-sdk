@@ -10,9 +10,9 @@ export class ForegroundPlugin {
   #context: CallContext;
   #instancePair: InstantiatedModule;
   #active: boolean = false;
-  #wasi: InternalWasi | null;
+  #wasi: InternalWasi[];
 
-  constructor(context: CallContext, instancePair: InstantiatedModule, wasi: InternalWasi | null) {
+  constructor(context: CallContext, instancePair: InstantiatedModule, wasi: InternalWasi[]) {
     this.#context = context;
     this.#instancePair = instancePair;
     this.#wasi = wasi;
@@ -94,10 +94,8 @@ export class ForegroundPlugin {
   }
 
   async close(): Promise<void> {
-    if (this.#wasi) {
-      await this.#wasi.close();
-      this.#wasi = null;
-    }
+    await Promise.all(this.#wasi.map((xs) => xs.close()));
+    this.#wasi.length = 0;
   }
 }
 
@@ -107,10 +105,7 @@ export async function createForegroundPlugin(
   modules: WebAssembly.Module[],
   context: CallContext = new CallContext(ArrayBuffer, opts.logger, opts.config),
 ): Promise<ForegroundPlugin> {
-  const wasi = opts.wasiEnabled ? await loadWasi(opts.allowedPaths, opts.enableWasiOutput) : null;
-
   const imports: Record<string, Record<string, any>> = {
-    ...(wasi ? { wasi_snapshot_preview1: await wasi.importObject() } : {}),
     [EXTISM_ENV]: context[ENV],
     env: {},
   };
@@ -124,19 +119,23 @@ export async function createForegroundPlugin(
 
   // find the "main" module and try to instantiate it.
   const mainIndex = names.indexOf('main');
+  if (mainIndex === -1) {
+    throw new Error('Unreachable: manifests must have at least one "main" module. Enforced by "src/manifest.ts")');
+  }
   const seen: Map<WebAssembly.Module, WebAssembly.Instance> = new Map();
-  // assert(mainIndex !== -1);
+  const wasiList: InternalWasi[] = [];
 
-  const instance = await instantiateModule(['main'], modules[mainIndex], imports, wasi, names, modules, seen);
+  const instance = await instantiateModule(['main'], modules[mainIndex], imports, opts, wasiList, names, modules, seen);
 
-  return new ForegroundPlugin(context, [modules[mainIndex], instance], wasi);
+  return new ForegroundPlugin(context, [modules[mainIndex], instance], wasiList);
 }
 
 async function instantiateModule(
   current: string[],
   module: WebAssembly.Module,
   imports: Record<string, Record<string, any>>,
-  wasi: InternalWasi | null,
+  opts: InternalConfig,
+  wasiList: InternalWasi[],
   names: string[],
   modules: WebAssembly.Module[],
   linked: Map<WebAssembly.Module, WebAssembly.Instance | null>,
@@ -146,6 +145,7 @@ async function instantiateModule(
   const instantiationImports: Record<string, Record<string, WebAssembly.ExportValue | CallableFunction>> = {};
   const requested = WebAssembly.Module.imports(module);
 
+  let wasi = null;
   for (const { kind, module, name } of requested) {
     const nameIdx = names.indexOf(module);
 
@@ -154,6 +154,18 @@ async function instantiateModule(
       if (current.length > 1) {
         // TODO: verify wasmtime behavior here: can non-top-level instances import methods from the host?
         // throw new Error(`from module "${current.join('"/"')}": cannot resolve import "${module}" "${name}" ("${module}" "${name}" is provided by the host but is not accessible to sub-modules`);
+      }
+
+      if (module === 'wasi_snapshot_preview1' && wasi === null) {
+        if (!opts.wasiEnabled) {
+          throw new Error('WASI is not enabled; see the "wasiEnabled" plugin option');
+        }
+
+        if (wasi === null) {
+          wasi = await loadWasi(opts.allowedPaths, opts.enableWasiOutput);
+          wasiList.push(wasi);
+          imports.wasi_snapshot_preview1 = await wasi.importObject();
+        }
       }
 
       // lookup from "imports"
@@ -203,9 +215,9 @@ async function instantiateModule(
 
       // If the dependency provides "_start", treat it as a WASI Command module; instantiate it (and its subtree) directly.
       const instance = providerExports.find((xs) => xs.name === '_start')
-        ? await instantiateModule([...current, module], provider, imports, wasi, names, modules, new Map())
+        ? await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, new Map())
         : !linked.has(provider)
-        ? (await instantiateModule([...current, module], provider, imports, wasi, names, modules, linked),
+        ? (await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, linked),
           linked.get(provider))
         : linked.get(provider);
 
@@ -253,7 +265,6 @@ async function instantiateModule(
     ? 'command'
     : 'none';
 
-  // TODO: when should we call this?
   if (wasi) {
     await wasi?.initialize(instance);
     if (instance.exports.hs_init) {
@@ -262,6 +273,10 @@ async function instantiateModule(
   } else
     switch (guestType) {
       case 'command':
+        if (instance.exports._initialize) {
+          (instance.exports._initialize as CallableFunction)();
+        }
+
         (instance.exports._start as CallableFunction)();
         break;
       case 'reactor':

@@ -670,5 +670,29 @@ if (typeof WebAssembly === 'undefined') {
         await plugin.close();
       }
     });
+
+    test('linking to a wasi command side-module works', async () => {
+      const plugin = await createPlugin(
+        {
+          wasm: [
+            { name: 'side', url: 'http://localhost:8124/wasm/fs.wasm' },
+            { name: 'main', url: 'http://localhost:8124/wasm/fs-link.wasm' },
+          ],
+        },
+        {
+          allowedPaths: { '/mnt': 'tests/data' },
+          useWasi: true,
+        },
+      );
+
+      try {
+        const output = await plugin.call('run_test', '');
+        assert(output !== null);
+        const result = output.string();
+        assert.equal(result, 'hello world!');
+      } finally {
+        await plugin.close();
+      }
+    });
   }
 }
