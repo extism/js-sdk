@@ -89,7 +89,7 @@ export async function toWasmModuleData(
   const manifest = await intoManifest(input, _fetch);
 
   const manifestsWasm = await Promise.all(
-    manifest.wasm.map(async (item, idx) => {
+    manifest.wasm.map(async (item, idx, all) => {
       let module: WebAssembly.Module;
       let buffer: ArrayBuffer | undefined;
       if ((item as ManifestWasmData).data) {
@@ -124,6 +124,7 @@ export async function toWasmModuleData(
         );
       }
 
+      let potentialName = String(idx);
       if (item.hash) {
         if (!buffer) {
           throw new Error('Item specified a hash but WebAssembly.Module source data is unavailable for hashing');
@@ -143,13 +144,18 @@ export async function toWasmModuleData(
           throw new Error(`Plugin error: hash mismatch. Expected: ${item.hash}. Actual: ${hashAsString()}`);
         }
 
-        item.name ??= hashAsString();
+        potentialName = hashAsString();
       }
 
-      (<any>names[idx]) = item.name ?? String(idx);
+      (<any>names[idx]) = item.name ?? (idx === all.length - 1 ? 'main' : potentialName);
+
       return module;
     }),
   );
+
+  if (!names.includes('main')) {
+    throw new Error('manifest with multiple modules must designate one "main" module');
+  }
 
   return [names, manifestsWasm];
 }

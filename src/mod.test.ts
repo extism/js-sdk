@@ -17,8 +17,6 @@ if (typeof WebAssembly === 'undefined') {
 
     try {
       assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
-      assert(await plugin.functionExists(['0', 'count_vowels']), '0:count_vowels should exist');
-      assert(!(await plugin.functionExists(['dne', 'count_vowels'])), 'dne:count_vowels should not exist');
       assert(!(await plugin.functionExists('count_sheep')), 'count_sheep should not exist');
     } finally {
       await plugin.close();
@@ -34,8 +32,6 @@ if (typeof WebAssembly === 'undefined') {
 
     try {
       assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
-      assert(await plugin.functionExists(['0', 'count_vowels']), '0:count_vowels should exist');
-      assert(!(await plugin.functionExists(['dne', 'count_vowels'])), 'dne:count_vowels should not exist');
       assert(!(await plugin.functionExists('count_sheep')), 'count_sheep should not exist');
     } finally {
       await plugin.close();
@@ -52,8 +48,6 @@ if (typeof WebAssembly === 'undefined') {
 
     try {
       assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
-      assert(await plugin.functionExists(['0', 'count_vowels']), '0:count_vowels should exist');
-      assert(!(await plugin.functionExists(['dne', 'count_vowels'])), 'dne:count_vowels should not exist');
       assert(!(await plugin.functionExists('count_sheep')), 'count_sheep should not exist');
     } finally {
       await plugin.close();
@@ -83,8 +77,6 @@ if (typeof WebAssembly === 'undefined') {
 
     try {
       assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
-      assert(await plugin.functionExists(['0', 'count_vowels']), '0:count_vowels should exist');
-      assert(!(await plugin.functionExists(['dne', 'count_vowels'])), 'dne:count_vowels should not exist');
       assert(!(await plugin.functionExists('count_sheep')), 'count_sheep should not exist');
     } finally {
       await plugin.close();
@@ -338,6 +330,73 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
+  test('plugins can link', async () => {
+    const plugin = await createPlugin({
+      wasm: [
+        { name: 'main', url: 'http://localhost:8124/wasm/reflect.wasm' },
+        { name: 'extism:host/user', url: 'http://localhost:8124/wasm/upper.wasm' },
+      ],
+    });
+
+    try {
+      const [err, data] = await plugin.call('reflect', 'Hello, world!').then(
+        (data) => [null, data],
+        (err) => [err, null],
+      );
+
+      assert.equal(err, null);
+      assert.equal(data.string(), 'HELLO, WORLD!');
+    } finally {
+      await plugin.close();
+    }
+  });
+
+  test('plugin linking: circular func deps are supported', async () => {
+    const plugin = await createPlugin({
+      wasm: [
+        // these deps also share a memory
+        { name: 'lhs', url: 'http://localhost:8124/wasm/circular-lhs.wasm' },
+        { name: 'rhs', url: 'http://localhost:8124/wasm/circular-rhs.wasm' },
+        { name: 'main', url: 'http://localhost:8124/wasm/circular.wasm' },
+      ],
+    });
+
+    try {
+      // this plugin starts with 1, multiplies by two, adds one, ... recursively, until it's greater than 100.
+      const [err, data] = await plugin.call('encalculate', 'Hello, world!').then(
+        (data) => [null, data],
+        (err) => [err, null],
+      );
+
+      assert.equal(err, null);
+      assert.equal(data.getBigUint64(0, true), 127);
+    } finally {
+      await plugin.close();
+    }
+  });
+
+  test('plugin linking: missing deps are messaged', async () => {
+    const [err, plugin] = await createPlugin({
+      wasm: [
+        { name: 'lhs', url: 'http://localhost:8124/wasm/circular-lhs.wasm' },
+        { name: 'main', url: 'http://localhost:8124/wasm/circular.wasm' },
+      ],
+    }).then(
+      (data) => [null, data],
+      (err) => [err, null],
+    );
+
+    try {
+      assert.equal(
+        err?.message,
+        'from module "main"/"lhs": cannot resolve import "rhs" "add_one": not provided by host imports nor linked manifest items',
+      );
+      assert.equal(plugin, null);
+    } finally {
+      if (plugin) await plugin.close();
+    }
+  });
+
   if (CAPABILITIES.hasWorkerCapability) {
     test('host functions may be async if worker is off-main-thread', async () => {
       const functions = {
@@ -434,7 +493,7 @@ if (typeof WebAssembly === 'undefined') {
         };
 
         const plugin = await createPlugin(
-          { wasm: [{ name: 'http', url: 'http://localhost:8124/wasm/http.wasm' }] },
+          { wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http.wasm' }] },
           { useWasi: true, functions, runInWorker: true, allowedHosts: ['*.example.com'] },
         );
 
@@ -458,7 +517,7 @@ if (typeof WebAssembly === 'undefined') {
 
     test('http works as expected when host is allowed', async () => {
       const plugin = await createPlugin(
-        { wasm: [{ name: 'http', url: 'http://localhost:8124/wasm/http.wasm' }] },
+        { wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http.wasm' }] },
         { useWasi: true, functions: {}, runInWorker: true, allowedHosts: ['*.typicode.com'] },
       );
 
@@ -492,7 +551,7 @@ if (typeof WebAssembly === 'undefined') {
       );
 
       assert(data === null);
-      assert.equal(err?.message, 'Plugin error: target "reticulate_splines" does not exist');
+      assert.equal(err?.message, 'Plugin error: function "reticulate_splines" does not exist');
     } finally {
       await plugin.close();
     }
@@ -601,6 +660,30 @@ if (typeof WebAssembly === 'undefined') {
         allowedPaths: { '/mnt': 'tests/data' },
         useWasi: true,
       });
+
+      try {
+        const output = await plugin.call('run_test', '');
+        assert(output !== null);
+        const result = output.string();
+        assert.equal(result, 'hello world!');
+      } finally {
+        await plugin.close();
+      }
+    });
+
+    test('linking to a wasi command side-module works', async () => {
+      const plugin = await createPlugin(
+        {
+          wasm: [
+            { name: 'side', url: 'http://localhost:8124/wasm/fs.wasm' },
+            { name: 'main', url: 'http://localhost:8124/wasm/fs-link.wasm' },
+          ],
+        },
+        {
+          allowedPaths: { '/mnt': 'tests/data' },
+          useWasi: true,
+        },
+      );
 
       try {
         const output = await plugin.call('run_test', '');

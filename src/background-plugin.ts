@@ -1,3 +1,4 @@
+/*eslint-disable no-empty*/
 import { CallContext, RESET, IMPORT_STATE, EXPORT_STATE, STORE, GET_BLOCK } from './call-context.ts';
 import { PluginOutput, SAB_BASE_OFFSET, SharedArrayBufferSection, type InternalConfig } from './interfaces.ts';
 import { WORKER_URL } from './worker-url.ts';
@@ -134,12 +135,12 @@ class BackgroundPlugin {
     return promise;
   }
 
-  async functionExists(funcName: string | [string, string]): Promise<boolean> {
+  async functionExists(funcName: string): Promise<boolean> {
     return await this.#invoke('functionExists', funcName);
   }
 
   // host -> guest invoke()
-  async call(funcName: string | [string, string], input?: string | Uint8Array): Promise<PluginOutput | null> {
+  async call(funcName: string, input?: string | Uint8Array): Promise<PluginOutput | null> {
     const index = this.#context[STORE](input);
 
     const [errorIdx, outputIdx] = await this.callBlock(funcName, index);
@@ -169,7 +170,7 @@ class BackgroundPlugin {
     return buf;
   }
 
-  async callBlock(funcName: string | [string, string], input: number | null): Promise<[number | null, number | null]> {
+  async callBlock(funcName: string, input: number | null): Promise<[number | null, number | null]> {
     const exported = this.#context[EXPORT_STATE]();
     const { results, state } = await this.#invoke('call', funcName, input, exported);
     this.#context[IMPORT_STATE](state, true);
@@ -182,12 +183,12 @@ class BackgroundPlugin {
     return data;
   }
 
-  async getExports(name?: string): Promise<WebAssembly.ModuleExportDescriptor[]> {
-    return await this.#invoke('getExports', name ?? '0');
+  async getExports(): Promise<WebAssembly.ModuleExportDescriptor[]> {
+    return await this.#invoke('getExports');
   }
 
-  async getImports(name?: string): Promise<WebAssembly.ModuleImportDescriptor[]> {
-    return await this.#invoke('getImports', name ?? '0');
+  async getImports(): Promise<WebAssembly.ModuleImportDescriptor[]> {
+    return await this.#invoke('getImports');
   }
 
   async getInstance(): Promise<WebAssembly.Instance> {
@@ -335,9 +336,8 @@ class RingBufferWriter {
   }
 
   signal() {
-    let old = Atomics.load(this.flag, 0);
-    while (Atomics.compareExchange(this.flag, 0, old, this.outputOffset) === old) {
-    }
+    const old = Atomics.load(this.flag, 0);
+    while (Atomics.compareExchange(this.flag, 0, old, this.outputOffset) === old) {}
     Atomics.notify(this.flag, 0, 1);
   }
 
@@ -356,8 +356,7 @@ class RingBufferWriter {
   async spanningWrite(input: Uint8Array) {
     let inputOffset = 0;
     let toWrite = this.output.byteLength - this.outputOffset;
-    let flushedWriteCount =
-      1 + Math.floor((input.byteLength - toWrite) / (this.output.byteLength - SAB_BASE_OFFSET));
+    let flushedWriteCount = 1 + Math.floor((input.byteLength - toWrite) / (this.output.byteLength - SAB_BASE_OFFSET));
     const finalWrite = (input.byteLength - toWrite) % (this.output.byteLength - SAB_BASE_OFFSET);
 
     do {
