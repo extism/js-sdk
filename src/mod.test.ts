@@ -17,8 +17,6 @@ if (typeof WebAssembly === 'undefined') {
 
     try {
       assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
-      assert(await plugin.functionExists(['main', 'count_vowels']), 'main:count_vowels should exist');
-      assert(!(await plugin.functionExists(['dne', 'count_vowels'])), 'dne:count_vowels should not exist');
       assert(!(await plugin.functionExists('count_sheep')), 'count_sheep should not exist');
     } finally {
       await plugin.close();
@@ -34,8 +32,6 @@ if (typeof WebAssembly === 'undefined') {
 
     try {
       assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
-      assert(await plugin.functionExists(['main', 'count_vowels']), 'main:count_vowels should exist');
-      assert(!(await plugin.functionExists(['dne', 'count_vowels'])), 'dne:count_vowels should not exist');
       assert(!(await plugin.functionExists('count_sheep')), 'count_sheep should not exist');
     } finally {
       await plugin.close();
@@ -52,8 +48,6 @@ if (typeof WebAssembly === 'undefined') {
 
     try {
       assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
-      assert(await plugin.functionExists(['main', 'count_vowels']), 'main:count_vowels should exist');
-      assert(!(await plugin.functionExists(['dne', 'count_vowels'])), 'dne:count_vowels should not exist');
       assert(!(await plugin.functionExists('count_sheep')), 'count_sheep should not exist');
     } finally {
       await plugin.close();
@@ -83,8 +77,6 @@ if (typeof WebAssembly === 'undefined') {
 
     try {
       assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
-      assert(await plugin.functionExists(['main', 'count_vowels']), 'main:count_vowels should exist');
-      assert(!(await plugin.functionExists(['dne', 'count_vowels'])), 'dne:count_vowels should not exist');
       assert(!(await plugin.functionExists('count_sheep')), 'count_sheep should not exist');
     } finally {
       await plugin.close();
@@ -341,9 +333,9 @@ if (typeof WebAssembly === 'undefined') {
   test('plugins can link', async () => {
     const plugin = await createPlugin({
       wasm: [
-        {name: 'main', url: 'http://localhost:8124/wasm/reflect.wasm'},
-        {name: 'extism:host/user', url: 'http://localhost:8124/wasm/upper.wasm'}
-      ]
+        { name: 'main', url: 'http://localhost:8124/wasm/reflect.wasm' },
+        { name: 'extism:host/user', url: 'http://localhost:8124/wasm/upper.wasm' },
+      ],
     });
 
     try {
@@ -363,10 +355,10 @@ if (typeof WebAssembly === 'undefined') {
     const plugin = await createPlugin({
       wasm: [
         // these deps also share a memory
-        {name: 'lhs', url: 'http://localhost:8124/wasm/circular-lhs.wasm'},
-        {name: 'rhs', url: 'http://localhost:8124/wasm/circular-rhs.wasm'},
-        {name: 'main', url: 'http://localhost:8124/wasm/circular.wasm'},
-      ]
+        { name: 'lhs', url: 'http://localhost:8124/wasm/circular-lhs.wasm' },
+        { name: 'rhs', url: 'http://localhost:8124/wasm/circular-rhs.wasm' },
+        { name: 'main', url: 'http://localhost:8124/wasm/circular.wasm' },
+      ],
     });
 
     try {
@@ -386,16 +378,19 @@ if (typeof WebAssembly === 'undefined') {
   test('plugin linking: missing deps are messaged', async () => {
     const [err, plugin] = await createPlugin({
       wasm: [
-        {name: 'lhs', url: 'http://localhost:8124/wasm/circular-lhs.wasm'},
-        {name: 'main', url: 'http://localhost:8124/wasm/circular.wasm'},
-      ]
+        { name: 'lhs', url: 'http://localhost:8124/wasm/circular-lhs.wasm' },
+        { name: 'main', url: 'http://localhost:8124/wasm/circular.wasm' },
+      ],
     }).then(
       (data) => [null, data],
       (err) => [err, null],
     );
 
     try {
-      assert.equal(err?.message, 'from module "lhs": cannot resolve import "rhs" "add_one": not provided by host imports nor linked manifest items');
+      assert.equal(
+        err?.message,
+        'from module "main"/"lhs": cannot resolve import "rhs" "add_one": not provided by host imports nor linked manifest items',
+      );
       assert.equal(plugin, null);
     } finally {
       if (plugin) await plugin.close();
@@ -556,7 +551,7 @@ if (typeof WebAssembly === 'undefined') {
       );
 
       assert(data === null);
-      assert.equal(err?.message, 'Plugin error: target "reticulate_splines" does not exist');
+      assert.equal(err?.message, 'Plugin error: function "reticulate_splines" does not exist');
     } finally {
       await plugin.close();
     }

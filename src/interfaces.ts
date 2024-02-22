@@ -92,23 +92,23 @@ export interface Plugin {
   /**
    * Check if a function exists in the WebAssembly module.
    *
-   * @param {string | [string, string]} funcName The function's name, or a tuple of target module name and function name.
+   * @param {string} funcName The function's name.
    * @returns {Promise<boolean>} true if the function exists, otherwise false
    */
-  functionExists(funcName: string | [string, string]): Promise<boolean>;
+  functionExists(funcName: string): Promise<boolean>;
   close(): Promise<void>;
 
   /**
    * Call a specific function from the WebAssembly module with provided input.
    *
-   * @param {string | [string, string]} funcName The name of the function to call
+   * @param {string} funcName The name of the function to call
    * @param {Uint8Array | string} input The input to pass to the function
    * @returns {Promise<PluginOutput | null>} The result from the function call
    */
-  call(funcName: string | [string, string], input?: string | number | Uint8Array): Promise<PluginOutput | null>;
-  getExports(name?: string): Promise<WebAssembly.ModuleExportDescriptor[]>;
-  getImports(name?: string): Promise<WebAssembly.ModuleImportDescriptor[]>;
-  getInstance(name?: string): Promise<WebAssembly.Instance>;
+  call(funcName: string, input?: string | number | Uint8Array): Promise<PluginOutput | null>;
+  getExports(): Promise<WebAssembly.ModuleExportDescriptor[]>;
+  getImports(): Promise<WebAssembly.ModuleImportDescriptor[]>;
+  getInstance(): Promise<WebAssembly.Instance>;
 
   /**
    * Whether the plugin is currently processing a call.

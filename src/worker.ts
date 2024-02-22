@@ -26,48 +26,45 @@ class Reactor {
     this.port.postMessage({ type: 'initialized' });
 
     this.dynamicHandlers = new Map();
-    this.dynamicHandlers.set(
-      'call',
-      async (transfer: any[], name: string | [string, string], input: number | null, state: CallState) => {
-        if (!this.context) {
-          throw new Error('invalid state: no context available to worker reactor');
+    this.dynamicHandlers.set('call', async (transfer: any[], name: string, input: number | null, state: CallState) => {
+      if (!this.context) {
+        throw new Error('invalid state: no context available to worker reactor');
+      }
+
+      this.context[IMPORT_STATE](state);
+
+      const results: any = await this.plugin?.callBlock(name, input).then(
+        (indices) => [null, indices],
+        (err) => [err, null],
+      );
+
+      state = this.context[EXPORT_STATE]();
+      for (const [block] of state.blocks) {
+        if (block) {
+          transfer.push(block);
         }
+      }
 
-        this.context[IMPORT_STATE](state);
+      if (results[0]) {
+        results[0] = {
+          originalStack: results[0]?.stack,
+          message: results[0]?.message,
+        };
+      }
 
-        const results: any = await this.plugin?.callBlock(name, input).then(
-          (indices) => [null, indices],
-          (err) => [err, null],
-        );
-
-        state = this.context[EXPORT_STATE]();
-        for (const [block] of state.blocks) {
-          if (block) {
-            transfer.push(block);
-          }
-        }
-
-        if (results[0]) {
-          results[0] = {
-            originalStack: results[0]?.stack,
-            message: results[0]?.message,
-          };
-        }
-
-        return { results, state };
-      },
-    );
+      return { results, state };
+    });
 
     this.dynamicHandlers.set('reset', async (_txf) => {
       return this.plugin?.reset();
     });
 
-    this.dynamicHandlers.set('getExports', async (_txf, name) => {
-      return this.plugin?.getExports(name);
+    this.dynamicHandlers.set('getExports', async (_txf) => {
+      return this.plugin?.getExports();
     });
 
-    this.dynamicHandlers.set('getImports', async (_txf, name) => {
-      return this.plugin?.getImports(name);
+    this.dynamicHandlers.set('getImports', async (_txf) => {
+      return this.plugin?.getImports();
     });
 
     this.dynamicHandlers.set('functionExists', async (_txf, name) => {

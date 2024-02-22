@@ -124,7 +124,7 @@ export async function toWasmModuleData(
         );
       }
 
-      let potentialName = String(idx)
+      let potentialName = String(idx);
       if (item.hash) {
         if (!buffer) {
           throw new Error('Item specified a hash but WebAssembly.Module source data is unavailable for hashing');
@@ -147,18 +147,14 @@ export async function toWasmModuleData(
         potentialName = hashAsString();
       }
 
-      (<any>names[idx]) = item.name ?? (
-        idx === (all.length - 1)
-        ? 'main'
-        : potentialName
-      );
+      (<any>names[idx]) = item.name ?? (idx === all.length - 1 ? 'main' : potentialName);
 
       return module;
     }),
   );
 
   if (!names.includes('main')) {
-    throw new Error('manifest with multiple modules must designate one "main" module')
+    throw new Error('manifest with multiple modules must designate one "main" module');
   }
 
   return [names, manifestsWasm];
