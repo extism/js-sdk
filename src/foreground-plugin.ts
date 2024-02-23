@@ -150,12 +150,6 @@ async function instantiateModule(
     const nameIdx = names.indexOf(module);
 
     if (nameIdx === -1) {
-      // only the top-level module may access host functions.
-      if (current.length > 1) {
-        // TODO: verify wasmtime behavior here: can non-top-level instances import methods from the host?
-        // throw new Error(`from module "${current.join('"/"')}": cannot resolve import "${module}" "${name}" ("${module}" "${name}" is provided by the host but is not accessible to sub-modules`);
-      }
-
       if (module === 'wasi_snapshot_preview1' && wasi === null) {
         if (!opts.wasiEnabled) {
           throw new Error('WASI is not enabled; see the "wasiEnabled" plugin option');
