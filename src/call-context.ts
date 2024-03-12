@@ -49,12 +49,12 @@ export class CallContext {
   #logger: Console;
   #decoder: TextDecoder;
   #encoder: TextEncoder;
-  #arrayBufferType: { new (size: number): ArrayBufferLike };
+  #arrayBufferType: { new(size: number): ArrayBufferLike };
   #config: PluginConfig;
   #vars: Map<string, number> = new Map();
 
   /** @hidden */
-  constructor(type: { new (size: number): ArrayBufferLike }, logger: Console, config: PluginConfig) {
+  constructor(type: { new(size: number): ArrayBufferLike }, logger: Console, config: PluginConfig) {
     this.#arrayBufferType = type;
     this.#logger = logger;
     this.#decoder = new TextDecoder();

@@ -10,6 +10,7 @@ export class ForegroundPlugin {
   #context: CallContext;
   #instancePair: InstantiatedModule;
   #active: boolean = false;
+  #hasEventQueue?: boolean = undefined;
   #wasi: InternalWasi[];
 
   constructor(context: CallContext, instancePair: InstantiatedModule, wasi: InternalWasi[]) {
@@ -47,9 +48,64 @@ export class ForegroundPlugin {
       throw Error(`Plugin error: export "${funcName}" is not a function`);
     }
 
+
+
+    if (this.#hasEventQueue === undefined) {
+      this.#hasEventQueue = await this.functionExists("get_request_queue");
+    }
+
     this.#context[BEGIN](input ?? null);
     try {
       func();
+
+      if (this.#hasEventQueue) {
+        const getQueue = this.#instancePair[1].exports.get_request_queue as CallableFunction;
+        const fulfillRequest = this.#instancePair[1].exports.fulfill_request as CallableFunction;
+
+        const extantPromises = [];
+
+        while (1) {
+          const requests = getQueue();
+          if (requests !== 0) {
+            let block = this.#context.read(requests);
+            if (!block) {
+              throw new Error('internal extism error: returned bad block from get_request_queue');
+            }
+
+            for (var i = 0; i < block.byteLength; i += 20) {
+              const id = block.getBigUint64(i, true);
+              const requestType = block.getUint32(i + 8, true);
+              const dataaddr = block.getBigUint64(i + 12, true);
+
+              if (requestType !== 1) {
+                throw new Error('internal extism error: unknown request type')
+              }
+
+              const data = this.#context.read(dataaddr);
+              if (data) {
+                const [delay] = data.json()
+                let idx = extantPromises.length
+                const p = new Promise((resolve) => {
+                  setTimeout(resolve, delay)
+                }).then(xs => ({ id, original: p, result: xs }), xs => ({ id, original: p, error: xs }))
+
+                extantPromises.push(p)
+              }
+            }
+
+            if (!extantPromises.length) {
+              break
+            }
+
+            const { id, original, result, error } = await Promise.race(extantPromises)
+            extantPromises.splice(extantPromises.findIndex(xs => xs === original), 1)
+
+            fulfillRequest(id, 0, 0n)
+          }
+        }
+      }
+
+
       return this.#context[END]();
     } catch (err) {
       this.#context[END]();
@@ -211,9 +267,9 @@ async function instantiateModule(
       const instance = providerExports.find((xs) => xs.name === '_start')
         ? await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, new Map())
         : !linked.has(provider)
-        ? (await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, linked),
-          linked.get(provider))
-        : linked.get(provider);
+          ? (await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, linked),
+            linked.get(provider))
+          : linked.get(provider);
 
       if (!instance) {
         // circular import, either make a trampoline or bail
@@ -254,10 +310,10 @@ async function instantiateModule(
   const guestType = instance.exports.hs_init
     ? 'haskell'
     : instance.exports._initialize
-    ? 'reactor'
-    : instance.exports._start
-    ? 'command'
-    : 'none';
+      ? 'reactor'
+      : instance.exports._start
+        ? 'command'
+        : 'none';
 
   if (wasi) {
     await wasi?.initialize(instance);
