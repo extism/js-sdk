@@ -20,7 +20,7 @@ async function createDevNullFDs() {
   return {
     async close() {
       needsClose = false;
-      await Promise.all([stdin.close(), stdout.close()]).catch(() => {});
+      await Promise.all([stdin.close(), stdout.close()]).catch(() => { });
     },
     fds: [stdin.fd, stdout.fd, stdout.fd],
   };
@@ -29,11 +29,13 @@ async function createDevNullFDs() {
 export async function loadWasi(
   allowedPaths: { [from: string]: string },
   enableWasiOutput: boolean,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  fileDescriptors: Fd[],
 ): Promise<InternalWasi> {
   const {
     close,
     fds: [stdin, stdout, stderr],
-  } = enableWasiOutput ? { async close() {}, fds: [0, 1, 2] } : await createDevNullFDs();
+  } = enableWasiOutput ? { async close() { }, fds: [0, 1, 2] } : await createDevNullFDs();
   const context = new Context({
     preopens: allowedPaths,
     exitOnReturn: false,
@@ -76,7 +78,7 @@ export async function loadWasi(
         context.start({
           exports: {
             memory,
-            _start: () => {},
+            _start: () => { },
           },
         });
       }

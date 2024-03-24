@@ -124,6 +124,19 @@ export interface Plugin {
 }
 
 /**
+ * Options for initializing WASI.
+ */
+export interface WASIOptions {
+  /**
+   * A list of file descriptors; only available in browser environments.
+   *
+   * See [`@bjorn3/browser_wasi_shim`](https://github.com/bjorn3/browser_wasi_shim) for more
+   * details on use.
+   */
+  fileDescriptors: (import('@bjorn3/browser_wasi_shim').Fd)[];
+}
+
+/**
  * Options for initializing an Extism plugin.
  */
 export interface ExtismPluginOptions {
@@ -167,6 +180,7 @@ export interface ExtismPluginOptions {
   functions?: { [key: string]: { [key: string]: (callContext: CallContext, ...args: any[]) => any } } | undefined;
   allowedPaths?: { [key: string]: string } | undefined;
   allowedHosts?: string[] | undefined;
+  wasiOptions?: WasiOptions;
 
   /**
    * Whether WASI stdout should be forwarded to the host.
@@ -189,6 +203,7 @@ export interface InternalConfig {
   wasiEnabled: boolean;
   config: PluginConfig;
   sharedArrayBufferSize: number;
+  wasiOptions: WasiOptions | null;
 }
 
 export interface InternalWasi {
