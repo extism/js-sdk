@@ -1,48 +1,29 @@
-import { WASI, Fd, File, OpenFile, wasi } from '@bjorn3/browser_wasi_shim';
-import { type InternalWasi } from '../mod.ts';
-
-class Output extends Fd {
-  #mode: string;
-
-  constructor(mode: string) {
-    super();
-    this.#mode = mode;
-  }
-
-  fd_write(view8: Uint8Array, iovs: [wasi.Iovec]): { ret: number; nwritten: number } {
-    let nwritten = 0;
-    const decoder = new TextDecoder();
-    const str = iovs.reduce((acc, iovec, idx, all) => {
-      nwritten += iovec.buf_len;
-      const buffer = view8.slice(iovec.buf, iovec.buf + iovec.buf_len);
-      return acc + decoder.decode(buffer, { stream: idx !== all.length - 1 });
-    }, '');
-
-    (console[this.#mode] as any)(str);
-
-    return { ret: 0, nwritten };
-  }
-}
+import { WASI, Fd, File, OpenFile, ConsoleStdout } from '@bjorn3/browser_wasi_shim';
+import { type InternalWasi } from '../interfaces.ts';
 
 export async function loadWasi(
   _allowedPaths: { [from: string]: string },
   enableWasiOutput: boolean,
+  fileDescriptors: Fd[],
 ): Promise<InternalWasi> {
+  console.log('fileDescriptors = ', fileDescriptors);
   const args: Array<string> = [];
   const envVars: Array<string> = [];
   const fds: Fd[] = enableWasiOutput
     ? [
-        new Output('log'), // fd 0 is dup'd to stdout
-        new Output('log'),
-        new Output('error'),
+        ConsoleStdout.lineBuffered((msg) => console.log(msg)), // fd 0 is dup'd to stdout
+        ConsoleStdout.lineBuffered((msg) => console.log(msg)),
+        ConsoleStdout.lineBuffered((msg) => console.warn(msg)),
+        ...fileDescriptors,
       ]
     : [
         new OpenFile(new File([])), // stdin
         new OpenFile(new File([])), // stdout
         new OpenFile(new File([])), // stderr
+        ...fileDescriptors,
       ];
 
-  const context = new WASI(args, envVars, fds);
+  const context = new WASI(args, envVars, fds, { debug: false });
 
   return {
     async importObject() {

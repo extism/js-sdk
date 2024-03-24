@@ -99,6 +99,7 @@ export async function createPlugin(
     config: opts.config,
     enableWasiOutput: opts.enableWasiOutput,
     sharedArrayBufferSize: Number(opts.sharedArrayBufferSize) || 1 << 16,
+    fileDescriptors: opts.fileDescriptors ?? [],
   };
 
   return (opts.runInWorker ? _createBackgroundPlugin : _createForegroundPlugin)(ic, names, moduleData);
