@@ -156,7 +156,7 @@ async function instantiateModule(
         }
 
         if (wasi === null) {
-          wasi = await loadWasi(opts.allowedPaths, opts.enableWasiOutput);
+          wasi = await loadWasi(opts.allowedPaths, opts.enableWasiOutput, opts.fileDescriptors);
           wasiList.push(wasi);
           imports.wasi_snapshot_preview1 = await wasi.importObject();
         }
