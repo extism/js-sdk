@@ -6,6 +6,8 @@ This is a universal JavaScript SDK for Extism. It works in all the major JavaScr
 * Node
 * Deno
 * Bun
+* Cloudflare Workers
+* _interested in others? [Let us know!](https://github.com/extism/js-sdk/issues)_
 
 Instead of using FFI and the libextism shared object, this library uses whatever Wasm runtime is already available with the JavaScript runtime.
 
