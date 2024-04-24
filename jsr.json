@@ -1,5 +1,5 @@
 {
-  "name": "@sigmasd/lab",
+  "name": "@extism/sdk",
   "version": "0.1.0",
   "exports": "./src/mod.ts"
 }
