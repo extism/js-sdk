@@ -9,6 +9,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
     - uses: actions/checkout@v3
 
@@ -31,11 +35,17 @@ jobs:
         tag="${{ github.ref }}"
         tag="${tag/refs\/tags\/v/}"
         npm version $tag --no-git-tag-version --no-commit-hooks
+        jsr="$(<jsr.json jq '.  |.version = $version' --arg version "$tag")"
+        echo "$jsr" >jsr.json
 
     - name: npm publish @extism/extism
       uses: JS-DevTools/npm-publish@v2.2.2
       with:
         token: ${{ secrets.NPM_TOKEN }}
+
+    - name: jsr publish @extism/extism
+      run: |
+        npx jsr publish
 
     - name: Update package name
       run: |

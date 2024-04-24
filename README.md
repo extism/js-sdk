@@ -50,7 +50,7 @@ const createPlugin = require("@extism/extism")
 import createPlugin from '@extism/extism';
 
 // Deno
-import createPlugin from 'https://raw.githubusercontent.com/extism/js-sdk/main/src/mod.ts';
+import createPlugin from "jsr:@extism/extism";
 ```
 
 ## Creating A Plug-in

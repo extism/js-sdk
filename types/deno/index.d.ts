@@ -1,13 +1,22 @@
-declare module 'https://deno.land/x/minimatch@v3.0.4/index.js' {
-  export default function matches(text: string, pattern: string): boolean;
+declare module 'npm:minimatch@9.0.4' {
+  export * as minimatch from 'minimatch';
 }
 
-declare module 'https://deno.land/std@0.200.0/wasi/snapshot_preview1.ts' {
-  export default class Context {
-    constructor(opts: Record<string, any>);
+declare module 'jsr:@std/path@0.223.0/relative' {
+  export function relative(base: string, relative: string): string;
+}
 
-    exports: WebAssembly.Exports;
-    start(opts: any);
-    initialize?(opts: any);
+declare module 'jsr:@std/path@0.223.0/resolve' {
+  export function resolve(base: string, relative: string): string;
+}
+
+declare namespace Deno {
+  interface DirEntry {
+    name: string
+    isFile: boolean
+    isDirectory: boolean
+    isSymlink: boolean
   }
 }
+
+declare const Deno: any
