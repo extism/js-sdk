@@ -1,4 +1,4 @@
-import Context from 'https://deno.land/std@0.200.0/wasi/snapshot_preview1.ts';
+import Context from './deno-snapshot_preview1.ts';
 import { type InternalWasi } from '../interfaces.ts';
 import { devNull } from 'node:os';
 import { open } from 'node:fs/promises';

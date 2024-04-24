@@ -15,7 +15,7 @@ export class Block {
   view: DataView;
   local: boolean;
 
-  get byteLength() {
+  get byteLength(): number {
     return this.buffer.byteLength;
   }
 
@@ -199,12 +199,12 @@ export class CallContext {
       block?.view.setBigUint64(Number(offset), n, true);
     },
 
-    input_offset: () => {
+    input_offset: (): bigint => {
       const blockIdx = this.#stack[this.#stack.length - 1][0];
       return Block.indexToAddress(blockIdx || 0);
     },
 
-    input_length: () => {
+    input_length: (): bigint => {
       return BigInt(this.#input?.byteLength ?? 0);
     },
 
@@ -269,7 +269,7 @@ export class CallContext {
       return this.#vars.has(key) ? Block.indexToAddress(this.#vars.get(key) as number) : 0n;
     },
 
-    var_set: (addr: bigint, valueaddr: bigint) => {
+    var_set: (addr: bigint, valueaddr: bigint): 0n | undefined => {
       const item = this.read(addr);
 
       if (item === null) {
@@ -307,9 +307,10 @@ export class CallContext {
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
-        return this.#logger.error(
+        this.#logger.error(
           `failed to log(warn): bad block reference in addr 0x${addr.toString(16).padStart(64, '0')}`,
         );
+        return;
       }
       const text = this.#decoder.decode(block.buffer);
       this.#logger.warn(text);
@@ -319,9 +320,10 @@ export class CallContext {
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
-        return this.#logger.error(
+        this.#logger.error(
           `failed to log(info): bad block reference in addr 0x${addr.toString(16).padStart(64, '0')}`,
         );
+        return;
       }
       const text = this.#decoder.decode(block.buffer);
       this.#logger.info(text);
@@ -331,9 +333,10 @@ export class CallContext {
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
-        return this.#logger.error(
+        this.#logger.error(
           `failed to log(debug): bad block reference in addr 0x${addr.toString(16).padStart(64, '0')}`,
         );
+        return;
       }
       const text = this.#decoder.decode(block.buffer);
       this.#logger.debug(text);
@@ -343,9 +346,10 @@ export class CallContext {
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
-        return this.#logger.error(
+        this.#logger.error(
           `failed to log(error): bad block reference in addr 0x${addr.toString(16).padStart(64, '0')}`,
         );
+        return;
       }
       const text = this.#decoder.decode(block.buffer);
       this.#logger.error(text);
@@ -414,7 +418,7 @@ export class CallContext {
   }
 
   /** @hidden */
-  [STORE](input?: string | Uint8Array) {
+  [STORE](input?: string | Uint8Array): number | null {
     if (!input) {
       return null;
     }
