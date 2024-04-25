@@ -1,0 +1,20 @@
+# Uncomment this when extism is ready to publish from ci
+# name: Publish
+# on:
+#   push:
+#     branches:
+#       - master
+
+# jobs:
+#   publish:
+#     runs-on: ubuntu-latest
+
+#     permissions:
+#       contents: read
+#       id-token: write
+
+#     steps:
+#       - uses: actions/checkout@v4
+
+#       - name: Publish package
+#         run: npx jsr publish
