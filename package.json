@@ -43,7 +43,7 @@
   "author": "The Extism Authors <oss@extism.org>",
   "license": "BSD-3-Clause",
   "devDependencies": {
-    "@bjorn3/browser_wasi_shim": "^0.2.17",
+    "@bjorn3/browser_wasi_shim": "^0.2.20",
     "@playwright/test": "^1.39.0",
     "@types/node": "^20.8.7",
     "@typescript-eslint/eslint-plugin": "^6.8.0",
