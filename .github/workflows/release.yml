@@ -45,7 +45,7 @@ jobs:
 
     - name: jsr publish @extism/extism
       run: |
-        npx jsr publish
+        npx jsr publish --allow-dirty
 
     - name: Update package name
       run: |
