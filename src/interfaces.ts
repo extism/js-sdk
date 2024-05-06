@@ -166,6 +166,20 @@ export interface ExtismPluginOptions {
    */
   functions?: { [key: string]: { [key: string]: (callContext: CallContext, ...args: any[]) => any } } | undefined;
   allowedPaths?: { [key: string]: string } | undefined;
+
+  /**
+   * A list of allowed hostnames. Wildcard subdomains are supported via `*`.
+   *
+   * Requires the plugin to run in a worker using `runInWorker: true`.
+   *
+   * @example
+   * ```ts
+   * await createPlugin('path/to/some/wasm', {
+   *   runInWorker: true,
+   *   allowedHosts: ['*.example.com', 'www.dylibso.com']
+   * })
+   * ```
+   */
   allowedHosts?: string[] | undefined;
 
   /**

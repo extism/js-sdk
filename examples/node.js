@@ -11,7 +11,8 @@ async function main() {
   const plugin = await createPlugin(filename, {
     useWasi: true,
     config: { thing: 'testing' },
-    withAllowedHosts: ['*.typicode.com'],
+    allowedHosts: ['*.typicode.com'],
+    runInWorker: true
   });
 
   const res = await plugin.call(funcname, new TextEncoder().encode(input));
