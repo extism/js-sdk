@@ -67,6 +67,7 @@
           useWasi: true,
           config: { thing: 'testing' },
           allowedHosts: [...hosts],
+          runInWorker: true,
         });
 
         const res = await plugin.call(funcname, new TextEncoder().encode(input));
