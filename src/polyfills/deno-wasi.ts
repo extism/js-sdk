@@ -1,5 +1,5 @@
 import Context from './deno-snapshot_preview1.ts';
-import { type InternalWasi } from '../interfaces.ts';
+import { type WASIOptions, type InternalWasi } from '../interfaces.ts';
 import { devNull } from 'node:os';
 import { open } from 'node:fs/promises';
 import { closeSync } from 'node:fs';
@@ -29,8 +29,7 @@ async function createDevNullFDs() {
 export async function loadWasi(
   allowedPaths: { [from: string]: string },
   enableWasiOutput: boolean,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  fileDescriptors: Fd[],
+  _wasiOptions: WASIOptions | null,
 ): Promise<InternalWasi> {
   const {
     close,

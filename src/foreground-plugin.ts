@@ -156,7 +156,7 @@ async function instantiateModule(
         }
 
         if (wasi === null) {
-          wasi = await loadWasi(opts.allowedPaths, opts.enableWasiOutput, opts.fileDescriptors);
+          wasi = await loadWasi(opts.allowedPaths, opts.enableWasiOutput, opts.wasiOptions);
           wasiList.push(wasi);
           imports.wasi_snapshot_preview1 = await wasi.importObject();
         }
@@ -211,9 +211,9 @@ async function instantiateModule(
       const instance = providerExports.find((xs) => xs.name === '_start')
         ? await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, new Map())
         : !linked.has(provider)
-        ? (await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, linked),
-          linked.get(provider))
-        : linked.get(provider);
+          ? (await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, linked),
+            linked.get(provider))
+          : linked.get(provider);
 
       if (!instance) {
         // circular import, either make a trampoline or bail
@@ -254,10 +254,10 @@ async function instantiateModule(
   const guestType = instance.exports.hs_init
     ? 'haskell'
     : instance.exports._initialize
-    ? 'reactor'
-    : instance.exports._start
-    ? 'command'
-    : 'none';
+      ? 'reactor'
+      : instance.exports._start
+        ? 'command'
+        : 'none';
 
   if (wasi) {
     await wasi?.initialize(instance);

@@ -1,27 +1,27 @@
 import { WASI, Fd, File, OpenFile, ConsoleStdout } from '@bjorn3/browser_wasi_shim';
-import { type InternalWasi } from '../interfaces.ts';
+import { type WASIOptions, type InternalWasi } from '../interfaces.ts';
 
 export async function loadWasi(
   _allowedPaths: { [from: string]: string },
   enableWasiOutput: boolean,
-  fileDescriptors: Fd[],
+  wasiOptions: WASIOptions | null
 ): Promise<InternalWasi> {
-  console.log('fileDescriptors = ', fileDescriptors);
   const args: Array<string> = [];
   const envVars: Array<string> = [];
+  const fileDescriptors = (wasiOptions?.fileDescriptors || []) as Fd[]
   const fds: Fd[] = enableWasiOutput
     ? [
-        ConsoleStdout.lineBuffered((msg) => console.log(msg)), // fd 0 is dup'd to stdout
-        ConsoleStdout.lineBuffered((msg) => console.log(msg)),
-        ConsoleStdout.lineBuffered((msg) => console.warn(msg)),
-        ...fileDescriptors,
-      ]
+      ConsoleStdout.lineBuffered((msg) => console.log(msg)), // fd 0 is dup'd to stdout
+      ConsoleStdout.lineBuffered((msg) => console.log(msg)),
+      ConsoleStdout.lineBuffered((msg) => console.warn(msg)),
+      ...fileDescriptors,
+    ]
     : [
-        new OpenFile(new File([])), // stdin
-        new OpenFile(new File([])), // stdout
-        new OpenFile(new File([])), // stderr
-        ...fileDescriptors,
-      ];
+      new OpenFile(new File([])), // stdin
+      new OpenFile(new File([])), // stdout
+      new OpenFile(new File([])), // stderr
+      ...fileDescriptors,
+    ];
 
   const context = new WASI(args, envVars, fds, { debug: false });
 
@@ -59,7 +59,7 @@ export async function loadWasi(
         context.start({
           exports: {
             memory,
-            _start: () => {},
+            _start: () => { },
           },
         });
       }

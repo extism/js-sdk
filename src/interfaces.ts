@@ -133,7 +133,7 @@ export interface WASIOptions {
    * See [`@bjorn3/browser_wasi_shim`](https://github.com/bjorn3/browser_wasi_shim) for more
    * details on use.
    */
-  fileDescriptors: (import('@bjorn3/browser_wasi_shim').Fd)[];
+  fileDescriptors: any[];
 }
 
 /**
@@ -180,7 +180,7 @@ export interface ExtismPluginOptions {
   functions?: { [key: string]: { [key: string]: (callContext: CallContext, ...args: any[]) => any } } | undefined;
   allowedPaths?: { [key: string]: string } | undefined;
   allowedHosts?: string[] | undefined;
-  wasiOptions?: WasiOptions;
+  wasiOptions?: WASIOptions;
 
   /**
    * Whether WASI stdout should be forwarded to the host.
@@ -203,7 +203,7 @@ export interface InternalConfig {
   wasiEnabled: boolean;
   config: PluginConfig;
   sharedArrayBufferSize: number;
-  wasiOptions: WasiOptions | null;
+  wasiOptions: WASIOptions | null;
 }
 
 export interface InternalWasi {
