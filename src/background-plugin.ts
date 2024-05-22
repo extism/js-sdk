@@ -212,7 +212,7 @@ class BackgroundPlugin {
     //
     // - https://github.com/nodejs/node/pull/44409
     // - https://github.com/denoland/deno/issues/14786
-    const timer = setInterval(() => {}, 0);
+    const timer = setInterval(() => { }, 0);
     try {
       if (!func) {
         throw Error(`Plugin error: host function "${ev.namespace}" "${ev.func}" does not exist`);
@@ -337,7 +337,7 @@ class RingBufferWriter {
 
   signal() {
     const old = Atomics.load(this.flag, 0);
-    while (Atomics.compareExchange(this.flag, 0, old, this.outputOffset) === old) {}
+    while (Atomics.compareExchange(this.flag, 0, old, this.outputOffset) === old) { }
     Atomics.notify(this.flag, 0, 1);
   }
 
@@ -432,7 +432,7 @@ class HttpContext {
       return 0n;
     }
 
-    const { header, url: rawUrl, method: m } = req.json();
+    const { headers, url: rawUrl, method: m } = req.json();
     const method = m ?? 'GET';
     const url = new URL(rawUrl);
 
@@ -447,7 +447,7 @@ class HttpContext {
     const body = bodyaddr === 0n || method === 'GET' || method === 'HEAD' ? null : callContext.read(bodyaddr)?.bytes();
     const fetch = this.fetch;
     const response = await fetch(rawUrl, {
-      headers: header,
+      headers,
       method,
       ...(body ? { body: body.slice() } : {}),
     });
