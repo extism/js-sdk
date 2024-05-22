@@ -432,7 +432,7 @@ class HttpContext {
       return 0n;
     }
 
-    const { header, url: rawUrl, method: m } = req.json();
+    const { headers, header, url: rawUrl, method: m } = req.json();
     const method = m ?? 'GET';
     const url = new URL(rawUrl);
 
@@ -447,7 +447,7 @@ class HttpContext {
     const body = bodyaddr === 0n || method === 'GET' || method === 'HEAD' ? null : callContext.read(bodyaddr)?.bytes();
     const fetch = this.fetch;
     const response = await fetch(rawUrl, {
-      headers: header,
+      headers: headers || header,
       method,
       ...(body ? { body: body.slice() } : {}),
     });
