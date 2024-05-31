@@ -171,7 +171,7 @@ let kvStore = new Map();
 const options = {
     useWasi: true,
     functions: {
-        env: {
+        "extism:host/user": {
             // NOTE: the first argument is always a CurrentPlugin
             kv_read(cp: CurrentPlugin, offs: bigint) {
                 const key = cp.read(offs).text();
