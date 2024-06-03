@@ -1,5 +1,5 @@
 import { WASI } from 'wasi';
-import { type InternalWasi } from '../interfaces.ts';
+import { type WASIOptions, type InternalWasi } from '../interfaces.ts';
 import { devNull } from 'node:os';
 import { open } from 'node:fs/promises';
 import { closeSync } from 'node:fs';
@@ -26,7 +26,7 @@ async function createDevNullFDs() {
     fr.register(stdout, stdout.fd);
     close = async () => {
       needsClose = false;
-      await Promise.all([stdin.close(), stdout.close()]).catch(() => {});
+      await Promise.all([stdin.close(), stdout.close()]).catch(() => { });
     };
   }
 
@@ -39,11 +39,12 @@ async function createDevNullFDs() {
 export async function loadWasi(
   allowedPaths: { [from: string]: string },
   enableWasiOutput: boolean,
+  _wasiOptions: WASIOptions | null,
 ): Promise<InternalWasi> {
   const {
     close,
     fds: [stdin, stdout, stderr],
-  } = enableWasiOutput ? { async close() {}, fds: [0, 1, 2] } : await createDevNullFDs();
+  } = enableWasiOutput ? { async close() { }, fds: [0, 1, 2] } : await createDevNullFDs();
 
   const context = new WASI({
     version: 'preview1',
@@ -87,7 +88,7 @@ export async function loadWasi(
         context.start({
           exports: {
             memory,
-            _start: () => {},
+            _start: () => { },
           },
         });
       }

@@ -1,5 +1,5 @@
 import Context from './deno-snapshot_preview1.ts';
-import { type InternalWasi } from '../interfaces.ts';
+import { type WASIOptions, type InternalWasi } from '../interfaces.ts';
 import { devNull } from 'node:os';
 import { open } from 'node:fs/promises';
 import { closeSync } from 'node:fs';
@@ -20,7 +20,7 @@ async function createDevNullFDs() {
   return {
     async close() {
       needsClose = false;
-      await Promise.all([stdin.close(), stdout.close()]).catch(() => {});
+      await Promise.all([stdin.close(), stdout.close()]).catch(() => { });
     },
     fds: [stdin.fd, stdout.fd, stdout.fd],
   };
@@ -29,11 +29,12 @@ async function createDevNullFDs() {
 export async function loadWasi(
   allowedPaths: { [from: string]: string },
   enableWasiOutput: boolean,
+  _wasiOptions: WASIOptions | null,
 ): Promise<InternalWasi> {
   const {
     close,
     fds: [stdin, stdout, stderr],
-  } = enableWasiOutput ? { async close() {}, fds: [0, 1, 2] } : await createDevNullFDs();
+  } = enableWasiOutput ? { async close() { }, fds: [0, 1, 2] } : await createDevNullFDs();
   const context = new Context({
     preopens: allowedPaths,
     exitOnReturn: false,
@@ -76,7 +77,7 @@ export async function loadWasi(
         context.start({
           exports: {
             memory,
-            _start: () => {},
+            _start: () => { },
           },
         });
       }
