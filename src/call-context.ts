@@ -51,7 +51,7 @@ export class CallContext {
   #encoder: TextEncoder;
   #arrayBufferType: { new(size: number): ArrayBufferLike };
   #config: PluginConfig;
-  #vars: Map<string, number> = new Map();
+  #vars: Map<string, PluginOutput> = new Map();
   #memoryOptions: MemoryOptions;
 
   /** @hidden */
@@ -102,34 +102,19 @@ export class CallContext {
     if (!this.#vars.has(name)) {
       return null;
     }
-    return this.read(this.#vars.get(name) as number);
+    return this.#vars.get(name) || null;
   }
 
   /**
    * Set a variable to a given string or byte array value. Returns the start
    * address of the variable. The start address is reused when changing the
    * value of an existing variable.
-   *
-   * @returns bigint
    */
-  setVariable(name: string, value: string | Uint8Array): bigint {
-    const newIdx = this[STORE](value);
-    if (newIdx === null) {
-      return 0n;
+  setVariable(name: string, value: string | Uint8Array) {
+    if (typeof value === 'string'){
+      value = this.#encoder.encode(value);
     }
-
-    // Re-use the old address mapping.
-    const oldIdx = this.#vars.get(name) ?? null;
-    if (oldIdx !== null) {
-      this.#blocks[oldIdx] = this.#blocks[newIdx];
-      this.#blocks[newIdx] = null;
-      if (newIdx === this.#blocks.length - 1) {
-        this.#blocks.pop();
-      }
-    }
-
-    this.#vars.set(name, oldIdx ?? newIdx);
-    return Block.indexToAddress(oldIdx ?? newIdx);
+    this.#vars.set(name, new PluginOutput(value.buffer));
   }
 
   /**
@@ -280,7 +265,12 @@ export class CallContext {
       }
 
       const key = item.string();
-      return this.#vars.has(key) ? Block.indexToAddress(this.#vars.get(key) as number) : 0n;
+      if (this.#vars.has(key)){
+        const value = this.store(this.#vars.get(key)!.bytes());
+        return value;
+      }
+
+      return 0n;
     },
 
     var_set: (addr: bigint, valueaddr: bigint): 0n | undefined => {
@@ -298,14 +288,17 @@ export class CallContext {
 
       const valueBlock = this.#blocks[Block.addressToIndex(valueaddr)];
       if (this.#memoryOptions.maxVarBytes) {
-        const currentBytes = [...this.#vars.values()].map(idx => this.#blocks[idx]?.byteLength ?? 0).reduce((acc, length) => acc + length, 0)
+        const currentBytes = [...this.#vars.values()].map(x => x.length).reduce((acc, length) => acc + length, 0)
         const totalBytes = currentBytes + (valueBlock?.byteLength ?? 0);
         if (totalBytes > this.#memoryOptions.maxVarBytes) {
           throw Error(`var memory limit exceeded: ${totalBytes} bytes requested, ${this.#memoryOptions.maxVarBytes} allowed`);
         }
       }
 
-      this.#vars.set(key, Block.addressToIndex(valueaddr));
+      const value = this.read(valueaddr);
+      if (value){
+        this.#vars.set(key, value);
+      }
     },
 
     http_request: (_requestOffset: bigint, _bodyOffset: bigint): bigint => {
