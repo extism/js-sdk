@@ -51,7 +51,7 @@ export class CallContext {
   #encoder: TextEncoder;
   #arrayBufferType: { new (size: number): ArrayBufferLike };
   #config: PluginConfig;
-  #vars: Map<string, number> = new Map();
+  #vars: Map<string, PluginOutput> = new Map();
 
   /** @hidden */
   constructor(type: { new (size: number): ArrayBufferLike }, logger: Console, config: PluginConfig) {
@@ -88,34 +88,19 @@ export class CallContext {
     if (!this.#vars.has(name)) {
       return null;
     }
-    return this.read(this.#vars.get(name) as number);
+    return this.#vars.get(name) || null;
   }
 
   /**
    * Set a variable to a given string or byte array value. Returns the start
    * address of the variable. The start address is reused when changing the
    * value of an existing variable.
-   *
-   * @returns bigint
    */
-  setVariable(name: string, value: string | Uint8Array): bigint {
-    const newIdx = this[STORE](value);
-    if (newIdx === null) {
-      return 0n;
+  setVariable(name: string, value: string | Uint8Array) {
+    if (typeof value === 'string'){
+      value = this.#encoder.encode(value);
     }
-
-    // Re-use the old address mapping.
-    const oldIdx = this.#vars.get(name) ?? null;
-    if (oldIdx !== null) {
-      this.#blocks[oldIdx] = this.#blocks[newIdx];
-      this.#blocks[newIdx] = null;
-      if (newIdx === this.#blocks.length - 1) {
-        this.#blocks.pop();
-      }
-    }
-
-    this.#vars.set(name, oldIdx ?? newIdx);
-    return Block.indexToAddress(oldIdx ?? newIdx);
+    this.#vars.set(name, new PluginOutput(value.buffer));
   }
 
   /**
@@ -266,7 +251,12 @@ export class CallContext {
       }
 
       const key = item.string();
-      return this.#vars.has(key) ? Block.indexToAddress(this.#vars.get(key) as number) : 0n;
+      if (this.#vars.has(key)){
+        const value = this.store(this.#vars.get(key)!.bytes());
+        return value;
+      }
+
+      return 0n;
     },
 
     var_set: (addr: bigint, valueaddr: bigint): 0n | undefined => {
@@ -282,7 +272,10 @@ export class CallContext {
         return 0n;
       }
 
-      this.#vars.set(key, Block.addressToIndex(valueaddr));
+      const value = this.read(valueaddr);
+      if (value){
+        this.#vars.set(key, value);
+      }
     },
 
     http_request: (_requestOffset: bigint, _bodyOffset: bigint): bigint => {
