@@ -51,7 +51,7 @@ export class CallContext {
   #encoder: TextEncoder;
   #arrayBufferType: { new(size: number): ArrayBufferLike };
   #config: PluginConfig;
-  #vars: Map<string, PluginOutput> = new Map();
+  #vars: Map<string, Uint8Array> = new Map();
   #memoryOptions: MemoryOptions;
 
   /** @hidden */
@@ -98,7 +98,7 @@ export class CallContext {
    *
    * @returns {@link PluginOutput}
    */
-  getVariable(name: string): PluginOutput | null {
+  getVariable(name: string): Uint8Array | null {
     if (!this.#vars.has(name)) {
       return null;
     }
@@ -114,7 +114,9 @@ export class CallContext {
     if (typeof value === 'string'){
       value = this.#encoder.encode(value);
     }
-    this.#vars.set(name, new PluginOutput(value.buffer));
+    const buf = new Uint8Array(value.buffer.byteLength);
+    buf.set(new Uint8Array(value.buffer));
+    this.#vars.set(name, buf);
   }
 
   /**
@@ -266,7 +268,7 @@ export class CallContext {
 
       const key = item.string();
       if (this.#vars.has(key)){
-        const value = this.store(this.#vars.get(key)!.bytes());
+        const value = this.store(this.#vars.get(key)!);
         return value;
       }
 
@@ -297,7 +299,9 @@ export class CallContext {
 
       const value = this.read(valueaddr);
       if (value){
-        this.#vars.set(key, value);
+        const buf = new Uint8Array(value!.buffer.byteLength);
+        buf.set(value.bytes());
+        this.#vars.set(key, buf);
       }
     },
 
