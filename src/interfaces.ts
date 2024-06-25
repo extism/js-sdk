@@ -291,6 +291,22 @@ export type ManifestWasm = (
 export interface Manifest {
   wasm: Array<ManifestWasm>;
   config?: PluginConfigLike;
+  allowedPaths?: { [key: string]: string } | undefined;
+
+  /**
+   * A list of allowed hostnames. Wildcard subdomains are supported via `*`.
+   *
+   * Requires the plugin to run in a worker using `runInWorker: true`.
+   *
+   * @example
+   * ```ts
+   * await createPlugin('path/to/some/wasm', {
+   *   runInWorker: true,
+   *   allowedHosts: ['*.example.com', 'www.dylibso.com']
+   * })
+   * ```
+   */
+  allowedHosts?: string[] | undefined;
 }
 
 /**

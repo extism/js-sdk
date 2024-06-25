@@ -1,6 +1,6 @@
 import { CAPABILITIES } from './polyfills/deno-capabilities.ts';
 
-import type { ManifestLike, InternalConfig, ExtismPluginOptions, Plugin } from './interfaces.ts';
+import type { Manifest, ManifestLike, InternalConfig, ExtismPluginOptions, Plugin } from './interfaces.ts';
 
 import { toWasmModuleData as _toWasmModuleData } from './manifest.ts';
 
@@ -73,6 +73,14 @@ export async function createPlugin(
   opts.useWasi ??= false;
   opts.enableWasiOutput ??= opts.useWasi ? CAPABILITIES.extismStdoutEnvVarSet : false;
   opts.functions = opts.functions || {};
+
+  const m = await Promise.resolve(manifest)
+  if ((m as Manifest).wasm) {
+    opts.allowedPaths ??= (m as Manifest).allowedPaths;
+    opts.allowedHosts ??= (m as Manifest).allowedHosts;
+    opts.config ??= (m as Manifest).config;
+  }
+  
   opts.allowedPaths ??= {};
   // TODO(chrisdickinson): reset this to `CAPABILITIES.hasWorkerCapability` once we've fixed https://github.com/extism/js-sdk/issues/46.
   opts.runInWorker ??= false;
@@ -91,7 +99,7 @@ export async function createPlugin(
     );
   }
 
-  const [names, moduleData] = await _toWasmModuleData(await Promise.resolve(manifest), opts.fetch ?? fetch);
+  const [names, moduleData] = await _toWasmModuleData(m, opts.fetch ?? fetch);
 
   const ic: InternalConfig = {
     allowedHosts: opts.allowedHosts as [],
