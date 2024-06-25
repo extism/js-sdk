@@ -80,6 +80,8 @@ export async function createPlugin(
     opts.allowedHosts ??= (m as Manifest).allowedHosts;
     opts.config ??= (m as Manifest).config;
   }
+
+  console.log('manifest', m)
   
   opts.allowedPaths ??= {};
   // TODO(chrisdickinson): reset this to `CAPABILITIES.hasWorkerCapability` once we've fixed https://github.com/extism/js-sdk/issues/46.
