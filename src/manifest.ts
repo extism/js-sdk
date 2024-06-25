@@ -105,7 +105,6 @@ export async function toWasmModuleData(
         const response = await _fetch((item as ManifestWasmUrl).url, {
           headers: {
             accept: 'application/wasm;q=0.9,application/octet-stream;q=0.8',
-            'user-agent': 'extism',
           },
         });
         const result = await responseToModule(response, Boolean(item.hash));
