@@ -638,7 +638,7 @@ if (typeof WebAssembly === 'undefined') {
 
     test('we fallback to Manifest.config if ExtismPluginOptions.config is not specified', async () => {
       const plugin = await createPlugin(
-        { wasm: ['http://localhost:8124/wasm/hello_haskell.wasm'], config: { greeting: 'Howdy' } },
+        { wasm: [{ url: 'http://localhost:8124/wasm/hello_haskell.wasm' }], config: { greeting: 'Howdy' } },
         { useWasi: true }
       );
 
@@ -717,7 +717,7 @@ if (typeof WebAssembly === 'undefined') {
 
     test('we fallback to Manifest.allowedPaths if ExtismPluginOptions.allowedPaths is not specified', async () => {
       const plugin = await createPlugin(
-        { wasm: ['http://localhost:8124/wasm/fs.wasm'], allowedPaths: { '/mnt': 'tests/data' } },
+        { wasm: [{ url: 'http://localhost:8124/wasm/fs.wasm'}], allowedPaths: { '/mnt': 'tests/data' } },
         { useWasi: true }
       );
 
