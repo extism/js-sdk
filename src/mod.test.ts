@@ -539,6 +539,31 @@ if (typeof WebAssembly === 'undefined') {
         await plugin.close();
       }
     });
+
+    test('we fallback to Manifest.allowedHosts if ExtismPluginOptions.allowedHosts is not specified', async () => {
+      const plugin = await createPlugin(
+        { wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http.wasm' }], allowedHosts: ['*.typicode.com'] },
+        { useWasi: true, functions: {}, runInWorker: true },
+      );
+
+      try {
+        const [err, data] = await plugin
+          .call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}')
+          .then(
+            (data) => [null, data],
+            (err) => [err, null],
+          );
+        assert(err === null);
+        assert.deepEqual(data.json(), {
+          userId: 1,
+          id: 1,
+          title: 'delectus aut autem',
+          completed: false,
+        });
+      } finally {
+        await plugin.close();
+      }
+    });
   }
 
   test('createPlugin fails as expected when calling unknown function', async () => {
@@ -611,6 +636,25 @@ if (typeof WebAssembly === 'undefined') {
       }
     });
 
+    test('we fallback to Manifest.config if ExtismPluginOptions.config is not specified', async () => {
+      const plugin = await createPlugin(
+        { wasm: ['http://localhost:8124/wasm/hello_haskell.wasm'], config: { greeting: 'Howdy' } },
+        { useWasi: true }
+      );
+
+      try {
+        let output = await plugin.call('testing', 'John');
+
+        assert.equal(output?.string(), 'Howdy, John');
+
+        output = await plugin.call('testing', 'Ben');
+        assert(output !== null);
+        assert.equal(output?.string(), 'Howdy, Ben');
+      } finally {
+        await plugin.close();
+      }
+    });
+
     // TODO(chrisdickinson): this turns out to be pretty tricky to test, since
     // deno and node's wasi bindings bypass JS entirely and write directly to
     // their respective FDs. I'm settling for tests that exercise both behaviors.
@@ -660,6 +704,22 @@ if (typeof WebAssembly === 'undefined') {
         allowedPaths: { '/mnt': 'tests/data' },
         useWasi: true,
       });
+
+      try {
+        const output = await plugin.call('run_test', '');
+        assert(output !== null);
+        const result = output.string();
+        assert.equal(result, 'hello world!');
+      } finally {
+        await plugin.close();
+      }
+    });
+
+    test('we fallback to Manifest.allowedPaths if ExtismPluginOptions.allowedPaths is not specified', async () => {
+      const plugin = await createPlugin(
+        { wasm: ['http://localhost:8124/wasm/fs.wasm'], allowedPaths: { '/mnt': 'tests/data' } },
+        { useWasi: true }
+      );
 
       try {
         const output = await plugin.call('run_test', '');
