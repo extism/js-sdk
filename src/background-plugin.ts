@@ -1,7 +1,7 @@
 /*eslint-disable no-empty*/
 import { CallContext, RESET, IMPORT_STATE, EXPORT_STATE, STORE, GET_BLOCK } from './call-context.ts';
 import { PluginOutput, SAB_BASE_OFFSET, SharedArrayBufferSection, type InternalConfig } from './interfaces.ts';
-import { withTimeout } from './utils';
+import { withTimeout } from './utils.ts';
 import { WORKER_URL } from './worker-url.ts';
 import { Worker } from 'node:worker_threads';
 import { CAPABILITIES } from './polyfills/deno-capabilities.ts';
