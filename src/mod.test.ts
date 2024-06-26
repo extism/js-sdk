@@ -542,7 +542,7 @@ if (typeof WebAssembly === 'undefined') {
 
     test('we fallback to Manifest.allowedHosts if ExtismPluginOptions.allowedHosts is not specified', async () => {
       const plugin = await createPlugin(
-        { wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http.wasm' }], allowedHosts: ['*.typicode.com'] },
+        { wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http.wasm' }], allowed_hosts: ['*.typicode.com'] },
         { useWasi: true, functions: {}, runInWorker: true },
       );
 
@@ -553,7 +553,7 @@ if (typeof WebAssembly === 'undefined') {
             (data) => [null, data],
             (err) => [err, null],
           );
-        assert(err === null);
+        assert.equal(err, null);
         assert.deepEqual(data.json(), {
           userId: 1,
           id: 1,
@@ -717,7 +717,7 @@ if (typeof WebAssembly === 'undefined') {
 
     test('we fallback to Manifest.allowedPaths if ExtismPluginOptions.allowedPaths is not specified', async () => {
       const plugin = await createPlugin(
-        { wasm: [{ url: 'http://localhost:8124/wasm/fs.wasm'}], allowedPaths: { '/mnt': 'tests/data' } },
+        { wasm: [{ url: 'http://localhost:8124/wasm/fs.wasm'}], allowed_paths: { '/mnt': 'tests/data' } },
         { useWasi: true }
       );
 
