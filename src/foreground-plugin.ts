@@ -107,7 +107,7 @@ export async function createForegroundPlugin(
   opts: InternalConfig,
   names: string[],
   modules: WebAssembly.Module[],
-  context: CallContext = new CallContext(ArrayBuffer, opts.logger, opts.config),
+  context: CallContext = new CallContext(ArrayBuffer, opts.logger, opts.config, opts.memory),
 ): Promise<ForegroundPlugin> {
   const imports: Record<string, Record<string, any>> = {
     [EXTISM_ENV]: context[ENV],

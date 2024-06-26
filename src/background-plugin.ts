@@ -1,6 +1,6 @@
 /*eslint-disable no-empty*/
 import { CallContext, RESET, IMPORT_STATE, EXPORT_STATE, STORE, GET_BLOCK } from './call-context.ts';
-import { PluginOutput, SAB_BASE_OFFSET, SharedArrayBufferSection, type InternalConfig } from './interfaces.ts';
+import { MemoryOptions, PluginOutput, SAB_BASE_OFFSET, SharedArrayBufferSection, type InternalConfig } from './interfaces.ts';
 import { withTimeout } from './utils.ts';
 import { WORKER_URL } from './worker-url.ts';
 import { Worker } from 'node:worker_threads';
@@ -413,11 +413,13 @@ class HttpContext {
   fetch: typeof fetch;
   lastStatusCode: number;
   allowedHosts: string[];
+  memoryOptions: MemoryOptions;
 
-  constructor(_fetch: typeof fetch, allowedHosts: string[]) {
+  constructor(_fetch: typeof fetch, allowedHosts: string[], memoryOptions: MemoryOptions) {
     this.fetch = _fetch;
     this.allowedHosts = allowedHosts;
     this.lastStatusCode = 0;
+    this.memoryOptions = memoryOptions;
   }
 
   contribute(functions: Record<string, Record<string, any>>) {
@@ -454,10 +456,46 @@ class HttpContext {
     });
 
     this.lastStatusCode = response.status;
-    const result = callContext.store(new Uint8Array(await response.arrayBuffer()));
+
+    let bytes = this.memoryOptions.maxHttpResponseBytes ?
+      await readBodyUpTo(response, this.memoryOptions.maxHttpResponseBytes) :
+      new Uint8Array(await response.arrayBuffer());
+
+    const result = callContext.store(bytes);
 
     return result;
   }
+}
+
+async function readBodyUpTo(response: Response, maxBytes: number): Promise<Uint8Array> {
+  const reader = response.body?.getReader();
+  if (!reader) {
+    return new Uint8Array(0);
+  }
+
+  let receivedLength = 0;
+  const chunks = [];
+
+  while (receivedLength < maxBytes) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    chunks.push(value);
+    receivedLength += value.length;
+    if (receivedLength >= maxBytes) {
+      throw new Error(`Response body exceeded ${maxBytes} bytes`);
+    }
+  }
+
+  const limitedResponseBody = new Uint8Array(receivedLength);
+  let position = 0;
+  for (const chunk of chunks) {
+    limitedResponseBody.set(chunk, position);
+    position += chunk.length;
+  }
+
+  return limitedResponseBody;
 }
 
 export async function createBackgroundPlugin(
@@ -466,8 +504,8 @@ export async function createBackgroundPlugin(
   modules: WebAssembly.Module[],
 ): Promise<BackgroundPlugin> {
   const worker = new Worker(WORKER_URL);
-  const context = new CallContext(SharedArrayBuffer, opts.logger, opts.config);
-  const httpContext = new HttpContext(opts.fetch, opts.allowedHosts);
+  const context = new CallContext(SharedArrayBuffer, opts.logger, opts.config, opts.memory);
+  const httpContext = new HttpContext(opts.fetch, opts.allowedHosts, opts.memory);
   httpContext.contribute(opts.functions);
 
   await new Promise((resolve, reject) => {

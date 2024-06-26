@@ -151,7 +151,7 @@ class Reactor {
       ['info', 'debug', 'warn', 'error'].map((lvl) => [lvl, logLevel(lvl)]),
     ) as unknown as Console;
 
-    this.context = new CallContext(ArrayBuffer, logger, ev.config);
+    this.context = new CallContext(ArrayBuffer, logger, ev.config, ev.memory);
     // TODO: replace our internal fetch and logger
     this.plugin = await _createForegroundPlugin(
       { ...opts, functions, fetch, logger } as InternalConfig,

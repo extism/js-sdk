@@ -106,6 +106,7 @@ export async function createPlugin(
     enableWasiOutput: opts.enableWasiOutput,
     sharedArrayBufferSize: Number(opts.sharedArrayBufferSize) || 1 << 16,
     timeoutMs: manifestOpts.timeoutMs,
+    memory: manifestOpts.memory ?? {},
   };
 
   return (opts.runInWorker ? _createBackgroundPlugin : _createForegroundPlugin)(ic, names, moduleData);

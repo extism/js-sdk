@@ -193,11 +193,18 @@ export interface ExtismPluginOptions {
   sharedArrayBufferSize?: number;
 }
 
+export type MemoryOptions = {
+  maxPages?: number | undefined;
+  maxHttpResponseBytes?: number | undefined;
+  maxVarBytes?: number | undefined;
+};
+
 export type ManifestOptions = {
   allowedPaths?: { [key: string]: string } | undefined;
   allowedHosts?: string[] | undefined;
   config?: PluginConfigLike;
   timeoutMs?: number | undefined;
+  memory?: MemoryOptions | undefined;
 };
 
 export interface InternalConfig {
@@ -211,6 +218,7 @@ export interface InternalConfig {
   config: PluginConfig;
   sharedArrayBufferSize: number;
   timeoutMs?: number | undefined;
+  memory: MemoryOptions;
 }
 
 export interface InternalWasi {
@@ -320,6 +328,11 @@ export interface Manifest {
    * Plugin call timeout in milliseconds
    */
   timeoutMs?: number | undefined;
+
+  /**
+   * Memory options
+   */
+  memory?: MemoryOptions | undefined;
 }
 
 /**

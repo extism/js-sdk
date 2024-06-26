@@ -85,6 +85,11 @@ function parseManifestFromJson(json: string): Manifest {
     allowedHosts: parsed.allowed_hosts,
     config: parsed.config,
     timeoutMs: parsed.timeout_ms,
+    memory: {
+      maxHttpResponseBytes: parsed.memory?.max_http_response_bytes,
+      maxPages: parsed.memory?.max_pages,
+      maxVarBytes: parsed.memory?.max_var_bytes,
+    }
   };
 }
 
