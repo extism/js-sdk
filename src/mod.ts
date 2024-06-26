@@ -81,7 +81,6 @@ export async function createPlugin(
   }
 
   opts.logger ??= console;
-  opts.config ??= {};
   opts.fetch ??= fetch;
 
   if (opts.runInWorker && !CAPABILITIES.hasWorkerCapability) {
