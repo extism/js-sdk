@@ -95,8 +95,8 @@ export async function toWasmModuleData(
 
   const manifest = await intoManifest(input, _fetch);
   const manifestOpts : ManifestOptions = {
-    allowedPaths: manifest.allowedPaths,
-    allowedHosts: manifest.allowedHosts,
+    allowedPaths: manifest.allowed_paths,
+    allowedHosts: manifest.allowed_hosts,
     config: manifest.config,
   };
 

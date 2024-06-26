@@ -291,7 +291,7 @@ export type ManifestWasm = (
 export interface Manifest {
   wasm: Array<ManifestWasm>;
   config?: PluginConfigLike;
-  allowedPaths?: { [key: string]: string } | undefined;
+  allowed_paths?: { [key: string]: string } | undefined;
 
   /**
    * A list of allowed hostnames. Wildcard subdomains are supported via `*`.
@@ -306,7 +306,7 @@ export interface Manifest {
    * })
    * ```
    */
-  allowedHosts?: string[] | undefined;
+  allowed_hosts?: string[] | undefined;
 }
 
 /**
