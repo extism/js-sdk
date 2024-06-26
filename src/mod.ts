@@ -74,21 +74,12 @@ export async function createPlugin(
   opts.enableWasiOutput ??= opts.useWasi ? CAPABILITIES.extismStdoutEnvVarSet : false;
   opts.functions = opts.functions || {};
 
-  const m = await Promise.resolve(manifest)
-  if ((m as Manifest).wasm) {
-    opts.allowedPaths ??= (m as Manifest).allowedPaths;
-    opts.allowedHosts ??= (m as Manifest).allowedHosts;
-    opts.config ??= (m as Manifest).config;
-  }
-
-  opts.allowedPaths ??= {};
   // TODO(chrisdickinson): reset this to `CAPABILITIES.hasWorkerCapability` once we've fixed https://github.com/extism/js-sdk/issues/46.
   opts.runInWorker ??= false;
   if (opts.allowedHosts && !opts.runInWorker) {
     throw new TypeError('"allowedHosts" requires "runInWorker: true". HTTP functions are only available to plugins running in a worker.')
   }
 
-  opts.allowedHosts ??= <any>[].concat(opts.allowedHosts || []);
   opts.logger ??= console;
   opts.config ??= {};
   opts.fetch ??= fetch;
@@ -99,7 +90,11 @@ export async function createPlugin(
     );
   }
 
-  const [names, moduleData] = await _toWasmModuleData(m, opts.fetch ?? fetch);
+  const [manifestOpts, names, moduleData] = await _toWasmModuleData(await Promise.resolve(manifest), opts.fetch ?? fetch);
+
+  opts.allowedPaths = opts.allowedPaths || manifestOpts.allowedPaths || {};
+  opts.allowedHosts = opts.allowedHosts || manifestOpts.allowedHosts || [];
+  opts.config = opts.config || manifestOpts.config || {};
 
   const ic: InternalConfig = {
     allowedHosts: opts.allowedHosts as [],

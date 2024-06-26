@@ -6,9 +6,16 @@ import type {
   ManifestWasmResponse,
   ManifestWasmModule,
   ManifestLike,
+  PluginConfigLike,
 } from './interfaces.ts';
 import { readFile } from './polyfills/node-fs.ts';
 import { responseToModule } from './polyfills/response-to-module.ts';
+
+export type ManifestOptions = {
+  allowedPaths?: { [key: string]: string } | undefined;
+  allowedHosts?: string[] | undefined;
+  config?: PluginConfigLike;
+};
 
 async function _populateWasmField(candidate: ManifestLike, _fetch: typeof fetch): Promise<ManifestLike> {
   if (candidate instanceof ArrayBuffer) {
@@ -83,10 +90,15 @@ async function intoManifest(candidate: ManifestLike, _fetch: typeof fetch = fetc
 export async function toWasmModuleData(
   input: ManifestLike,
   _fetch: typeof fetch,
-): Promise<[string[], WebAssembly.Module[]]> {
+): Promise<[ManifestOptions, string[], WebAssembly.Module[]]> {
   const names: string[] = [];
 
   const manifest = await intoManifest(input, _fetch);
+  const manifestOpts : ManifestOptions = {
+    allowedPaths: manifest.allowedPaths,
+    allowedHosts: manifest.allowedHosts,
+    config: manifest.config,
+  };
 
   const manifestsWasm = await Promise.all(
     manifest.wasm.map(async (item, idx, all) => {
@@ -157,5 +169,5 @@ export async function toWasmModuleData(
     throw new Error('manifest with multiple modules must designate one "main" module');
   }
 
-  return [names, manifestsWasm];
+  return [manifestOpts, names, manifestsWasm];
 }
