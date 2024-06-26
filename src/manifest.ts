@@ -7,15 +7,10 @@ import type {
   ManifestWasmModule,
   ManifestLike,
   PluginConfigLike,
+  ManifestOptions,
 } from './interfaces.ts';
 import { readFile } from './polyfills/node-fs.ts';
 import { responseToModule } from './polyfills/response-to-module.ts';
-
-export type ManifestOptions = {
-  allowedPaths?: { [key: string]: string } | undefined;
-  allowedHosts?: string[] | undefined;
-  config?: PluginConfigLike;
-};
 
 async function _populateWasmField(candidate: ManifestLike, _fetch: typeof fetch): Promise<ManifestLike> {
   if (candidate instanceof ArrayBuffer) {
@@ -98,6 +93,7 @@ export async function toWasmModuleData(
     allowedPaths: manifest.allowed_paths,
     allowedHosts: manifest.allowed_hosts,
     config: manifest.config,
+    timeoutMs: manifest.timeout_ms,
   };
 
   const manifestsWasm = await Promise.all(

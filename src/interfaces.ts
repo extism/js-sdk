@@ -193,6 +193,13 @@ export interface ExtismPluginOptions {
   sharedArrayBufferSize?: number;
 }
 
+export type ManifestOptions = {
+  allowedPaths?: { [key: string]: string } | undefined;
+  allowedHosts?: string[] | undefined;
+  config?: PluginConfigLike;
+  timeoutMs?: number | undefined;
+};
+
 export interface InternalConfig {
   logger: Console;
   allowedHosts: string[];
@@ -203,6 +210,7 @@ export interface InternalConfig {
   wasiEnabled: boolean;
   config: PluginConfig;
   sharedArrayBufferSize: number;
+  timeoutMs: number;
 }
 
 export interface InternalWasi {
@@ -307,6 +315,11 @@ export interface Manifest {
    * ```
    */
   allowed_hosts?: string[] | undefined;
+
+  /**
+   * Plugin call timeout in milliseconds
+   */
+  timeout_ms?: number | undefined;
 }
 
 /**

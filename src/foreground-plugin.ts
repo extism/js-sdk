@@ -1,5 +1,6 @@
 import { CallContext, RESET, GET_BLOCK, BEGIN, END, ENV, STORE } from './call-context.ts';
 import { PluginOutput, type InternalConfig, InternalWasi } from './interfaces.ts';
+import { withTimeout } from './utils.ts';
 import { loadWasi } from './polyfills/deno-wasi.ts';
 
 export const EXTISM_ENV = 'extism:host/env';
@@ -11,11 +12,13 @@ export class ForegroundPlugin {
   #instancePair: InstantiatedModule;
   #active: boolean = false;
   #wasi: InternalWasi[];
+  #opts: InternalConfig;
 
-  constructor(context: CallContext, instancePair: InstantiatedModule, wasi: InternalWasi[]) {
+  constructor(opts: InternalConfig, context: CallContext, instancePair: InstantiatedModule, wasi: InternalWasi[]) {
     this.#context = context;
     this.#instancePair = instancePair;
     this.#wasi = wasi;
+    this.#opts = opts;
   }
 
   async reset(): Promise<boolean> {
@@ -61,7 +64,8 @@ export class ForegroundPlugin {
 
   async call(funcName: string, input?: string | Uint8Array): Promise<PluginOutput | null> {
     const inputIdx = this.#context[STORE](input);
-    const [errorIdx, outputIdx] = await this.callBlock(funcName, inputIdx);
+
+    const [errorIdx, outputIdx] = await withTimeout(this.callBlock(funcName, inputIdx), this.#opts.timeoutMs);
     const shouldThrow = errorIdx !== null;
     const idx = errorIdx ?? outputIdx;
 
@@ -127,7 +131,7 @@ export async function createForegroundPlugin(
 
   const instance = await instantiateModule(['main'], modules[mainIndex], imports, opts, wasiList, names, modules, seen);
 
-  return new ForegroundPlugin(context, [modules[mainIndex], instance], wasiList);
+  return new ForegroundPlugin(opts, context, [modules[mainIndex], instance], wasiList);
 }
 
 async function instantiateModule(

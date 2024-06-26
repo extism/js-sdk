@@ -1,6 +1,6 @@
 import { CAPABILITIES } from './polyfills/deno-capabilities.ts';
 
-import type { Manifest, ManifestLike, InternalConfig, ExtismPluginOptions, Plugin } from './interfaces.ts';
+import type { ManifestLike, InternalConfig, ExtismPluginOptions, Plugin } from './interfaces.ts';
 
 import { toWasmModuleData as _toWasmModuleData } from './manifest.ts';
 
@@ -105,6 +105,7 @@ export async function createPlugin(
     config: opts.config,
     enableWasiOutput: opts.enableWasiOutput,
     sharedArrayBufferSize: Number(opts.sharedArrayBufferSize) || 1 << 16,
+    timeoutMs: manifestOpts.timeoutMs ?? Number.MAX_SAFE_INTEGER,
   };
 
   return (opts.runInWorker ? _createBackgroundPlugin : _createForegroundPlugin)(ic, names, moduleData);
