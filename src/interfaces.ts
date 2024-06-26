@@ -210,7 +210,7 @@ export interface InternalConfig {
   wasiEnabled: boolean;
   config: PluginConfig;
   sharedArrayBufferSize: number;
-  timeoutMs: number;
+  timeoutMs?: number | undefined;
 }
 
 export interface InternalWasi {
