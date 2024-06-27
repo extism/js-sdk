@@ -63,9 +63,10 @@ export class ForegroundPlugin {
   }
 
   async call(funcName: string, input?: string | Uint8Array): Promise<PluginOutput | null> {
+    this.#context.resetCancellation();
     const inputIdx = this.#context[STORE](input);
 
-    const [errorIdx, outputIdx] = await withTimeout(this.callBlock(funcName, inputIdx), this.#opts.timeoutMs);
+    const [errorIdx, outputIdx] = await withTimeout(this.callBlock(funcName, inputIdx), () => this.#context.cancel(), this.#opts.timeoutMs);
     const shouldThrow = errorIdx !== null;
     const idx = errorIdx ?? outputIdx;
 

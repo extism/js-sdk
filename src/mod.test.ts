@@ -333,7 +333,40 @@ if (typeof WebAssembly === 'undefined') {
       });
 
     try {
-      const [err, _] = await plugin.call('sleep', JSON.stringify({ duration_ms: 100000000 })).then(
+      const [err, _] = await plugin.call('sleep', JSON.stringify({ duration_ms: 1000 })).then(
+        (data) => [null, data],
+        (err) => [err, null],
+      );
+
+      assert(err)
+      assert.equal(err.message, 'Function call timed out');
+      await new Promise(resolve => setTimeout(resolve, 200));
+      assert.equal(x, 0)
+
+    } finally {
+      await plugin.close();
+    }
+  });
+
+  test('plugin functions cant exceed specified timeout - foreground', async () => {
+    let x = 0;
+
+    const plugin = await createPlugin(
+      { wasm: [{ url: 'http://localhost:8124/wasm/timeout.wasm' }], timeoutMs: 1 },
+      {
+        useWasi: true,
+        functions: {
+          "extism:host/user": {
+              notify() {
+                x++;
+              }
+          }
+        },
+        runInWorker: false
+      });
+
+    try {
+      const [err, _] = await plugin.call('sleep', JSON.stringify({ duration_ms: 100000 })).then(
         (data) => [null, data],
         (err) => [err, null],
       );

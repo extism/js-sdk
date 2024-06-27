@@ -53,6 +53,7 @@ export class CallContext {
   #config: PluginConfig;
   #vars: Map<string, number> = new Map();
   #memoryOptions: MemoryOptions;
+  #canceled: boolean;
 
   /** @hidden */
   constructor(type: { new(size: number): ArrayBufferLike }, logger: Console, config: PluginConfig, memoryOptions: MemoryOptions) {
@@ -61,6 +62,7 @@ export class CallContext {
     this.#decoder = new TextDecoder();
     this.#encoder = new TextEncoder();
     this.#memoryOptions = memoryOptions;
+    this.#canceled = false;
 
     this.#stack = [];
 
@@ -70,11 +72,25 @@ export class CallContext {
     this.#config = config;
   }
 
+  cancel(): void {
+    this.#canceled = true;
+  }
+  resetCancellation() {
+    this.#canceled = false;
+  }
+  ensureNotCancelled() {
+    if (this.#canceled) {
+      throw new Error('Called cancelled');
+    }
+  }
+
   /**
    * Allocate a chunk of host memory visible to plugins via other extism host functions.
    * Returns the start address of the block.
    */
   alloc(size: bigint | number): bigint {
+    this.ensureNotCancelled();
+    
     const block = new Block(new this.#arrayBufferType(Number(size)), true);
     const index = this.#blocks.length;
     this.#blocks.push(block);
@@ -98,6 +114,8 @@ export class CallContext {
    * @returns {@link PluginOutput}
    */
   getVariable(name: string): PluginOutput | null {
+    this.ensureNotCancelled();
+
     if (!this.#vars.has(name)) {
       return null;
     }
@@ -112,6 +130,8 @@ export class CallContext {
    * @returns bigint
    */
   setVariable(name: string, value: string | Uint8Array): bigint {
+    this.ensureNotCancelled();
+
     const newIdx = this[STORE](value);
     if (newIdx === null) {
       return 0n;
@@ -138,6 +158,8 @@ export class CallContext {
    * @returns bigint
    */
   read(addr: bigint | number): PluginOutput | null {
+    this.ensureNotCancelled();
+
     const blockIdx = Block.addressToIndex(addr);
     const block = this.#blocks[blockIdx];
     if (!block) {
@@ -158,6 +180,8 @@ export class CallContext {
    * @returns bigint
    */
   store(input: string | Uint8Array): bigint {
+    this.ensureNotCancelled();
+
     const idx = this[STORE](input);
     if (!idx) {
       throw new Error('failed to store output');
@@ -166,6 +190,8 @@ export class CallContext {
   }
 
   length(addr: bigint): bigint {
+    this.ensureNotCancelled();
+    
     const blockIdx = Block.addressToIndex(addr);
     const block = this.#blocks[blockIdx];
     if (!block) {
@@ -177,14 +203,20 @@ export class CallContext {
   /** @hidden */
   [ENV] = {
     alloc: (n: bigint): bigint => {
+      this.ensureNotCancelled();
+
       return this.alloc(n);
     },
 
     free: (addr: number) => {
+      this.ensureNotCancelled();
+
       this.#blocks[Block.addressToIndex(addr)] = null;
     },
 
     load_u8: (addr: bigint): number => {
+      this.ensureNotCancelled();
+
       const blockIdx = Block.addressToIndex(addr);
       const offset = Block.maskAddress(addr);
       const block = this.#blocks[blockIdx];
@@ -192,6 +224,8 @@ export class CallContext {
     },
 
     load_u64: (addr: bigint): bigint => {
+      this.ensureNotCancelled();
+
       const blockIdx = Block.addressToIndex(addr);
       const offset = Block.maskAddress(addr);
       const block = this.#blocks[blockIdx];
@@ -199,6 +233,8 @@ export class CallContext {
     },
 
     store_u8: (addr: bigint, n: number) => {
+      this.ensureNotCancelled();
+
       const blockIdx = Block.addressToIndex(addr);
       const offset = Block.maskAddress(addr);
       const block = this.#blocks[blockIdx];
@@ -206,6 +242,8 @@ export class CallContext {
     },
 
     store_u64: (addr: bigint, n: bigint) => {
+      this.ensureNotCancelled();
+
       const blockIdx = Block.addressToIndex(addr);
       const offset = Block.maskAddress(addr);
       const block = this.#blocks[blockIdx];
@@ -213,25 +251,35 @@ export class CallContext {
     },
 
     input_offset: (): bigint => {
+      this.ensureNotCancelled();
+
       const blockIdx = this.#stack[this.#stack.length - 1][0];
       return Block.indexToAddress(blockIdx || 0);
     },
 
     input_length: (): bigint => {
+      this.ensureNotCancelled();
+
       return BigInt(this.#input?.byteLength ?? 0);
     },
 
     input_load_u8: (addr: bigint): number => {
+      this.ensureNotCancelled();
+
       const offset = Block.maskAddress(addr);
       return this.#input?.view.getUint8(Number(offset)) as number;
     },
 
     input_load_u64: (addr: bigint): bigint => {
+      this.ensureNotCancelled();
+
       const offset = Block.maskAddress(addr);
       return this.#input?.view.getBigUint64(Number(offset), true) as bigint;
     },
 
     output_set: (addr: bigint, length: bigint) => {
+      this.ensureNotCancelled();
+
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
@@ -246,6 +294,8 @@ export class CallContext {
     },
 
     error_set: (addr: bigint) => {
+      this.ensureNotCancelled();
+
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
@@ -256,6 +306,8 @@ export class CallContext {
     },
 
     config_get: (addr: bigint): bigint => {
+      this.ensureNotCancelled();
+
       const item = this.read(addr);
 
       if (item === null) {
@@ -272,6 +324,8 @@ export class CallContext {
     },
 
     var_get: (addr: bigint): bigint => {
+      this.ensureNotCancelled();
+
       const item = this.read(addr);
 
       if (item === null) {
@@ -283,6 +337,8 @@ export class CallContext {
     },
 
     var_set: (addr: bigint, valueaddr: bigint): 0n | undefined => {
+      this.ensureNotCancelled();
+
       const item = this.read(addr);
 
       if (item === null) {
@@ -308,24 +364,34 @@ export class CallContext {
     },
 
     http_request: (_requestOffset: bigint, _bodyOffset: bigint): bigint => {
+      this.ensureNotCancelled();
+
       this.#logger.error('http_request is not enabled');
       return 0n;
     },
 
     http_status_code: (): number => {
+      this.ensureNotCancelled();
+
       this.#logger.error('http_status_code is not enabled');
       return 0;
     },
 
     length: (addr: bigint): bigint => {
+      this.ensureNotCancelled();
+
       return this.length(addr);
     },
 
     length_unsafe: (addr: bigint): bigint => {
+      this.ensureNotCancelled();
+
       return this.length(addr);
     },
 
     log_warn: (addr: bigint) => {
+      this.ensureNotCancelled();
+
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
@@ -339,6 +405,8 @@ export class CallContext {
     },
 
     log_info: (addr: bigint) => {
+      this.ensureNotCancelled();
+
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
@@ -352,6 +420,8 @@ export class CallContext {
     },
 
     log_debug: (addr: bigint) => {
+      this.ensureNotCancelled();
+
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
@@ -365,6 +435,8 @@ export class CallContext {
     },
 
     log_error: (addr: bigint) => {
+      this.ensureNotCancelled();
+
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
@@ -380,6 +452,8 @@ export class CallContext {
 
   /** @hidden */
   get #input(): Block | null {
+    this.ensureNotCancelled();
+    
     const idx = this.#stack[this.#stack.length - 1][0];
     if (idx === null) {
       return null;

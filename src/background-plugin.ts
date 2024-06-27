@@ -142,9 +142,10 @@ class BackgroundPlugin {
 
   // host -> guest invoke()
   async call(funcName: string, input?: string | Uint8Array): Promise<PluginOutput | null> {
+    this.#context.resetCancellation();
     const index = this.#context[STORE](input);
 
-    const [errorIdx, outputIdx] = await withTimeout(this.callBlock(funcName, index), this.opts.timeoutMs);
+    const [errorIdx, outputIdx] = await withTimeout(this.callBlock(funcName, index), () => this.#context.cancel(), this.opts.timeoutMs);
 
     const shouldThrow = errorIdx !== null;
     const idx = errorIdx ?? outputIdx;
@@ -225,6 +226,7 @@ class BackgroundPlugin {
 
       this.#context[IMPORT_STATE](ev.state, true);
 
+      this.#context.ensureNotCancelled();
       const data = await func(this.#context, ...ev.args);
 
       const { blocks } = this.#context[EXPORT_STATE]();
