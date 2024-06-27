@@ -77,17 +77,15 @@ export class CallContext {
   alloc(size: bigint | number): bigint {
     const block = new Block(new this.#arrayBufferType(Number(size)), true);
     const index = this.#blocks.length;
-    const pageSize = 64 * 1024;
     this.#blocks.push(block);
 
-    // calculate number of 64KB pages
     if (this.#memoryOptions.maxPages) {
+      const pageSize = 64 * 1024;
       const totalBytes = this.#blocks.reduce((acc, block) => acc + (block?.buffer.byteLength ?? 0), 0)
       const totalPages = Math.ceil(totalBytes / pageSize);
 
       if (totalPages > this.#memoryOptions.maxPages) {
-        this.#logger.error(`memory limit exceeded: ${totalPages} pages requested, ${this.#memoryOptions.maxPages} allowed`);
-        return 0n;
+        throw Error(`memory limit exceeded: ${totalPages} pages requested, ${this.#memoryOptions.maxPages} allowed`);
       }
     }
 
@@ -299,10 +297,10 @@ export class CallContext {
 
       const valueBlock = this.#blocks[Block.addressToIndex(valueaddr)];
       if (this.#memoryOptions.maxVarBytes) {
-        const totalBytes = this.#blocks.reduce((acc, block) => acc + (block?.buffer.byteLength ?? 0), 0);
-        if (totalBytes + (valueBlock?.byteLength ?? 0) > this.#memoryOptions.maxVarBytes) {
-          this.#logger.error(`memory limit exceeded: ${totalBytes} bytes requested, ${this.#memoryOptions.maxVarBytes} allowed`);
-          return 0n;
+        const currentBytes = [...this.#vars.values()].map(idx => this.#blocks[idx]?.byteLength ?? 0).reduce((acc, length) => acc + length, 0)
+        const totalBytes = currentBytes + (valueBlock?.byteLength ?? 0);
+        if (totalBytes > this.#memoryOptions.maxVarBytes) {
+          throw Error(`var memory limit exceeded: ${totalBytes} bytes requested, ${this.#memoryOptions.maxVarBytes} allowed`);
         }
       }
 

@@ -330,6 +330,24 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
+  test('plugins cant allocate more var bytes than allowed', async () => {
+    const plugin = await createPlugin(
+      { wasm: [{ url: 'http://localhost:8124/wasm/memory.wasm' }], memory: { maxVarBytes: 100 } },
+      { useWasi: true });
+
+    try {
+      const [err, _] = await plugin.call('alloc_var', JSON.stringify({ bytes: 1024 })).then(
+        (data) => [null, data],
+        (err) => [err, null],
+      );
+
+      assert(err)
+      assert.equal(err.message, 'var memory limit exceeded: 1024 bytes requested, 100 allowed');
+    } finally {
+      await plugin.close();
+    }
+  });
+
   test('plugins can link', async () => {
     const plugin = await createPlugin({
       wasm: [
@@ -591,6 +609,26 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
+  test('plugins cant allocate more memory than allowed', async () => {
+    const plugin = await createPlugin(
+      { wasm: [{ url: 'http://localhost:8124/wasm/memory.wasm' }], memory: { maxPages: 2 } },
+      { useWasi: true });
+
+    const pageSize = 64 * 1024;
+
+    try {
+      const [err, _] = await plugin.call('alloc_memory', JSON.stringify({ bytes: pageSize * 5 })).then(
+        (data) => [null, data],
+        (err) => [err, null],
+      );
+
+      assert(err)
+      assert.equal(err.message, 'memory limit exceeded: 6 pages requested, 2 allowed');
+    } finally {
+      await plugin.close();
+    }
+  });
+
   test('plugin can call input_offset', async () => {
     const plugin = await createPlugin('http://localhost:8124/wasm/input_offset.wasm');
     try {
@@ -717,7 +755,7 @@ if (typeof WebAssembly === 'undefined') {
 
     test('we fallback to Manifest.allowedPaths if ExtismPluginOptions.allowedPaths is not specified', async () => {
       const plugin = await createPlugin(
-        { wasm: [{ url: 'http://localhost:8124/wasm/fs.wasm'}], allowedPaths: { '/mnt': 'tests/data' } },
+        { wasm: [{ url: 'http://localhost:8124/wasm/fs.wasm' }], allowedPaths: { '/mnt': 'tests/data' } },
         { useWasi: true }
       );
 

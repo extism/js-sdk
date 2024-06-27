@@ -111,6 +111,7 @@ export async function toWasmModuleData(
     allowedHosts: manifest.allowedHosts,
     config: manifest.config,
     timeoutMs: manifest.timeoutMs,
+    memory: manifest.memory
   };
 
   const manifestsWasm = await Promise.all(
