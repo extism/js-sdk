@@ -348,6 +348,23 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
+  test('plugins can allocate var bytes if allowed', async () => {
+    const plugin = await createPlugin(
+      { wasm: [{ url: 'http://localhost:8124/wasm/memory.wasm' }], memory: { maxVarBytes: 1024 } },
+      { useWasi: true });
+
+    try {
+      const [err, _] = await plugin.call('alloc_var', JSON.stringify({ bytes: 1024 })).then(
+        (data) => [null, data],
+        (err) => [err, null],
+      );
+
+      assert(err === null)
+    } finally {
+      await plugin.close();
+    }
+  });
+
   test('plugins can link', async () => {
     const plugin = await createPlugin({
       wasm: [
@@ -535,8 +552,8 @@ if (typeof WebAssembly === 'undefined') {
 
     test('http works as expected when host is allowed', async () => {
       const plugin = await createPlugin(
-        { wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http.wasm' }] },
-        { useWasi: true, functions: {}, runInWorker: true, allowedHosts: ['*.typicode.com'] },
+        { wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http.wasm' }], allowedHosts: ['*.typicode.com'], memory: { maxHttpResponseBytes: 100 * 1024 * 1024 } },
+        { useWasi: true, functions: {}, runInWorker: true },
       );
 
       try {
@@ -553,6 +570,27 @@ if (typeof WebAssembly === 'undefined') {
           title: 'delectus aut autem',
           completed: false,
         });
+      } finally {
+        await plugin.close();
+      }
+    });
+
+    test('http fails when body is larger than allowed', async () => {
+      const plugin = await createPlugin(
+        { wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http.wasm' }], allowedHosts: ['*.typicode.com'], memory: { maxHttpResponseBytes: 1 } },
+        { useWasi: true, functions: {}, runInWorker: true },
+      );
+
+      try {
+        const [err, _] = await plugin
+          .call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}')
+          .then(
+            (data) => [null, data],
+            (err) => [err, null],
+          );
+
+        assert(err)
+        assert.equal(err.message, 'Response body exceeded 1 bytes')
       } finally {
         await plugin.close();
       }
@@ -624,6 +662,25 @@ if (typeof WebAssembly === 'undefined') {
 
       assert(err)
       assert.equal(err.message, 'memory limit exceeded: 6 pages requested, 2 allowed');
+    } finally {
+      await plugin.close();
+    }
+  });
+
+  test('plugins can allocate memory if allowed', async () => {
+    const plugin = await createPlugin(
+      { wasm: [{ url: 'http://localhost:8124/wasm/memory.wasm' }], memory: { maxPages: 6 } },
+      { useWasi: true });
+
+    const pageSize = 64 * 1024;
+
+    try {
+      const [err, _] = await plugin.call('alloc_memory', JSON.stringify({ bytes: pageSize * 5 })).then(
+        (data) => [null, data],
+        (err) => [err, null],
+      );
+
+      assert(err === null)
     } finally {
       await plugin.close();
     }
