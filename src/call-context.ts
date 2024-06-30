@@ -220,7 +220,7 @@ export class CallContext {
       const blockIdx = Block.addressToIndex(addr);
       const offset = Block.maskAddress(addr);
       const block = this.#blocks[blockIdx];
-      return block?.view.getUint8(Number(offset)) as number;
+        return block?.view.getUint8(Number(offset)) as number;
     },
 
     load_u64: (addr: bigint): bigint => {

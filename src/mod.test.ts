@@ -324,9 +324,12 @@ if (typeof WebAssembly === 'undefined') {
         useWasi: true,
         functions: {
           "extism:host/user": {
-              notify() {
-                x++;
-              }
+            notify() {
+              x++;
+            },
+            get_now_ms() {
+              return BigInt(Date.now());
+            }
           }
         },
         runInWorker: true
@@ -350,15 +353,18 @@ if (typeof WebAssembly === 'undefined') {
 
   test('plugin functions cant exceed specified timeout - foreground', async () => {
     let x = 0;
-
     const plugin = await createPlugin(
-      { wasm: [{ url: 'http://localhost:8124/wasm/timeout.wasm' }], timeoutMs: 1 },
+      { wasm: [{ url: 'http://localhost:8124/wasm/timeout.wasm' }], timeoutMs: 100 },
       {
         useWasi: true,
         functions: {
           "extism:host/user": {
               notify() {
+                console.log("consider yourself notified")
                 x++;
+              },
+              get_now_ms() {
+                return BigInt(Date.now());
               }
           }
         },
@@ -366,7 +372,8 @@ if (typeof WebAssembly === 'undefined') {
       });
 
     try {
-      const [err, _] = await plugin.call('sleep', JSON.stringify({ duration_ms: 100000 })).then(
+
+      const [err, _] = await plugin.call('sleep', JSON.stringify({ duration_ms: 1000 })).then(
         (data) => [null, data],
         (err) => [err, null],
       );

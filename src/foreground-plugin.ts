@@ -118,7 +118,12 @@ export async function createForegroundPlugin(
   for (const namespace in opts.functions) {
     imports[namespace] = imports[namespace] || {};
     for (const func in opts.functions[namespace]) {
-      imports[namespace][func] = opts.functions[namespace][func].bind(null, context);
+      const hostFunction = opts.functions[namespace][func].bind(null, context);
+
+      imports[namespace][func] = (...args: any[]) => {
+        context.ensureNotCancelled();
+        return hostFunction(...args);
+      }
     }
   }
 
@@ -216,9 +221,9 @@ async function instantiateModule(
       const instance = providerExports.find((xs) => xs.name === '_start')
         ? await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, new Map())
         : !linked.has(provider)
-        ? (await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, linked),
-          linked.get(provider))
-        : linked.get(provider);
+          ? (await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, linked),
+            linked.get(provider))
+          : linked.get(provider);
 
       if (!instance) {
         // circular import, either make a trampoline or bail
@@ -259,10 +264,10 @@ async function instantiateModule(
   const guestType = instance.exports.hs_init
     ? 'haskell'
     : instance.exports._initialize
-    ? 'reactor'
-    : instance.exports._start
-    ? 'command'
-    : 'none';
+      ? 'reactor'
+      : instance.exports._start
+        ? 'command'
+        : 'none';
 
   if (wasi) {
     await wasi?.initialize(instance);
