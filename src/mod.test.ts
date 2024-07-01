@@ -319,7 +319,7 @@ if (typeof WebAssembly === 'undefined') {
     let x = 0;
 
     const plugin = await createPlugin(
-      { wasm: [{ url: 'http://localhost:8124/wasm/timeout.wasm' }], timeoutMs: 1 },
+      { wasm: [{ url: 'http://localhost:8124/wasm/sleep.wasm' }], timeoutMs: 1 },
       {
         useWasi: true,
         functions: {
@@ -354,7 +354,7 @@ if (typeof WebAssembly === 'undefined') {
   test('plugin functions cant exceed specified timeout - foreground', async () => {
     let x = 0;
     const plugin = await createPlugin(
-      { wasm: [{ url: 'http://localhost:8124/wasm/timeout.wasm' }], timeoutMs: 100 },
+      { wasm: [{ url: 'http://localhost:8124/wasm/sleep.wasm' }], timeoutMs: 100 },
       {
         useWasi: true,
         functions: {
