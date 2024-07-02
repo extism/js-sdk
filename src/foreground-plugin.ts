@@ -120,11 +120,7 @@ export async function createForegroundPlugin(
   for (const namespace in opts.functions) {
     imports[namespace] = imports[namespace] || {};
     for (const func in opts.functions[namespace]) {
-      const hostFunction = opts.functions[namespace][func].bind(null, context);
-
-      imports[namespace][func] = (...args: any[]) => {
-        return hostFunction(...args);
-      }
+      imports[namespace][func] = opts.functions[namespace][func].bind(null, context);
     }
   }
 

@@ -194,8 +194,19 @@ export interface ExtismPluginOptions {
 }
 
 export type MemoryOptions = {
+  /**
+   * Maximum number of pages to allocate for the WebAssembly memory. Each page is 64KB.
+   */
   maxPages?: number | undefined;
+
+  /**
+   * Maximum number of bytes to read from an HTTP response.
+   */
   maxHttpResponseBytes?: number | undefined;
+
+  /**
+   * Maximum number of bytes to allocate for plugin Vars.
+   */
   maxVarBytes?: number | undefined;
 };
 
@@ -316,16 +327,30 @@ export interface Manifest {
    *
    * @example
    * ```ts
-   * await createPlugin('path/to/some/wasm', {
-   *   runInWorker: true,
+   * await createPlugin({
+   *   wasm: [{name: 'my-wasm', url: 'http://example.com/path/to/wasm'}]
    *   allowedHosts: ['*.example.com', 'www.dylibso.com']
+   * }, {
+   *   runInWorker: true,
    * })
    * ```
    */
   allowedHosts?: string[] | undefined;
 
   /**
-   * Plugin call timeout in milliseconds
+   * Plugin call timeout in milliseconds.
+   * 
+   * Requires the plugin to run in a worker using `runInWorker: true`.
+   *
+   * @example
+   * ```ts
+   * await createPlugin({
+   *   wasm: [{name: 'my-wasm', url: 'http://example.com/path/to/wasm'}]
+   *   timeoutMs: 2000,
+   * }, {
+   *   runInWorker: true,
+   * })
+   * ```
    */
   timeoutMs?: number | undefined;
 
