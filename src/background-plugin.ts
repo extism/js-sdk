@@ -159,10 +159,7 @@ class BackgroundPlugin {
   async call(funcName: string, input?: string | Uint8Array): Promise<PluginOutput | null> {
     const index = this.#context[STORE](input);
 
-    const [errorIdx, outputIdx] = await withTimeout(
-      this.callBlock(funcName, index),
-      async () => await this.restartWorker(),
-      this.opts.timeoutMs);
+    const [errorIdx, outputIdx] = await this.callBlock(funcName, index);
 
     const shouldThrow = errorIdx !== null;
     const idx = errorIdx ?? outputIdx;
