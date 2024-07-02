@@ -37,7 +37,7 @@ const AtomicsWaitAsync =
   })();
 
 class BackgroundPlugin {
-  worker?: Worker;
+  worker: Worker;
   sharedData: SharedArrayBuffer;
   sharedDataView: DataView;
   hostFlag: Int32Array;
