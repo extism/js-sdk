@@ -1,7 +1,7 @@
 /*eslint-disable no-empty*/
 import { CallContext, RESET, IMPORT_STATE, EXPORT_STATE, STORE, GET_BLOCK } from './call-context.ts';
 import { MemoryOptions, PluginOutput, SAB_BASE_OFFSET, SharedArrayBufferSection, type InternalConfig } from './interfaces.ts';
-import { readBodyUpTo } from './utils.ts';
+import { readBodyUpTo, withTimeout } from './utils.ts';
 import { WORKER_URL } from './worker-url.ts';
 import { Worker } from 'node:worker_threads';
 import { CAPABILITIES } from './polyfills/deno-capabilities.ts';
@@ -56,14 +56,15 @@ class BackgroundPlugin {
     this.names = names;
     this.modules = modules;
     this.#context = context;
-
-    this.hostFlag[0] = SAB_BASE_OFFSET;
   }
 
   async restartWorker() {
     if (this.worker) {
       this.worker.terminate();
     }
+
+    this.#context[RESET]();
+    this.#request = null;
 
     this.worker = await createWorker(this.opts, this.names, this.modules, this.sharedData);
     this.worker.on('message', (ev) => this.#handleMessage(ev));
@@ -158,7 +159,10 @@ class BackgroundPlugin {
   async call(funcName: string, input?: string | Uint8Array): Promise<PluginOutput | null> {
     const index = this.#context[STORE](input);
 
-    const [errorIdx, outputIdx] = await this.callBlock(funcName, index);
+    const [errorIdx, outputIdx] = await withTimeout(
+      this.callBlock(funcName, index),
+      async () => await this.restartWorker(),
+      this.opts.timeoutMs);
 
     const shouldThrow = errorIdx !== null;
     const idx = errorIdx ?? outputIdx;
