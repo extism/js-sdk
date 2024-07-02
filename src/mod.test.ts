@@ -351,40 +351,30 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('plugin functions cant exceed specified timeout - foreground', async () => {
+  test('foreground plugin fails when timeout is specified', async () => {
     let x = 0;
-    const plugin = await createPlugin(
-      { wasm: [{ url: 'http://localhost:8124/wasm/sleep.wasm' }], timeoutMs: 100 },
-      {
-        useWasi: true,
-        functions: {
-          "extism:host/user": {
+    try {
+      const _ = await createPlugin(
+        { wasm: [{ url: 'http://localhost:8124/wasm/sleep.wasm' }], timeoutMs: 100 },
+        {
+          useWasi: true,
+          functions: {
+            "extism:host/user": {
               notify() {
-                console.log("consider yourself notified")
                 x++;
               },
               get_now_ms() {
                 return BigInt(Date.now());
               }
-          }
-        },
-        runInWorker: false
-      });
+            }
+          },
+          runInWorker: false
+        });
 
-    try {
-
-      const [err, _] = await plugin.call('sleep', JSON.stringify({ duration_ms: 1000 })).then(
-        (data) => [null, data],
-        (err) => [err, null],
-      );
-
-      assert(err)
-      assert.equal(err.message, 'Function call timed out');
-      await new Promise(resolve => setTimeout(resolve, 200));
-      assert.equal(x, 0)
-
-    } finally {
-      await plugin.close();
+      assert.fail('Expected an error to be thrown');
+    } catch (err) {
+      assert(err instanceof Error);
+      assert.equal(err.message, 'Foreground plugins do not support timeouts. Please set `runInWorker: true` in the plugin config.');
     }
   });
 

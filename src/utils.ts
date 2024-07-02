@@ -1,11 +1,11 @@
-export function withTimeout<T>(promise: Promise<T>, callback: () => void, timeoutMs?: number | undefined): Promise<T> {
+export function withTimeout<T>(promise: Promise<T>, callback: () => Promise<void>, timeoutMs?: number | undefined): Promise<T> {
     if (!timeoutMs) {
         return promise;
     }
 
     return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-            callback();
+        const timeout = setTimeout(async () => {
+            await callback();
             reject(new Error('Function call timed out'));
         }, timeoutMs);
 

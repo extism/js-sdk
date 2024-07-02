@@ -1,6 +1,5 @@
 import { CallContext, RESET, GET_BLOCK, BEGIN, END, ENV, STORE } from './call-context.ts';
 import { PluginOutput, type InternalConfig, InternalWasi } from './interfaces.ts';
-import { withTimeout } from './utils.ts';
 import { loadWasi } from './polyfills/deno-wasi.ts';
 
 export const EXTISM_ENV = 'extism:host/env';
@@ -63,10 +62,9 @@ export class ForegroundPlugin {
   }
 
   async call(funcName: string, input?: string | Uint8Array): Promise<PluginOutput | null> {
-    this.#context.resetCancellation();
     const inputIdx = this.#context[STORE](input);
 
-    const [errorIdx, outputIdx] = await withTimeout(this.callBlock(funcName, inputIdx), () => this.#context.cancel(), this.#opts.timeoutMs);
+    const [errorIdx, outputIdx] = await this.callBlock(funcName, inputIdx);
     const shouldThrow = errorIdx !== null;
     const idx = errorIdx ?? outputIdx;
 
@@ -110,6 +108,10 @@ export async function createForegroundPlugin(
   modules: WebAssembly.Module[],
   context: CallContext = new CallContext(ArrayBuffer, opts.logger, opts.config, opts.memory),
 ): Promise<ForegroundPlugin> {
+  if (opts.timeoutMs) {
+    throw new Error('Foreground plugins do not support timeouts. Please set `runInWorker: true` in the plugin config.');
+  }
+
   const imports: Record<string, Record<string, any>> = {
     [EXTISM_ENV]: context[ENV],
     env: {},
@@ -121,7 +123,6 @@ export async function createForegroundPlugin(
       const hostFunction = opts.functions[namespace][func].bind(null, context);
 
       imports[namespace][func] = (...args: any[]) => {
-        context.ensureNotCancelled();
         return hostFunction(...args);
       }
     }

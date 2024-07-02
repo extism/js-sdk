@@ -152,9 +152,12 @@ class Reactor {
     ) as unknown as Console;
 
     this.context = new CallContext(ArrayBuffer, logger, ev.config, ev.memory);
+    const ic = { ...opts, functions, fetch, logger } as InternalConfig;
+    ic.timeoutMs = 0; // timeout is handled by BackgroundPlugin
+
     // TODO: replace our internal fetch and logger
     this.plugin = await _createForegroundPlugin(
-      { ...opts, functions, fetch, logger } as InternalConfig,
+      ic,
       ev.names,
       modules,
       this.context,
