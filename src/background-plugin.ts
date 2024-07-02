@@ -1,7 +1,7 @@
 /*eslint-disable no-empty*/
 import { CallContext, RESET, IMPORT_STATE, EXPORT_STATE, STORE, GET_BLOCK } from './call-context.ts';
 import { MemoryOptions, PluginOutput, SAB_BASE_OFFSET, SharedArrayBufferSection, type InternalConfig } from './interfaces.ts';
-import { readBodyUpTo, withTimeout } from './utils.ts';
+import { readBodyUpTo } from './utils.ts';
 import { WORKER_URL } from './worker-url.ts';
 import { Worker } from 'node:worker_threads';
 import { CAPABILITIES } from './polyfills/deno-capabilities.ts';
@@ -42,86 +42,21 @@ class BackgroundPlugin {
   sharedDataView: DataView;
   hostFlag: Int32Array;
   opts: InternalConfig;
-  modules: WebAssembly.Module[];
-  names: string[];
 
   #context: CallContext;
   #request: [(result: any[]) => void, (result: any[]) => void] | null = null;
 
-  constructor(modules: WebAssembly.Module[], names: string[], sharedData: SharedArrayBuffer, opts: InternalConfig, context: CallContext) {
-    this.opts = opts;
-    this.modules = modules;
-    this.names = names;
+  constructor(worker: Worker, sharedData: SharedArrayBuffer, opts: InternalConfig, context: CallContext) {
+    this.worker = worker;
     this.sharedData = sharedData;
     this.sharedDataView = new DataView(sharedData);
     this.hostFlag = new Int32Array(sharedData);
     this.opts = opts;
     this.#context = context;
 
-    // make the type checker happy, even though we're going to overwrite it
-    this.worker = new Worker(WORKER_URL);
-  }
-
-  async restartWorker() {
-    // Terminate the current worker
-    if (this.worker) {
-      await this.worker.terminate();
-    }
-
-    // Create a new worker
-    this.worker = new Worker(WORKER_URL);
-
-    await this.initializeWorker();
-
-    this.#context[RESET]();
-
-    this.#request = null;
     this.hostFlag[0] = SAB_BASE_OFFSET;
 
-    // Reattach message handler
     this.worker.on('message', (ev) => this.#handleMessage(ev));
-  }
-
-  async initializeWorker() {
-    // Wait for the worker to send an 'initialized' message
-    await new Promise((resolve, reject) => {
-      const handler = (ev: any) => {
-        if (ev?.type === 'initialized') {
-          this.worker.removeListener('message', handler);
-          resolve(null);
-        } else {
-          reject(new Error(`Unexpected message during initialization: ${ev?.type}`));
-        }
-      };
-      this.worker.on('message', handler);
-    });
-
-    const { fetch: _, logger: __, ...rest } = this.opts;
-
-    // Send initialization message to the worker
-    const initMessage = {
-      ...rest,
-      type: 'init',
-      functions: Object.fromEntries(Object.entries(this.opts.functions || {}).map(([k, v]) => [k, Object.keys(v)])),
-      names: this.names,
-      modules: this.modules,
-      sharedData: this.sharedData,
-    };
-
-    this.worker.postMessage(initMessage);
-
-    // Wait for the worker to send a 'ready' message
-    await new Promise((resolve, reject) => {
-      const handler = (ev: any) => {
-        if (ev?.type === 'ready') {
-          this.worker.removeListener('message', handler);
-          resolve(null);
-        } else {
-          reject(new Error(`Unexpected message during ready state: ${ev?.type}`));
-        }
-      };
-      this.worker.on('message', handler);
-    });
   }
 
   async reset(): Promise<boolean> {
@@ -209,7 +144,7 @@ class BackgroundPlugin {
   async call(funcName: string, input?: string | Uint8Array): Promise<PluginOutput | null> {
     const index = this.#context[STORE](input);
 
-    const [errorIdx, outputIdx] = await withTimeout(this.callBlock(funcName, index), async () => await this.restartWorker(), this.opts.timeoutMs);
+    const [errorIdx, outputIdx] = await this.callBlock(funcName, index);
 
     const shouldThrow = errorIdx !== null;
     const idx = errorIdx ?? outputIdx;
@@ -278,7 +213,7 @@ class BackgroundPlugin {
     //
     // - https://github.com/nodejs/node/pull/44409
     // - https://github.com/denoland/deno/issues/14786
-    const timer = setInterval(() => { }, 0);
+    const timer = setInterval(() => {}, 0);
     try {
       if (!func) {
         throw Error(`Plugin error: host function "${ev.namespace}" "${ev.func}" does not exist`);
@@ -403,7 +338,7 @@ class RingBufferWriter {
 
   signal() {
     const old = Atomics.load(this.flag, 0);
-    while (Atomics.compareExchange(this.flag, 0, old, this.outputOffset) === old) { }
+    while (Atomics.compareExchange(this.flag, 0, old, this.outputOffset) === old) {}
     Atomics.notify(this.flag, 0, 1);
   }
 
@@ -537,19 +472,53 @@ export async function createBackgroundPlugin(
   names: string[],
   modules: WebAssembly.Module[],
 ): Promise<BackgroundPlugin> {
+  const worker = new Worker(WORKER_URL);
   const context = new CallContext(SharedArrayBuffer, opts.logger, opts.config, opts.memory);
   const httpContext = new HttpContext(opts.fetch, opts.allowedHosts, opts.memory);
   httpContext.contribute(opts.functions);
+
+  await new Promise((resolve, reject) => {
+    worker.on('message', function handler(ev) {
+      if (ev?.type !== 'initialized') {
+        reject(new Error(`received unexpected message (type=${ev?.type})`));
+      }
+
+      worker.removeListener('message', handler);
+      resolve(null);
+    });
+  });
 
   // NB(chrisdickinson): We *have* to create the SharedArrayBuffer in
   // the parent context because -- for whatever reason! -- chromium does
   // not allow the creation of shared buffers in worker contexts, but firefox
   // and webkit do.
   const sharedData = new (SharedArrayBuffer as any)(opts.sharedArrayBufferSize);
+
   new Uint8Array(sharedData).subarray(8).fill(0xfe);
 
-  const plugin = new BackgroundPlugin(modules, names, sharedData, opts, context);
-  await plugin.restartWorker();
+  const { fetch: _, logger: __, ...rest } = opts;
+  const message = {
+    ...rest,
+    type: 'init',
+    functions: Object.fromEntries(Object.entries(opts.functions || {}).map(([k, v]) => [k, Object.keys(v)])),
+    names,
+    modules,
+    sharedData,
+  };
 
-  return plugin;
+  const onready = new Promise((resolve, reject) => {
+    worker.on('message', function handler(ev) {
+      if (ev?.type !== 'ready') {
+        reject(new Error(`received unexpected message (type=${ev?.type})`));
+      }
+
+      worker.removeListener('message', handler);
+      resolve(null);
+    });
+  });
+
+  worker.postMessage(message);
+  await onready;
+
+  return new BackgroundPlugin(worker, sharedData, opts, context);
 }
