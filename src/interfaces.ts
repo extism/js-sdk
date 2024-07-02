@@ -193,6 +193,31 @@ export interface ExtismPluginOptions {
   sharedArrayBufferSize?: number;
 }
 
+export type MemoryOptions = {
+  /**
+   * Maximum number of pages to allocate for the WebAssembly memory. Each page is 64KB.
+   */
+  maxPages?: number | undefined;
+
+  /**
+   * Maximum number of bytes to read from an HTTP response.
+   */
+  maxHttpResponseBytes?: number | undefined;
+
+  /**
+   * Maximum number of bytes to allocate for plugin Vars.
+   */
+  maxVarBytes?: number | undefined;
+};
+
+export type ManifestOptions = {
+  allowedPaths?: { [key: string]: string } | undefined;
+  allowedHosts?: string[] | undefined;
+  config?: PluginConfigLike;
+  timeoutMs?: number | undefined;
+  memory?: MemoryOptions | undefined;
+};
+
 export interface InternalConfig {
   logger: Console;
   allowedHosts: string[];
@@ -203,6 +228,8 @@ export interface InternalConfig {
   wasiEnabled: boolean;
   config: PluginConfig;
   sharedArrayBufferSize: number;
+  timeoutMs?: number | undefined;
+  memory: MemoryOptions;
 }
 
 export interface InternalWasi {
@@ -291,6 +318,46 @@ export type ManifestWasm = (
 export interface Manifest {
   wasm: Array<ManifestWasm>;
   config?: PluginConfigLike;
+  allowedPaths?: { [key: string]: string } | undefined;
+
+  /**
+   * A list of allowed hostnames. Wildcard subdomains are supported via `*`.
+   *
+   * Requires the plugin to run in a worker using `runInWorker: true`.
+   *
+   * @example
+   * ```ts
+   * await createPlugin({
+   *   wasm: [{name: 'my-wasm', url: 'http://example.com/path/to/wasm'}]
+   *   allowedHosts: ['*.example.com', 'www.dylibso.com']
+   * }, {
+   *   runInWorker: true,
+   * })
+   * ```
+   */
+  allowedHosts?: string[] | undefined;
+
+  /**
+   * Plugin call timeout in milliseconds.
+   * 
+   * Requires the plugin to run in a worker using `runInWorker: true`.
+   *
+   * @example
+   * ```ts
+   * await createPlugin({
+   *   wasm: [{name: 'my-wasm', url: 'http://example.com/path/to/wasm'}]
+   *   timeoutMs: 2000,
+   * }, {
+   *   runInWorker: true,
+   * })
+   * ```
+   */
+  timeoutMs?: number | undefined;
+
+  /**
+   * Memory options
+   */
+  memory?: MemoryOptions | undefined;
 }
 
 /**

@@ -315,6 +315,69 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
+  // test('plugin functions cant exceed specified timeout', async () => {
+  //   let x = 0;
+
+  //   const plugin = await createPlugin(
+  //     { wasm: [{ url: 'http://localhost:8124/wasm/sleep.wasm' }], timeoutMs: 1 },
+  //     {
+  //       useWasi: true,
+  //       functions: {
+  //         "extism:host/user": {
+  //           notify() {
+  //             x++;
+  //           },
+  //           get_now_ms() {
+  //             return BigInt(Date.now());
+  //           }
+  //         }
+  //       },
+  //       runInWorker: true
+  //     });
+
+  //   try {
+  //     const [err, _] = await plugin.call('sleep', JSON.stringify({ duration_ms: 1000 })).then(
+  //       (data) => [null, data],
+  //       (err) => [err, null],
+  //     );
+
+  //     assert(err)
+  //     assert.equal(err.message, 'Function call timed out');
+  //     await new Promise(resolve => setTimeout(resolve, 200));
+  //     assert.equal(x, 0)
+
+  //   } finally {
+  //     await plugin.close();
+  //   }
+  // });
+
+  test('foreground plugin fails when timeout is specified', async () => {
+    let x = 0;
+    try {
+      const _ = await createPlugin(
+        { wasm: [{ url: 'http://localhost:8124/wasm/sleep.wasm' }], timeoutMs: 100 },
+        {
+          useWasi: true,
+          functions: {
+            "extism:host/user": {
+              notify() {
+                x++;
+              },
+              get_now_ms() {
+                return BigInt(Date.now());
+              }
+            }
+          },
+          runInWorker: false
+        });
+
+      assert.fail('Expected an error to be thrown');
+    } catch (err) {
+      assert(err instanceof Error);
+      assert.equal(err.message, 'Foreground plugins do not support timeouts. Please set `runInWorker: true` in the plugin config.');
+    }
+  });
+
   test('plugin can get/set variables', async () => {
     const plugin = await createPlugin('http://localhost:8124/wasm/var.wasm', { useWasi: true });
     try {
@@ -325,6 +388,41 @@ if (typeof WebAssembly === 'undefined') {
 
       assert.equal(err, null);
       assert.equal(data.string(), 'a: 0');
+    } finally {
+      await plugin.close();
+    }
+  });
+
+  test('plugins cant allocate more var bytes than allowed', async () => {
+    const plugin = await createPlugin(
+      { wasm: [{ url: 'http://localhost:8124/wasm/memory.wasm' }], memory: { maxVarBytes: 100 } },
+      { useWasi: true });
+
+    try {
+      const [err, _] = await plugin.call('alloc_var', JSON.stringify({ bytes: 1024 })).then(
+        (data) => [null, data],
+        (err) => [err, null],
+      );
+
+      assert(err)
+      assert.equal(err.message, 'var memory limit exceeded: 1024 bytes requested, 100 allowed');
+    } finally {
+      await plugin.close();
+    }
+  });
+
+  test('plugins can allocate var bytes if allowed', async () => {
+    const plugin = await createPlugin(
+      { wasm: [{ url: 'http://localhost:8124/wasm/memory.wasm' }], memory: { maxVarBytes: 1024 } },
+      { useWasi: true });
+
+    try {
+      const [err, _] = await plugin.call('alloc_var', JSON.stringify({ bytes: 1024 })).then(
+        (data) => [null, data],
+        (err) => [err, null],
+      );
+
+      assert(err === null)
     } finally {
       await plugin.close();
     }
@@ -517,8 +615,8 @@ if (typeof WebAssembly === 'undefined') {
 
     test('http works as expected when host is allowed', async () => {
       const plugin = await createPlugin(
-        { wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http.wasm' }] },
-        { useWasi: true, functions: {}, runInWorker: true, allowedHosts: ['*.typicode.com'] },
+        { wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http.wasm' }], allowedHosts: ['*.typicode.com'], memory: { maxHttpResponseBytes: 100 * 1024 * 1024 } },
+        { useWasi: true, functions: {}, runInWorker: true },
       );
 
       try {
@@ -529,6 +627,52 @@ if (typeof WebAssembly === 'undefined') {
             (err) => [err, null],
           );
         assert(err === null);
+        assert.deepEqual(data.json(), {
+          userId: 1,
+          id: 1,
+          title: 'delectus aut autem',
+          completed: false,
+        });
+      } finally {
+        await plugin.close();
+      }
+    });
+
+    test('http fails when body is larger than allowed', async () => {
+      const plugin = await createPlugin(
+        { wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http.wasm' }], allowedHosts: ['*.typicode.com'], memory: { maxHttpResponseBytes: 1 } },
+        { useWasi: true, functions: {}, runInWorker: true },
+      );
+
+      try {
+        const [err, _] = await plugin
+          .call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}')
+          .then(
+            (data) => [null, data],
+            (err) => [err, null],
+          );
+
+        assert(err)
+        assert.equal(err.message, 'Response body exceeded 1 bytes')
+      } finally {
+        await plugin.close();
+      }
+    });
+
+    test('we fallback to Manifest.allowedHosts if ExtismPluginOptions.allowedHosts is not specified', async () => {
+      const plugin = await createPlugin(
+        { wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http.wasm' }], allowedHosts: ['*.typicode.com'] },
+        { useWasi: true, functions: {}, runInWorker: true },
+      );
+
+      try {
+        const [err, data] = await plugin
+          .call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}')
+          .then(
+            (data) => [null, data],
+            (err) => [err, null],
+          );
+        assert.equal(err, null);
         assert.deepEqual(data.json(), {
           userId: 1,
           id: 1,
@@ -566,6 +710,45 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
+  test('plugins cant allocate more memory than allowed', async () => {
+    const plugin = await createPlugin(
+      { wasm: [{ url: 'http://localhost:8124/wasm/memory.wasm' }], memory: { maxPages: 2 } },
+      { useWasi: true });
+
+    const pageSize = 64 * 1024;
+
+    try {
+      const [err, _] = await plugin.call('alloc_memory', JSON.stringify({ bytes: pageSize * 5 })).then(
+        (data) => [null, data],
+        (err) => [err, null],
+      );
+
+      assert(err)
+      assert.equal(err.message, 'memory limit exceeded: 6 pages requested, 2 allowed');
+    } finally {
+      await plugin.close();
+    }
+  });
+
+  test('plugins can allocate memory if allowed', async () => {
+    const plugin = await createPlugin(
+      { wasm: [{ url: 'http://localhost:8124/wasm/memory.wasm' }], memory: { maxPages: 6 } },
+      { useWasi: true });
+
+    const pageSize = 64 * 1024;
+
+    try {
+      const [err, _] = await plugin.call('alloc_memory', JSON.stringify({ bytes: pageSize * 5 })).then(
+        (data) => [null, data],
+        (err) => [err, null],
+      );
+
+      assert(err === null)
+    } finally {
+      await plugin.close();
+    }
+  });
+
   test('plugin can call input_offset', async () => {
     const plugin = await createPlugin('http://localhost:8124/wasm/input_offset.wasm');
     try {
@@ -597,6 +780,25 @@ if (typeof WebAssembly === 'undefined') {
         config: { greeting: 'Howdy' },
         useWasi: true,
       });
+
+      try {
+        let output = await plugin.call('testing', 'John');
+
+        assert.equal(output?.string(), 'Howdy, John');
+
+        output = await plugin.call('testing', 'Ben');
+        assert(output !== null);
+        assert.equal(output?.string(), 'Howdy, Ben');
+      } finally {
+        await plugin.close();
+      }
+    });
+
+    test('we fallback to Manifest.config if ExtismPluginOptions.config is not specified', async () => {
+      const plugin = await createPlugin(
+        { wasm: [{ url: 'http://localhost:8124/wasm/hello_haskell.wasm' }], config: { greeting: 'Howdy' } },
+        { useWasi: true }
+      );
 
       try {
         let output = await plugin.call('testing', 'John');
@@ -660,6 +862,22 @@ if (typeof WebAssembly === 'undefined') {
         allowedPaths: { '/mnt': 'tests/data' },
         useWasi: true,
       });
+
+      try {
+        const output = await plugin.call('run_test', '');
+        assert(output !== null);
+        const result = output.string();
+        assert.equal(result, 'hello world!');
+      } finally {
+        await plugin.close();
+      }
+    });
+
+    test('we fallback to Manifest.allowedPaths if ExtismPluginOptions.allowedPaths is not specified', async () => {
+      const plugin = await createPlugin(
+        { wasm: [{ url: 'http://localhost:8124/wasm/fs.wasm' }], allowedPaths: { '/mnt': 'tests/data' } },
+        { useWasi: true }
+      );
 
       try {
         const output = await plugin.call('run_test', '');
