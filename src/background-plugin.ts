@@ -1,7 +1,7 @@
 /*eslint-disable no-empty*/
 import { CallContext, RESET, IMPORT_STATE, EXPORT_STATE, STORE, GET_BLOCK } from './call-context.ts';
 import { MemoryOptions, PluginOutput, SAB_BASE_OFFSET, SharedArrayBufferSection, type InternalConfig } from './interfaces.ts';
-import { readBodyUpTo, withTimeout } from './utils.ts';
+import { readBodyUpTo } from './utils.ts';
 import { WORKER_URL } from './worker-url.ts';
 import { Worker } from 'node:worker_threads';
 import { CAPABILITIES } from './polyfills/deno-capabilities.ts';
@@ -157,42 +157,31 @@ class BackgroundPlugin {
   async call(funcName: string, input?: string | Uint8Array): Promise<PluginOutput | null> {
     const index = this.#context[STORE](input);
 
-    try {
-      const [errorIdx, outputIdx] = CAPABILITIES.supportsTimeouts ?
-        await withTimeout(this.callBlock(funcName, index), this.opts.timeoutMs) :
-        await this.callBlock(funcName, index);
+    const [errorIdx, outputIdx] = await this.callBlock(funcName, index);
 
-      const shouldThrow = errorIdx !== null;
-      const idx = errorIdx ?? outputIdx;
+    const shouldThrow = errorIdx !== null;
+    const idx = errorIdx ?? outputIdx;
 
-      if (idx === null) {
-        return null;
-      }
-
-      const block = this.#context[GET_BLOCK](idx);
-
-      if (block === null) {
-        return null;
-      }
-
-      const buf = new PluginOutput(
-        CAPABILITIES.allowSharedBufferCodec ? block.buffer : new Uint8Array(block.buffer).slice().buffer,
-      );
-
-      if (shouldThrow) {
-        const msg = new TextDecoder().decode(buf);
-        throw new Error(`Plugin-originated error: ${msg}`);
-      }
-
-      return buf;
-    } catch (err) {
-      if (err instanceof Error && err.message === 'Function call timed out') {
-        console.log('Function call timed out, restarting worker')
-        await this.restartWorker();
-      }
-
-      throw err;
+    if (idx === null) {
+      return null;
     }
+
+    const block = this.#context[GET_BLOCK](idx);
+
+    if (block === null) {
+      return null;
+    }
+
+    const buf = new PluginOutput(
+      CAPABILITIES.allowSharedBufferCodec ? block.buffer : new Uint8Array(block.buffer).slice().buffer,
+    );
+
+    if (shouldThrow) {
+      const msg = new TextDecoder().decode(buf);
+      throw new Error(`Plugin-originated error: ${msg}`);
+    }
+
+    return buf;
   }
 
   async callBlock(funcName: string, input: number | null): Promise<[number | null, number | null]> {
@@ -221,13 +210,10 @@ class BackgroundPlugin {
   }
 
   async close(): Promise<void> {
-    console.log("inside close")
     if (this.worker) {
-      console.log('YOOOOOOOOOOOOOO: terminating worker');
       this.worker.terminate();
-      //this.worker = null as any;
+      this.worker = null as any;
     }
-    console.log("outside close")
   }
 
   // guest -> host invoke()

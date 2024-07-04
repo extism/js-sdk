@@ -214,7 +214,6 @@ export type ManifestOptions = {
   allowedPaths?: { [key: string]: string } | undefined;
   allowedHosts?: string[] | undefined;
   config?: PluginConfigLike;
-  timeoutMs?: number | undefined;
   memory?: MemoryOptions | undefined;
 };
 
@@ -228,7 +227,6 @@ export interface InternalConfig {
   wasiEnabled: boolean;
   config: PluginConfig;
   sharedArrayBufferSize: number;
-  timeoutMs?: number | undefined;
   memory: MemoryOptions;
 }
 
@@ -336,23 +334,6 @@ export interface Manifest {
    * ```
    */
   allowedHosts?: string[] | undefined;
-
-  /**
-   * Plugin call timeout in milliseconds.
-   * 
-   * Requires the plugin to run in a worker using `runInWorker: true`.
-   *
-   * @example
-   * ```ts
-   * await createPlugin({
-   *   wasm: [{name: 'my-wasm', url: 'http://example.com/path/to/wasm'}]
-   *   timeoutMs: 2000,
-   * }, {
-   *   runInWorker: true,
-   * })
-   * ```
-   */
-  timeoutMs?: number | undefined;
 
   /**
    * Memory options
@@ -474,18 +455,6 @@ export interface Capabilities {
    * This value is consulted whenever {@link ExtismPluginOptions#enableWasiOutput} is omitted.
    */
   extismStdoutEnvVarSet: boolean;
-
-  /**
-   * Whether or not the host environment supports timeouts on plugin calls.
-   *
-   * - ✅ node
-   * - ✅ deno
-   * - ❌ bun
-   * - ❌ firefox
-   * - ❌ chrome
-   * - ❌ webkit
-   */
-  supportsTimeouts: boolean;
 }
 
 export const SAB_BASE_OFFSET = 4;

@@ -108,10 +108,6 @@ export async function createForegroundPlugin(
   modules: WebAssembly.Module[],
   context: CallContext = new CallContext(ArrayBuffer, opts.logger, opts.config, opts.memory),
 ): Promise<ForegroundPlugin> {
-  if (opts.timeoutMs) {
-    throw new Error('Foreground plugins do not support timeouts. Please set `runInWorker: true` in the plugin config.');
-  }
-
   const imports: Record<string, Record<string, any>> = {
     [EXTISM_ENV]: context[ENV],
     env: {},

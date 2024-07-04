@@ -95,10 +95,6 @@ export async function createPlugin(
   opts.allowedHosts = opts.allowedHosts || manifestOpts.allowedHosts || [];
   opts.config = opts.config || manifestOpts.config || {};
 
-  if (manifestOpts.timeoutMs && !CAPABILITIES.supportsTimeouts) {
-    throw new Error('Cannot set timeoutMs; current context does not support timeouts');
-  }
-
   const ic: InternalConfig = {
     allowedHosts: opts.allowedHosts as [],
     allowedPaths: opts.allowedPaths,
@@ -109,7 +105,6 @@ export async function createPlugin(
     config: opts.config,
     enableWasiOutput: opts.enableWasiOutput,
     sharedArrayBufferSize: Number(opts.sharedArrayBufferSize) || 1 << 16,
-    timeoutMs: manifestOpts.timeoutMs,
     memory: manifestOpts.memory ?? {},
   };
 

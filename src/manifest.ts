@@ -84,7 +84,6 @@ function parseManifestFromJson(json: string): Manifest {
     allowedPaths: parsed.allowed_paths,
     allowedHosts: parsed.allowed_hosts,
     config: parsed.config,
-    timeoutMs: parsed.timeout_ms,
     memory: {
       maxHttpResponseBytes: parsed.memory?.max_http_response_bytes,
       maxPages: parsed.memory?.max_pages,
@@ -110,7 +109,6 @@ export async function toWasmModuleData(
     allowedPaths: manifest.allowedPaths,
     allowedHosts: manifest.allowedHosts,
     config: manifest.config,
-    timeoutMs: manifest.timeoutMs,
     memory: manifest.memory
   };
 

@@ -17,7 +17,5 @@ export const CAPABILITIES: Capabilities = {
 
   supportsWasiPreview1: true,
 
-  extismStdoutEnvVarSet: Boolean(process.env.EXTISM_ENABLE_WASI_OUTPUT),
-
-  supportsTimeouts: true,
+  extismStdoutEnvVarSet: Boolean(process.env.EXTISM_ENABLE_WASI_OUTPUT)
 };
