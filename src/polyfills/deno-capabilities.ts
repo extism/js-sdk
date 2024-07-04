@@ -20,4 +20,6 @@ export const CAPABILITIES: Capabilities = {
   supportsWasiPreview1: true,
 
   extismStdoutEnvVarSet: Boolean(Deno.env.get('EXTISM_ENABLE_WASI_OUTPUT')),
+
+  supportsTimeouts: true,
 };

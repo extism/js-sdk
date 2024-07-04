@@ -21,4 +21,6 @@ export const CAPABILITIES: Capabilities = {
   supportsWasiPreview1: true,
 
   extismStdoutEnvVarSet: false,
+
+  supportsTimeouts: false,
 };

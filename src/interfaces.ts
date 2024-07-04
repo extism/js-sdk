@@ -474,6 +474,18 @@ export interface Capabilities {
    * This value is consulted whenever {@link ExtismPluginOptions#enableWasiOutput} is omitted.
    */
   extismStdoutEnvVarSet: boolean;
+
+  /**
+   * Whether or not the host environment supports timeouts on plugin calls.
+   *
+   * - ✅ node
+   * - ✅ deno
+   * - ❌ bun
+   * - ❌ firefox
+   * - ❌ chrome
+   * - ❌ webkit
+   */
+  supportsTimeouts: boolean;
 }
 
 export const SAB_BASE_OFFSET = 4;
