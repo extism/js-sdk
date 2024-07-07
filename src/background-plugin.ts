@@ -484,7 +484,7 @@ class HttpContext {
     } catch (err) {
       if (err instanceof Error ) {
         const ptr = callContext.store(new TextEncoder().encode(err.message));
-        callContext[ENV].error_set(ptr);
+        callContext[ENV].log_error(ptr);
         return 0n;
       }
       return 0n;
