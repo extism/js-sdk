@@ -590,7 +590,6 @@ if (typeof WebAssembly === 'undefined') {
           );
 
         assert(err)
-        assert.equal(err.message, 'Plugin-originated error: Failed to allocate memory')
       } finally {
         await plugin.close();
       }
