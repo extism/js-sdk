@@ -48,7 +48,7 @@ class BackgroundPlugin {
   #context: CallContext;
   #request: [(result: any[]) => void, (result: any[]) => void] | null = null;
 
-  constructor(sharedData: SharedArrayBuffer, names: string[], modules: WebAssembly.Module[], opts: InternalConfig, context: CallContext) {
+  constructor(worker: Worker, sharedData: SharedArrayBuffer, names: string[], modules: WebAssembly.Module[], opts: InternalConfig, context: CallContext) {
     this.sharedData = sharedData;
     this.sharedDataView = new DataView(sharedData);
     this.hostFlag = new Int32Array(sharedData);
@@ -58,10 +58,17 @@ class BackgroundPlugin {
     this.#context = context;
 
     this.hostFlag[0] = SAB_BASE_OFFSET;
+    this.setWorker(worker);
   }
 
   async restartWorker() {
     await this.close();
+
+    const worker = await createWorker(this.opts, this.names, this.modules, this.sharedData);
+    this.setWorker(worker);
+  }
+
+  setWorker(worker: Worker) {
 
     this.#context[RESET]();
 
@@ -70,7 +77,7 @@ class BackgroundPlugin {
     }
     this.#request = null;
 
-    this.worker = await createWorker(this.opts, this.names, this.modules, this.sharedData);
+    this.worker = worker;
     this.worker.on('message', (ev) => this.#handleMessage(ev));
   }
 
@@ -511,10 +518,8 @@ export async function createBackgroundPlugin(
   const sharedData = new (SharedArrayBuffer as any)(opts.sharedArrayBufferSize);
   new Uint8Array(sharedData).subarray(8).fill(0xfe);
 
-  const plugin = new BackgroundPlugin(sharedData, names, modules, opts, context);
-  await plugin.restartWorker();
-
-  return plugin;
+  const worker = await createWorker(opts, names, modules, sharedData);
+  return new BackgroundPlugin(worker, sharedData, names, modules, opts, context);
 }
 
 async function createWorker(
