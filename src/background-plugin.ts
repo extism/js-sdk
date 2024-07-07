@@ -41,14 +41,14 @@ class BackgroundPlugin {
   sharedDataView: DataView;
   hostFlag: Int32Array;
   opts: InternalConfig;
-  worker: Worker;
+  worker?: Worker | undefined;
   modules: WebAssembly.Module[];
   names: string[];
 
   #context: CallContext;
   #request: [(result: any[]) => void, (result: any[]) => void] | null = null;
 
-  constructor(worker: Worker, sharedData: SharedArrayBuffer, names: string[], modules: WebAssembly.Module[], opts: InternalConfig, context: CallContext) {
+  constructor(sharedData: SharedArrayBuffer, names: string[], modules: WebAssembly.Module[], opts: InternalConfig, context: CallContext) {
     this.sharedData = sharedData;
     this.sharedDataView = new DataView(sharedData);
     this.hostFlag = new Int32Array(sharedData);
@@ -58,7 +58,6 @@ class BackgroundPlugin {
     this.#context = context;
 
     this.hostFlag[0] = SAB_BASE_OFFSET;
-    this.worker = worker;
   }
 
   async restartWorker() {
@@ -142,6 +141,10 @@ class BackgroundPlugin {
     });
 
     this.#request = [resolve as any, reject as any];
+
+    if (!this.worker) {
+      throw new Error('worker not initialized');
+    }
 
     this.worker.postMessage({
       type: 'invoke',
@@ -475,12 +478,12 @@ class HttpContext {
 
     try {
       let bytes = this.memoryOptions.maxHttpResponseBytes ?
-      await readBodyUpTo(response, this.memoryOptions.maxHttpResponseBytes) :
-      new Uint8Array(await response.arrayBuffer());
+        await readBodyUpTo(response, this.memoryOptions.maxHttpResponseBytes) :
+        new Uint8Array(await response.arrayBuffer());
 
-    const result = callContext.store(bytes);
+      const result = callContext.store(bytes);
 
-    return result;
+      return result;
     } catch (err) {
       if (err instanceof Error) {
         const ptr = callContext.store(new TextEncoder().encode(err.message));
@@ -508,8 +511,10 @@ export async function createBackgroundPlugin(
   const sharedData = new (SharedArrayBuffer as any)(opts.sharedArrayBufferSize);
   new Uint8Array(sharedData).subarray(8).fill(0xfe);
 
-  const worker = await createWorker(opts, names, modules, sharedData);
-  return new BackgroundPlugin(worker, sharedData, names, modules, opts, context);
+  const plugin = new BackgroundPlugin(sharedData, names, modules, opts, context);
+  await plugin.restartWorker();
+
+  return plugin;
 }
 
 async function createWorker(

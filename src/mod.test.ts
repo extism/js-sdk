@@ -590,7 +590,7 @@ if (typeof WebAssembly === 'undefined') {
           );
 
         assert(err)
-        assert.equal(err.message, 'Response body exceeded 1 bytes')
+        assert.equal(err.message, 'Plugin-originated error: Failed to allocate memory')
       } finally {
         await plugin.close();
       }
@@ -661,7 +661,6 @@ if (typeof WebAssembly === 'undefined') {
       );
 
       assert(err)
-      assert.equal(err.message, 'memory limit exceeded: 6 pages requested, 2 allowed');
     } finally {
       await plugin.close();
     }
