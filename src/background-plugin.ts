@@ -1,5 +1,5 @@
 /*eslint-disable no-empty*/
-import { CallContext, RESET, IMPORT_STATE, EXPORT_STATE, STORE, GET_BLOCK } from './call-context.ts';
+import { CallContext, RESET, IMPORT_STATE, EXPORT_STATE, STORE, GET_BLOCK, ENV } from './call-context.ts';
 import { MemoryOptions, PluginOutput, SAB_BASE_OFFSET, SharedArrayBufferSection, type InternalConfig } from './interfaces.ts';
 import { readBodyUpTo } from './utils.ts';
 import { WORKER_URL } from './worker-url.ts';
@@ -41,14 +41,14 @@ class BackgroundPlugin {
   sharedDataView: DataView;
   hostFlag: Int32Array;
   opts: InternalConfig;
-  worker?: Worker;
+  worker: Worker;
   modules: WebAssembly.Module[];
   names: string[];
 
   #context: CallContext;
   #request: [(result: any[]) => void, (result: any[]) => void] | null = null;
 
-  constructor(sharedData: SharedArrayBuffer, names: string[], modules: WebAssembly.Module[], opts: InternalConfig, context: CallContext) {
+  constructor(worker: Worker, sharedData: SharedArrayBuffer, names: string[], modules: WebAssembly.Module[], opts: InternalConfig, context: CallContext) {
     this.sharedData = sharedData;
     this.sharedDataView = new DataView(sharedData);
     this.hostFlag = new Int32Array(sharedData);
@@ -56,12 +56,19 @@ class BackgroundPlugin {
     this.names = names;
     this.modules = modules;
     this.#context = context;
+
+    this.hostFlag[0] = SAB_BASE_OFFSET;
+    this.worker = worker;
   }
 
   async restartWorker() {
     await this.close();
 
     this.#context[RESET]();
+
+    if (this.#request) {
+      this.#request[1]([new Error('Call canceled due to call to restartWorker()')])
+    }
     this.#request = null;
 
     this.worker = await createWorker(this.opts, this.names, this.modules, this.sharedData);
@@ -135,10 +142,6 @@ class BackgroundPlugin {
     });
 
     this.#request = [resolve as any, reject as any];
-
-    if (!this.worker) {
-      throw new Error('worker has crashed');
-    }
 
     this.worker.postMessage({
       type: 'invoke',
@@ -470,13 +473,22 @@ class HttpContext {
 
     this.lastStatusCode = response.status;
 
-    let bytes = this.memoryOptions.maxHttpResponseBytes ?
+    try {
+      let bytes = this.memoryOptions.maxHttpResponseBytes ?
       await readBodyUpTo(response, this.memoryOptions.maxHttpResponseBytes) :
       new Uint8Array(await response.arrayBuffer());
 
     const result = callContext.store(bytes);
 
     return result;
+    } catch (err) {
+      if (err instanceof Error ) {
+        const ptr = callContext.store(new TextEncoder().encode(err.message));
+        callContext[ENV].error_set(ptr);
+        return 0n;
+      }
+      return 0n;
+    }
   }
 }
 
@@ -496,10 +508,8 @@ export async function createBackgroundPlugin(
   const sharedData = new (SharedArrayBuffer as any)(opts.sharedArrayBufferSize);
   new Uint8Array(sharedData).subarray(8).fill(0xfe);
 
-  const plugin = new BackgroundPlugin(sharedData, names, modules, opts, context);
-  await plugin.restartWorker();
-
-  return plugin;
+  const worker = await createWorker(opts, names, modules, sharedData);
+  return new BackgroundPlugin(worker, sharedData, names, modules, opts, context);
 }
 
 async function createWorker(

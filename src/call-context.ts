@@ -85,7 +85,8 @@ export class CallContext {
       const totalPages = Math.ceil(totalBytes / pageSize);
 
       if (totalPages > this.#memoryOptions.maxPages) {
-        throw Error(`memory limit exceeded: ${totalPages} pages requested, ${this.#memoryOptions.maxPages} allowed`);
+        this.#logger.error(`memory limit exceeded: ${totalPages} pages requested, ${this.#memoryOptions.maxPages} allowed`);
+        return 0n;
       }
     }
 
