@@ -11,11 +11,13 @@ export class ForegroundPlugin {
   #instancePair: InstantiatedModule;
   #active: boolean = false;
   #wasi: InternalWasi[];
+  #opts: InternalConfig;
 
-  constructor(context: CallContext, instancePair: InstantiatedModule, wasi: InternalWasi[]) {
+  constructor(opts: InternalConfig, context: CallContext, instancePair: InstantiatedModule, wasi: InternalWasi[]) {
     this.#context = context;
     this.#instancePair = instancePair;
     this.#wasi = wasi;
+    this.#opts = opts;
   }
 
   async reset(): Promise<boolean> {
@@ -61,6 +63,7 @@ export class ForegroundPlugin {
 
   async call(funcName: string, input?: string | Uint8Array): Promise<PluginOutput | null> {
     const inputIdx = this.#context[STORE](input);
+
     const [errorIdx, outputIdx] = await this.callBlock(funcName, inputIdx);
     const shouldThrow = errorIdx !== null;
     const idx = errorIdx ?? outputIdx;
@@ -103,7 +106,7 @@ export async function createForegroundPlugin(
   opts: InternalConfig,
   names: string[],
   modules: WebAssembly.Module[],
-  context: CallContext = new CallContext(ArrayBuffer, opts.logger, opts.config),
+  context: CallContext = new CallContext(ArrayBuffer, opts.logger, opts.config, opts.memory),
 ): Promise<ForegroundPlugin> {
   const imports: Record<string, Record<string, any>> = {
     [EXTISM_ENV]: context[ENV],
@@ -127,7 +130,7 @@ export async function createForegroundPlugin(
 
   const instance = await instantiateModule(['main'], modules[mainIndex], imports, opts, wasiList, names, modules, seen);
 
-  return new ForegroundPlugin(context, [modules[mainIndex], instance], wasiList);
+  return new ForegroundPlugin(opts, context, [modules[mainIndex], instance], wasiList);
 }
 
 async function instantiateModule(
@@ -211,9 +214,9 @@ async function instantiateModule(
       const instance = providerExports.find((xs) => xs.name === '_start')
         ? await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, new Map())
         : !linked.has(provider)
-        ? (await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, linked),
-          linked.get(provider))
-        : linked.get(provider);
+          ? (await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, linked),
+            linked.get(provider))
+          : linked.get(provider);
 
       if (!instance) {
         // circular import, either make a trampoline or bail
@@ -254,10 +257,10 @@ async function instantiateModule(
   const guestType = instance.exports.hs_init
     ? 'haskell'
     : instance.exports._initialize
-    ? 'reactor'
-    : instance.exports._start
-    ? 'command'
-    : 'none';
+      ? 'reactor'
+      : instance.exports._start
+        ? 'command'
+        : 'none';
 
   if (wasi) {
     await wasi?.initialize(instance);

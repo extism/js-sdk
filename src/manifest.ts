@@ -6,6 +6,8 @@ import type {
   ManifestWasmResponse,
   ManifestWasmModule,
   ManifestLike,
+  PluginConfigLike,
+  ManifestOptions,
 } from './interfaces.ts';
 import { readFile } from './polyfills/node-fs.ts';
 import { responseToModule } from './polyfills/response-to-module.ts';
@@ -21,7 +23,7 @@ async function _populateWasmField(candidate: ManifestLike, _fetch: typeof fetch)
 
   if (typeof candidate === 'string') {
     if (candidate.search(/^\s*\{/g) === 0) {
-      return JSON.parse(candidate);
+      return parseManifestFromJson(candidate);
     }
 
     if (candidate.search(/^(https?|file):\/\//) !== 0) {
@@ -41,7 +43,7 @@ async function _populateWasmField(candidate: ManifestLike, _fetch: typeof fetch)
         return { wasm: [{ response }] };
       case 'application/json':
       case 'text/json':
-        return _populateWasmField(JSON.parse(await response.text()), _fetch);
+        return _populateWasmField(parseManifestFromJson(await response.text()), _fetch);
       default:
         throw new TypeError(
           `While processing manifest URL "${response.url}"; expected content-type of "text/json", "application/json", "application/octet-stream", or "application/wasm"; got "${contentType}" after stripping off charset.`,
@@ -74,6 +76,22 @@ async function _populateWasmField(candidate: ManifestLike, _fetch: typeof fetch)
   return { ...(candidate as Manifest) };
 }
 
+function parseManifestFromJson(json: string): Manifest {
+  const parsed = JSON.parse(json);
+
+  return {
+    wasm: parsed.wasm,
+    allowedPaths: parsed.allowed_paths,
+    allowedHosts: parsed.allowed_hosts,
+    config: parsed.config,
+    memory: {
+      maxHttpResponseBytes: parsed.memory?.max_http_response_bytes,
+      maxPages: parsed.memory?.max_pages,
+      maxVarBytes: parsed.memory?.max_var_bytes,
+    }
+  };
+}
+
 async function intoManifest(candidate: ManifestLike, _fetch: typeof fetch = fetch): Promise<Manifest> {
   const manifest = (await _populateWasmField(candidate, _fetch)) as Manifest;
   manifest.config ??= {};
@@ -83,10 +101,16 @@ async function intoManifest(candidate: ManifestLike, _fetch: typeof fetch = fetc
 export async function toWasmModuleData(
   input: ManifestLike,
   _fetch: typeof fetch,
-): Promise<[string[], WebAssembly.Module[]]> {
+): Promise<[ManifestOptions, string[], WebAssembly.Module[]]> {
   const names: string[] = [];
 
   const manifest = await intoManifest(input, _fetch);
+  const manifestOpts: ManifestOptions = {
+    allowedPaths: manifest.allowedPaths,
+    allowedHosts: manifest.allowedHosts,
+    config: manifest.config,
+    memory: manifest.memory
+  };
 
   const manifestsWasm = await Promise.all(
     manifest.wasm.map(async (item, idx, all) => {
@@ -157,5 +181,5 @@ export async function toWasmModuleData(
     throw new Error('manifest with multiple modules must designate one "main" module');
   }
 
-  return [names, manifestsWasm];
+  return [manifestOpts, names, manifestsWasm];
 }

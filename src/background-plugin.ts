@@ -1,6 +1,7 @@
 /*eslint-disable no-empty*/
-import { CallContext, RESET, IMPORT_STATE, EXPORT_STATE, STORE, GET_BLOCK } from './call-context.ts';
-import { PluginOutput, SAB_BASE_OFFSET, SharedArrayBufferSection, type InternalConfig } from './interfaces.ts';
+import { CallContext, RESET, IMPORT_STATE, EXPORT_STATE, STORE, GET_BLOCK, ENV } from './call-context.ts';
+import { MemoryOptions, PluginOutput, SAB_BASE_OFFSET, SharedArrayBufferSection, type InternalConfig } from './interfaces.ts';
+import { readBodyUpTo } from './utils.ts';
 import { WORKER_URL } from './worker-url.ts';
 import { Worker } from 'node:worker_threads';
 import { CAPABILITIES } from './polyfills/deno-capabilities.ts';
@@ -36,25 +37,47 @@ const AtomicsWaitAsync =
   })();
 
 class BackgroundPlugin {
-  worker: Worker;
   sharedData: SharedArrayBuffer;
   sharedDataView: DataView;
   hostFlag: Int32Array;
   opts: InternalConfig;
+  worker?: Worker | undefined;
+  modules: WebAssembly.Module[];
+  names: string[];
 
   #context: CallContext;
   #request: [(result: any[]) => void, (result: any[]) => void] | null = null;
 
-  constructor(worker: Worker, sharedData: SharedArrayBuffer, opts: InternalConfig, context: CallContext) {
-    this.worker = worker;
+  constructor(worker: Worker, sharedData: SharedArrayBuffer, names: string[], modules: WebAssembly.Module[], opts: InternalConfig, context: CallContext) {
     this.sharedData = sharedData;
     this.sharedDataView = new DataView(sharedData);
     this.hostFlag = new Int32Array(sharedData);
     this.opts = opts;
+    this.names = names;
+    this.modules = modules;
     this.#context = context;
 
     this.hostFlag[0] = SAB_BASE_OFFSET;
+    this.setWorker(worker);
+  }
 
+  async restartWorker() {
+    await this.close();
+
+    const worker = await createWorker(this.opts, this.names, this.modules, this.sharedData);
+    this.setWorker(worker);
+  }
+
+  setWorker(worker: Worker) {
+
+    this.#context[RESET]();
+
+    if (this.#request) {
+      this.#request[1]([new Error('Call canceled due to call to restartWorker()')])
+    }
+    this.#request = null;
+
+    this.worker = worker;
     this.worker.on('message', (ev) => this.#handleMessage(ev));
   }
 
@@ -125,6 +148,10 @@ class BackgroundPlugin {
     });
 
     this.#request = [resolve as any, reject as any];
+
+    if (!this.worker) {
+      throw new Error('worker not initialized');
+    }
 
     this.worker.postMessage({
       type: 'invoke',
@@ -212,7 +239,7 @@ class BackgroundPlugin {
     //
     // - https://github.com/nodejs/node/pull/44409
     // - https://github.com/denoland/deno/issues/14786
-    const timer = setInterval(() => {}, 0);
+    const timer = setInterval(() => { }, 0);
     try {
       if (!func) {
         throw Error(`Plugin error: host function "${ev.namespace}" "${ev.func}" does not exist`);
@@ -337,7 +364,7 @@ class RingBufferWriter {
 
   signal() {
     const old = Atomics.load(this.flag, 0);
-    while (Atomics.compareExchange(this.flag, 0, old, this.outputOffset) === old) {}
+    while (Atomics.compareExchange(this.flag, 0, old, this.outputOffset) === old) { }
     Atomics.notify(this.flag, 0, 1);
   }
 
@@ -412,11 +439,13 @@ class HttpContext {
   fetch: typeof fetch;
   lastStatusCode: number;
   allowedHosts: string[];
+  memoryOptions: MemoryOptions;
 
-  constructor(_fetch: typeof fetch, allowedHosts: string[]) {
+  constructor(_fetch: typeof fetch, allowedHosts: string[], memoryOptions: MemoryOptions) {
     this.fetch = _fetch;
     this.allowedHosts = allowedHosts;
     this.lastStatusCode = 0;
+    this.memoryOptions = memoryOptions;
   }
 
   contribute(functions: Record<string, Record<string, any>>) {
@@ -453,9 +482,23 @@ class HttpContext {
     });
 
     this.lastStatusCode = response.status;
-    const result = callContext.store(new Uint8Array(await response.arrayBuffer()));
 
-    return result;
+    try {
+      let bytes = this.memoryOptions.maxHttpResponseBytes ?
+        await readBodyUpTo(response, this.memoryOptions.maxHttpResponseBytes) :
+        new Uint8Array(await response.arrayBuffer());
+
+      const result = callContext.store(bytes);
+
+      return result;
+    } catch (err) {
+      if (err instanceof Error) {
+        const ptr = callContext.store(new TextEncoder().encode(err.message));
+        callContext[ENV].log_error(ptr);
+        return 0n;
+      }
+      return 0n;
+    }
   }
 }
 
@@ -464,10 +507,27 @@ export async function createBackgroundPlugin(
   names: string[],
   modules: WebAssembly.Module[],
 ): Promise<BackgroundPlugin> {
-  const worker = new Worker(WORKER_URL);
-  const context = new CallContext(SharedArrayBuffer, opts.logger, opts.config);
-  const httpContext = new HttpContext(opts.fetch, opts.allowedHosts);
+  const context = new CallContext(SharedArrayBuffer, opts.logger, opts.config, opts.memory);
+  const httpContext = new HttpContext(opts.fetch, opts.allowedHosts, opts.memory);
   httpContext.contribute(opts.functions);
+
+  // NB(chrisdickinson): We *have* to create the SharedArrayBuffer in
+  // the parent context because -- for whatever reason! -- chromium does
+  // not allow the creation of shared buffers in worker contexts, but firefox
+  // and webkit do.
+  const sharedData = new (SharedArrayBuffer as any)(opts.sharedArrayBufferSize);
+  new Uint8Array(sharedData).subarray(8).fill(0xfe);
+
+  const worker = await createWorker(opts, names, modules, sharedData);
+  return new BackgroundPlugin(worker, sharedData, names, modules, opts, context);
+}
+
+async function createWorker(
+  opts: InternalConfig,
+  names: string[],
+  modules: WebAssembly.Module[],
+  sharedData: SharedArrayBuffer): Promise<Worker> {
+  const worker = new Worker(WORKER_URL);
 
   await new Promise((resolve, reject) => {
     worker.on('message', function handler(ev) {
@@ -480,24 +540,6 @@ export async function createBackgroundPlugin(
     });
   });
 
-  // NB(chrisdickinson): We *have* to create the SharedArrayBuffer in
-  // the parent context because -- for whatever reason! -- chromium does
-  // not allow the creation of shared buffers in worker contexts, but firefox
-  // and webkit do.
-  const sharedData = new (SharedArrayBuffer as any)(opts.sharedArrayBufferSize);
-
-  new Uint8Array(sharedData).subarray(8).fill(0xfe);
-
-  const { fetch: _, logger: __, ...rest } = opts;
-  const message = {
-    ...rest,
-    type: 'init',
-    functions: Object.fromEntries(Object.entries(opts.functions || {}).map(([k, v]) => [k, Object.keys(v)])),
-    names,
-    modules,
-    sharedData,
-  };
-
   const onready = new Promise((resolve, reject) => {
     worker.on('message', function handler(ev) {
       if (ev?.type !== 'ready') {
@@ -509,8 +551,18 @@ export async function createBackgroundPlugin(
     });
   });
 
+  const { fetch: _, logger: __, ...rest } = opts;
+  const message = {
+    ...rest,
+    type: 'init',
+    functions: Object.fromEntries(Object.entries(opts.functions || {}).map(([k, v]) => [k, Object.keys(v)])),
+    names,
+    modules,
+    sharedData,
+  };
+
   worker.postMessage(message);
   await onready;
 
-  return new BackgroundPlugin(worker, sharedData, opts, context);
+  return worker;
 }

@@ -1,4 +1,4 @@
-import { type PluginConfig, PluginOutput } from './interfaces.ts';
+import { type PluginConfig, PluginOutput, MemoryOptions } from './interfaces.ts';
 import { CAPABILITIES } from './polyfills/deno-capabilities.ts';
 
 export const BEGIN = Symbol('begin');
@@ -49,16 +49,18 @@ export class CallContext {
   #logger: Console;
   #decoder: TextDecoder;
   #encoder: TextEncoder;
-  #arrayBufferType: { new (size: number): ArrayBufferLike };
+  #arrayBufferType: { new(size: number): ArrayBufferLike };
   #config: PluginConfig;
   #vars: Map<string, number> = new Map();
+  #memoryOptions: MemoryOptions;
 
   /** @hidden */
-  constructor(type: { new (size: number): ArrayBufferLike }, logger: Console, config: PluginConfig) {
+  constructor(type: { new(size: number): ArrayBufferLike }, logger: Console, config: PluginConfig, memoryOptions: MemoryOptions) {
     this.#arrayBufferType = type;
     this.#logger = logger;
     this.#decoder = new TextDecoder();
     this.#encoder = new TextEncoder();
+    this.#memoryOptions = memoryOptions;
 
     this.#stack = [];
 
@@ -76,6 +78,18 @@ export class CallContext {
     const block = new Block(new this.#arrayBufferType(Number(size)), true);
     const index = this.#blocks.length;
     this.#blocks.push(block);
+
+    if (this.#memoryOptions.maxPages) {
+      const pageSize = 64 * 1024;
+      const totalBytes = this.#blocks.reduce((acc, block) => acc + (block?.buffer.byteLength ?? 0), 0)
+      const totalPages = Math.ceil(totalBytes / pageSize);
+
+      if (totalPages > this.#memoryOptions.maxPages) {
+        this.#logger.error(`memory limit exceeded: ${totalPages} pages requested, ${this.#memoryOptions.maxPages} allowed`);
+        return 0n;
+      }
+    }
+
     return Block.indexToAddress(index);
   }
 
@@ -280,6 +294,15 @@ export class CallContext {
       if (valueaddr === 0n) {
         this.#vars.delete(key);
         return 0n;
+      }
+
+      const valueBlock = this.#blocks[Block.addressToIndex(valueaddr)];
+      if (this.#memoryOptions.maxVarBytes) {
+        const currentBytes = [...this.#vars.values()].map(idx => this.#blocks[idx]?.byteLength ?? 0).reduce((acc, length) => acc + length, 0)
+        const totalBytes = currentBytes + (valueBlock?.byteLength ?? 0);
+        if (totalBytes > this.#memoryOptions.maxVarBytes) {
+          throw Error(`var memory limit exceeded: ${totalBytes} bytes requested, ${this.#memoryOptions.maxVarBytes} allowed`);
+        }
       }
 
       this.#vars.set(key, Block.addressToIndex(valueaddr));
