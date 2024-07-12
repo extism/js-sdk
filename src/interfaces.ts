@@ -345,9 +345,9 @@ export interface Manifest {
 /**
  * Any type that can be converted into an Extism {@link Manifest}.
  * - `object` instances that implement {@link Manifest} are validated.
- * - `ArrayBuffer` instances are converted into {@link Manifest}s with a single {@link ManifestUint8Array} member.
+ * - `ArrayBuffer` instances are converted into {@link Manifest}s with a single {@link ManifestWasmData} member.
  * - `URL` instances are fetched and their responses interpreted according to their `content-type` response header. `application/wasm` and `application/octet-stream` items
- *   are treated as {@link ManifestUint8Array} items; `application/json` and `text/json` are treated as JSON-encoded {@link Manifest}s.
+ *   are treated as {@link ManifestWasmData} items; `application/json` and `text/json` are treated as JSON-encoded {@link Manifest}s.
  * - `string` instances that start with `http://`, `https://`, or `file://` are treated as URLs.
  * - `string` instances that start with `{` treated as JSON-encoded {@link Manifest}s.
  * - All other `string` instances are treated as {@link ManifestWasmPath}.
@@ -365,10 +365,10 @@ export interface Manifest {
  * let manifest = new ArrayBuffer()
  * ```
  *
- * @see [Extism](https://extism.org/) > [Concepts](https://extism.org/docs/category/concepts) > [Manifest](https://extism.org/docs/concepts/manifest)
+ * @throws [TypeError](https://mdn.io/TypeError) when `URL` parameters don't resolve to a known `content-type`
+ * @throws [TypeError](https://mdn.io/TypeError) when the resulting {@link Manifest} does not contain a `wasm` member with valid {@link ManifestWasm} items.
  *
- * @throws {@link TypeError} when `URL` parameters don't resolve to a known `content-type`
- * @throws {@link TypeError} when the resulting {@link Manifest} does not contain a `wasm` member with valid {@link ManifestWasm} items.
+ * @see [Extism](https://extism.org/) > [Concepts](https://extism.org/docs/category/concepts) > [Manifest](https://extism.org/docs/concepts/manifest)
  */
 export type ManifestLike = Manifest | Response | WebAssembly.Module | ArrayBuffer | string | URL;
 

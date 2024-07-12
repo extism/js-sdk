@@ -20,6 +20,7 @@ export type {
   ManifestWasmPath,
   ManifestWasm,
   Manifest,
+  MemoryOptions,
   Plugin,
   PluginConfig,
   PluginConfigLike,

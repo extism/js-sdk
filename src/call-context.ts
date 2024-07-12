@@ -46,6 +46,7 @@ export type CallState = {
 
 export class CallContext {
   #stack: [number | null, number | null, number | null][];
+  /** @hidden */
   #blocks: (Block | null)[] = [];
   #logger: Console;
   #decoder: TextDecoder;
