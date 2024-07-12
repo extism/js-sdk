@@ -31,6 +31,9 @@ jobs:
       with:
         bun-version: latest
 
+    - name: jsr slow types check
+      run: npx jsr publish --dry-run
+
     - name: Test
       run: npm run test
 
