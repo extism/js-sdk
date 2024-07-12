@@ -1,5 +1,5 @@
 /*eslint-disable no-empty*/
-import { CallContext, RESET, IMPORT_STATE, EXPORT_STATE, STORE, GET_BLOCK, ENV } from './call-context.ts';
+import { CallContext, RESET, IMPORT_STATE, EXPORT_STATE, STORE, GET_BLOCK, ENV, SET_HOST_CONTEXT } from './call-context.ts';
 import { MemoryOptions, PluginOutput, SAB_BASE_OFFSET, SharedArrayBufferSection, type InternalConfig } from './interfaces.ts';
 import { readBodyUpTo } from './utils.ts';
 import { WORKER_URL } from './worker-url.ts';
@@ -167,8 +167,9 @@ class BackgroundPlugin {
   }
 
   // host -> guest invoke()
-  async call(funcName: string, input?: string | Uint8Array): Promise<PluginOutput | null> {
+  async call<T = any>(funcName: string, input?: string | Uint8Array, hostContext?: T): Promise<PluginOutput | null> {
     const index = this.#context[STORE](input);
+    this.#context[SET_HOST_CONTEXT](hostContext);
 
     const [errorIdx, outputIdx] = await this.callBlock(funcName, index);
 

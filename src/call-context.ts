@@ -4,6 +4,7 @@ import { CAPABILITIES } from './polyfills/deno-capabilities.ts';
 export const BEGIN = Symbol('begin');
 export const END = Symbol('end');
 export const ENV = Symbol('env');
+export const SET_HOST_CONTEXT = Symbol('set-host-context');
 export const GET_BLOCK = Symbol('get-block');
 export const IMPORT_STATE = Symbol('import-state');
 export const EXPORT_STATE = Symbol('export-state');
@@ -53,6 +54,7 @@ export class CallContext {
   #config: PluginConfig;
   #vars: Map<string, number> = new Map();
   #memoryOptions: MemoryOptions;
+  #hostContext: any
 
   /** @hidden */
   constructor(type: { new(size: number): ArrayBufferLike }, logger: Console, config: PluginConfig, memoryOptions: MemoryOptions) {
@@ -68,6 +70,10 @@ export class CallContext {
     this.alloc(1);
 
     this.#config = config;
+  }
+
+  hostContext<T = any>(): T {
+    return this.#hostContext as T
   }
 
   /**
@@ -390,6 +396,8 @@ export class CallContext {
 
   /** @hidden */
   [RESET]() {
+    this.#hostContext = null;
+
     // preserve the null page.
     this.#blocks.length = 1;
 
@@ -468,12 +476,18 @@ export class CallContext {
   }
 
   /** @hidden */
+  [SET_HOST_CONTEXT](hostContext: any) {
+    this.#hostContext = hostContext
+  }
+
+  /** @hidden */
   [BEGIN](input: number | null) {
     this.#stack.push([input, null, null]);
   }
 
   /** @hidden */
   [END](): [number | null, number | null] {
+    this.#hostContext = null
     const [, outputIdx, errorIdx] = this.#stack.pop() as (number | null)[];
     const outputPosition = errorIdx === null ? 1 : 0;
     const idx = errorIdx ?? outputIdx;

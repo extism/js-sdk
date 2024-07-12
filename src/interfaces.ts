@@ -103,9 +103,10 @@ export interface Plugin {
    *
    * @param {string} funcName The name of the function to call
    * @param {Uint8Array | string} input The input to pass to the function
+   * @param {T} hostContext Per-call context to make available to host functions
    * @returns {Promise<PluginOutput | null>} The result from the function call
    */
-  call(funcName: string, input?: string | number | Uint8Array): Promise<PluginOutput | null>;
+  call<T>(funcName: string, input?: string | number | Uint8Array, hostContext?: T): Promise<PluginOutput | null>;
   getExports(): Promise<WebAssembly.ModuleExportDescriptor[]>;
   getImports(): Promise<WebAssembly.ModuleImportDescriptor[]>;
   getInstance(): Promise<WebAssembly.Instance>;
