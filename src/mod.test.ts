@@ -456,6 +456,35 @@ if (typeof WebAssembly === 'undefined') {
       }
     });
 
+    test('host functions preserve call context', async () => {
+      const one = { hi: 'there' }
+      let seen: typeof one | null = null
+      const functions = {
+        'extism:host/user': {
+          async hello_world(context: CallContext, _off: bigint) {
+            seen = context.hostContext<{ hi: string }>()
+            console.log({ seen })
+
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            return context.store('it works');
+          },
+        },
+      };
+
+      const plugin = await createPlugin(
+        { wasm: [{ url: 'http://localhost:8124/wasm/code-functions.wasm' }] },
+        { useWasi: true, functions, runInWorker: true },
+      );
+
+      try {
+        const output = await plugin.call('count_vowels', 'hello world', one);
+        assert.equal(output?.string(), 'it works');
+        assert.strictEqual(seen, one, 'we preserved the host context')
+      } finally {
+        await plugin.close();
+      }
+    });
+
     test('test writes that span multiple blocks (w/small buffer)', async () => {
       const value = '9:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ'.repeat(18428 / 34);
       const functions = {

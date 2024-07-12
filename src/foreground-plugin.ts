@@ -1,4 +1,4 @@
-import { CallContext, RESET, GET_BLOCK, BEGIN, END, ENV, STORE } from './call-context.ts';
+import { CallContext, RESET, GET_BLOCK, BEGIN, END, ENV, STORE, SET_HOST_CONTEXT } from './call-context.ts';
 import { PluginOutput, type InternalConfig, InternalWasi } from './interfaces.ts';
 import { loadWasi } from './polyfills/deno-wasi.ts';
 
@@ -61,8 +61,9 @@ export class ForegroundPlugin {
     }
   }
 
-  async call(funcName: string, input?: string | Uint8Array): Promise<PluginOutput | null> {
+  async call<T = any>(funcName: string, input?: string | Uint8Array, hostContext?: T): Promise<PluginOutput | null> {
     const inputIdx = this.#context[STORE](input);
+    this.#context[SET_HOST_CONTEXT](hostContext);
 
     const [errorIdx, outputIdx] = await this.callBlock(funcName, inputIdx);
     const shouldThrow = errorIdx !== null;
