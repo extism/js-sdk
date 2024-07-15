@@ -451,12 +451,12 @@ export class CallContext {
 
   /** @hidden */
   [STORE](input?: string | Uint8Array): number | null {
-    if (!input) {
-      return null;
-    }
-
     if (typeof input === 'string') {
       input = this.#encoder.encode(input);
+    }
+
+    if (!input) {
+      return null;
     }
 
     if (input instanceof Uint8Array) {
