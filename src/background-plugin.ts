@@ -68,6 +68,7 @@ class BackgroundPlugin {
     this.#request = [() => { }, () => { }]
 
     const timedOut = {};
+    const failed = {};
     const result = await Promise.race([
       timeout(this.opts.timeoutMs, timedOut),
       Promise.all([
@@ -79,7 +80,7 @@ class BackgroundPlugin {
           this.sharedData
         )
       ])
-    ].filter(Boolean)).catch(() => { });
+    ].filter(Boolean)).catch(() => failed);
     this.#context[RESET]();
 
     // Oof. The Wasm module failed to even _restart_ in the time allotted. There's
@@ -91,6 +92,15 @@ class BackgroundPlugin {
       )
       this.worker = null as unknown as any
       // TODO: expose some way to observe that the plugin is in a "poisoned" state.
+      return
+    }
+
+    // The worker failed to start up for some other reason. This is pretty unlikely to happen!
+    if (result === failed) {
+      this.opts.logger.error(
+        'EXTISM: Plugin failed to restart during a timeout. Plugin will hang.'
+      )
+      this.worker = null as unknown as any
       return
     }
     const [, worker] = result as any[];
