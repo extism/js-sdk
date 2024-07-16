@@ -1,4 +1,5 @@
 import type { Capabilities } from '../interfaces.ts';
+import { platform } from 'node:os'
 
 export const CAPABILITIES: Capabilities = {
   // When false, shared buffers have to be copied to an array
@@ -17,6 +18,8 @@ export const CAPABILITIES: Capabilities = {
 
   // See https://github.com/oven-sh/bun/issues/1960
   supportsWasiPreview1: false,
+
+  supportsTimeouts: false,
 
   extismStdoutEnvVarSet: Boolean(process.env.EXTISM_ENABLE_WASI_OUTPUT),
 };

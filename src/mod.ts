@@ -77,24 +77,31 @@ export async function createPlugin(
 
   // TODO(chrisdickinson): reset this to `CAPABILITIES.hasWorkerCapability` once we've fixed https://github.com/extism/js-sdk/issues/46.
   opts.runInWorker ??= false;
-  if (opts.allowedHosts && !opts.runInWorker) {
-    throw new TypeError('"allowedHosts" requires "runInWorker: true". HTTP functions are only available to plugins running in a worker.')
-  }
 
   opts.logger ??= console;
   opts.fetch ??= fetch;
-
-  if (opts.runInWorker && !CAPABILITIES.hasWorkerCapability) {
-    throw new Error(
-      'Cannot enable off-thread wasm; current context is not `crossOriginIsolated` (see https://mdn.io/crossOriginIsolated)',
-    );
-  }
 
   const [manifestOpts, names, moduleData] = await _toWasmModuleData(await Promise.resolve(manifest), opts.fetch ?? fetch);
 
   opts.allowedPaths = opts.allowedPaths || manifestOpts.allowedPaths || {};
   opts.allowedHosts = opts.allowedHosts || manifestOpts.allowedHosts || [];
   opts.config = opts.config || manifestOpts.config || {};
+  opts.memory = opts.memory || manifestOpts.memory || {};
+  opts.timeoutMs = opts.timeoutMs || manifestOpts.timeoutMs || null;
+
+  if (opts.allowedHosts.length && !opts.runInWorker) {
+    throw new TypeError('"allowedHosts" requires "runInWorker: true". HTTP functions are only available to plugins running in a worker.')
+  }
+
+  if (opts.timeoutMs && !opts.runInWorker) {
+    throw new TypeError('"timeout" requires "runInWorker: true". Call timeouts are only available to plugins running in a worker.')
+  }
+
+  if (opts.runInWorker && !CAPABILITIES.hasWorkerCapability) {
+    throw new Error(
+      'Cannot enable off-thread wasm; current context is not `crossOriginIsolated` (see https://mdn.io/crossOriginIsolated)',
+    );
+  }
 
   const ic: InternalConfig = {
     allowedHosts: opts.allowedHosts as [],
@@ -106,7 +113,8 @@ export async function createPlugin(
     config: opts.config,
     enableWasiOutput: opts.enableWasiOutput,
     sharedArrayBufferSize: Number(opts.sharedArrayBufferSize) || 1 << 16,
-    memory: manifestOpts.memory ?? {},
+    timeoutMs: opts.timeoutMs,
+    memory: opts.memory,
   };
 
   return (opts.runInWorker ? _createBackgroundPlugin : _createForegroundPlugin)(ic, names, moduleData);
