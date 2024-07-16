@@ -72,7 +72,7 @@ class BackgroundPlugin {
     const result = await Promise.race([
       timeout(this.opts.timeoutMs, timedOut),
       Promise.all([
-        this.worker.terminate(),
+        terminateWorker(this.worker),
         createWorker(
           this.opts,
           this.names,
@@ -271,7 +271,7 @@ class BackgroundPlugin {
 
   async close(): Promise<void> {
     if (this.worker) {
-      await this.worker.terminate();
+      await terminateWorker(this.worker)
       this.worker = null as any;
     }
   }
@@ -578,7 +578,7 @@ export async function createBackgroundPlugin(
   ].filter(Boolean));
 
   if (worker === timedOut) {
-    await earlyWorker!.terminate();
+    await terminateWorker(earlyWorker!);
     throw new Error('EXTISM: timed out while waiting for plugin to instantiate')
   }
   return new BackgroundPlugin(worker as Worker, sharedData, names, modules, opts, context);
@@ -638,4 +638,14 @@ function timeout(ms: number | null, sentinel: any) {
       ? null
       : new Promise(resolve => setTimeout(() => resolve(sentinel), ms))
   )
+}
+
+async function terminateWorker(w: Worker) {
+  if (typeof (globalThis as any).Bun !== 'undefined') {
+    const timer = setTimeout(() => { }, 10);
+    await w.terminate()
+    clearTimeout(timer);
+  } else {
+    await w.terminate()
+  }
 }

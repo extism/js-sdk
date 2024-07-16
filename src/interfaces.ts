@@ -441,6 +441,18 @@ export interface Capabilities {
   supportsWasiPreview1: boolean;
 
   /**
+   * Whether or not the host environment supports timeouts.
+   *
+   * - ✅ node
+   * - ✅ deno
+   * - ❌ bun (Exhibits strange behavior when await'ing `worker.terminate()`.)
+   * - ✅ firefox
+   * - ✅ chrome
+   * - ✅ webkit
+   */
+  supportsTimeouts: boolean;
+
+  /**
    * Whether or not the `EXTISM_ENABLE_WASI_OUTPUT` environment variable has been set.
    *
    * This value is consulted whenever {@link ExtismPluginOptions#enableWasiOutput} is omitted.
