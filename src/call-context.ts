@@ -188,7 +188,7 @@ export class CallContext {
       return this.alloc(n);
     },
 
-    free: (addr: number) => {
+    free: (addr: number): void => {
       this.#blocks[Block.addressToIndex(addr)] = null;
     },
 
@@ -206,14 +206,14 @@ export class CallContext {
       return block?.view.getBigUint64(Number(offset), true) as bigint;
     },
 
-    store_u8: (addr: bigint, n: number) => {
+    store_u8: (addr: bigint, n: number): void => {
       const blockIdx = Block.addressToIndex(addr);
       const offset = Block.maskAddress(addr);
       const block = this.#blocks[blockIdx];
       block?.view.setUint8(Number(offset), Number(n));
     },
 
-    store_u64: (addr: bigint, n: bigint) => {
+    store_u64: (addr: bigint, n: bigint): void => {
       const blockIdx = Block.addressToIndex(addr);
       const offset = Block.maskAddress(addr);
       const block = this.#blocks[blockIdx];
@@ -239,7 +239,7 @@ export class CallContext {
       return this.#input?.view.getBigUint64(Number(offset), true) as bigint;
     },
 
-    output_set: (addr: bigint, length: bigint) => {
+    output_set: (addr: bigint, length: bigint): void => {
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
@@ -253,7 +253,7 @@ export class CallContext {
       this.#stack[this.#stack.length - 1][1] = blockIdx;
     },
 
-    error_set: (addr: bigint) => {
+    error_set: (addr: bigint): void => {
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
