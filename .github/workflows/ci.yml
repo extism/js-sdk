@@ -31,11 +31,18 @@ jobs:
       with:
         bun-version: latest
 
-    - name: jsr slow types check
-      run: deno publish --dry-run
-
     - name: Test
       run: npm run test
+
+  jsr:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: denoland/setup-deno@v1.1.2
+
+    - name: jsr slow types check
+      run: deno publish --dry-run
 
   docs:
     runs-on: ubuntu-latest
