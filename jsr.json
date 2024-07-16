@@ -2,6 +2,16 @@
   "name": "@extism/extism",
   "version": "0.0.0-replaced-by-ci",
   "exports": "./src/mod.ts",
-  "include": ["./src/**/*.ts", "LICENSE", "README.md", "types", "tsconfig.json"],
-  "exclude": ["./src/mod.test.ts"]
+  "publish": {
+    "include": [
+      "./src/**/*.ts",
+      "LICENSE",
+      "README.md",
+      "types",
+      "tsconfig.json"
+    ],
+    "exclude": [
+      "./src/mod.test.ts"
+    ]
+  }
 }
