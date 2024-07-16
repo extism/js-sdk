@@ -456,6 +456,52 @@ if (typeof WebAssembly === 'undefined') {
       }
     });
 
+    test('timeout works on call()', async () => {
+      const plugin = await createPlugin(
+        { wasm: [{ url: 'http://localhost:8124/wasm/loop-forever.wasm' }] },
+        { useWasi: true, timeoutMs: 250, runInWorker: true },
+      );
+
+
+      try {
+        const [err, output] = await plugin.call('loop', 'hello world').then(
+          res => [, res],
+          err => [err,]
+        );
+
+        if (output) {
+          assert.fail("Expected no output")
+        }
+
+        assert.equal(
+          err!.message,
+          `EXTISM: call canceled due to timeout`,
+        )
+      } finally {
+        await plugin.close();
+      }
+    });
+
+    test('timeout applies to initialization', async () => {
+      const [err, plugin] = await createPlugin(
+        { wasm: [{ url: 'http://localhost:8124/wasm/loop-forever-init.wasm' }] },
+        { useWasi: true, timeoutMs: 250, runInWorker: true },
+      ).then(
+        res => [, res],
+        err => [err,]
+      );
+
+      if (plugin) {
+        await plugin.close();
+        assert.fail("Expected no output")
+      }
+
+      assert.equal(
+        err!.message,
+        `EXTISM: timed out while waiting for plugin to instantiate`,
+      )
+    });
+
     test('host functions preserve call context', async () => {
       const one = { hi: 'there' }
       let seen: typeof one | null = null

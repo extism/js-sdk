@@ -41,12 +41,12 @@ class BackgroundPlugin {
   sharedDataView: DataView;
   hostFlag: Int32Array;
   opts: InternalConfig;
-  worker?: Worker | undefined;
+  worker: Worker;
   modules: WebAssembly.Module[];
   names: string[];
 
   #context: CallContext;
-  #request: [(result: any[]) => void, (result: any[]) => void] | null = null;
+  #request: [(result: any) => void, (result: any) => void] | null = null;
 
   constructor(worker: Worker, sharedData: SharedArrayBuffer, names: string[], modules: WebAssembly.Module[], opts: InternalConfig, context: CallContext) {
     this.sharedData = sharedData;
@@ -55,29 +55,52 @@ class BackgroundPlugin {
     this.opts = opts;
     this.names = names;
     this.modules = modules;
+    this.worker = worker;
     this.#context = context;
-
     this.hostFlag[0] = SAB_BASE_OFFSET;
-    this.setWorker(worker);
+
+    this.worker.on('message', (ev) => this.#handleMessage(ev));
   }
 
-  async restartWorker() {
-    await this.close();
+  async #handleTimeout() {
+    // block new requests from coming in & the current request from settling
+    const request = this.#request
+    this.#request = [() => { }, () => { }]
 
-    const worker = await createWorker(this.opts, this.names, this.modules, this.sharedData);
-    this.setWorker(worker);
-  }
-
-  setWorker(worker: Worker) {
-
+    const timedOut = {};
+    const result = await Promise.race([
+      timeout(this.opts.timeoutMs, timedOut),
+      Promise.all([
+        this.worker.terminate(),
+        createWorker(
+          this.opts,
+          this.names,
+          this.modules,
+          this.sharedData
+        )
+      ])
+    ].filter(Boolean)).catch(() => { });
     this.#context[RESET]();
 
-    if (this.#request) {
-      this.#request[1]([new Error('Call canceled due to call to restartWorker()')])
+    // Oof. The Wasm module failed to even _restart_ in the time allotted. There's
+    // not much we can do at this point. Release as much memory as we can while
+    // squatting on `this.#request` so the plugin always looks "active".
+    if (result === timedOut) {
+      this.opts.logger.error(
+        'EXTISM: Plugin timed out while handling a timeout. Plugin will hang. This Wasm module may have a non-trivial `start` section.'
+      )
+      this.worker = null as unknown as any
+      // TODO: expose some way to observe that the plugin is in a "poisoned" state.
+      return
     }
-    this.#request = null;
+    const [, worker] = result as any[];
+    this.worker = worker as Worker;
 
-    this.worker = worker;
+    if (request) {
+      request.pop()!(new Error('EXTISM: call canceled due to timeout'))
+    }
+    this.#request = null
+
     this.worker.on('message', (ev) => this.#handleMessage(ev));
   }
 
@@ -153,6 +176,19 @@ class BackgroundPlugin {
       throw new Error('worker not initialized');
     }
 
+    const timedOut = {};
+
+    // Since this creates a new promise, we need to provide
+    // an empty error handler.
+    Promise.race([
+      timeout(this.opts.timeoutMs, timedOut),
+      promise
+    ].filter(Boolean)).then(async v => {
+      if (v === timedOut) {
+        await this.#handleTimeout()
+      }
+    }, () => { })
+
     this.worker.postMessage({
       type: 'invoke',
       handler,
@@ -225,7 +261,7 @@ class BackgroundPlugin {
 
   async close(): Promise<void> {
     if (this.worker) {
-      this.worker.terminate();
+      await this.worker.terminate();
       this.worker = null as any;
     }
   }
@@ -519,16 +555,34 @@ export async function createBackgroundPlugin(
   const sharedData = new (SharedArrayBuffer as any)(opts.sharedArrayBufferSize);
   new Uint8Array(sharedData).subarray(8).fill(0xfe);
 
-  const worker = await createWorker(opts, names, modules, sharedData);
-  return new BackgroundPlugin(worker, sharedData, names, modules, opts, context);
+  const timedOut = {};
+
+  // If we fail to initialize the worker (because Wasm hangs), we need access to
+  // the partially-initialized worker so that we can terminate its thread.
+  let earlyWorker: Worker
+  const onworker = (w: Worker) => { earlyWorker = w };
+
+  const worker = await Promise.race([
+    timeout(opts.timeoutMs, timedOut),
+    createWorker(opts, names, modules, sharedData, onworker)
+  ].filter(Boolean));
+
+  if (worker === timedOut) {
+    await earlyWorker!.terminate();
+    throw new Error('EXTISM: timed out while waiting for plugin to instantiate')
+  }
+  return new BackgroundPlugin(worker as Worker, sharedData, names, modules, opts, context);
 }
 
 async function createWorker(
   opts: InternalConfig,
   names: string[],
   modules: WebAssembly.Module[],
-  sharedData: SharedArrayBuffer): Promise<Worker> {
+  sharedData: SharedArrayBuffer,
+  onworker: (_w: Worker) => void = (_w: Worker) => { },
+): Promise<Worker> {
   const worker = new Worker(WORKER_URL);
+  onworker(worker)
 
   await new Promise((resolve, reject) => {
     worker.on('message', function handler(ev) {
@@ -566,4 +620,12 @@ async function createWorker(
   await onready;
 
   return worker;
+}
+
+function timeout(ms: number | null, sentinel: any) {
+  return (
+    ms === null
+      ? null
+      : new Promise(resolve => setTimeout(() => resolve(sentinel), ms))
+  )
 }

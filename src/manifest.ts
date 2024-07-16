@@ -81,14 +81,15 @@ function parseManifestFromJson(json: string): Manifest {
 
   return {
     wasm: parsed.wasm,
-    allowedPaths: parsed.allowed_paths,
-    allowedHosts: parsed.allowed_hosts,
+    timeoutMs: parsed.timeoutMs ?? parsed.timeout_ms,
+    allowedPaths: parsed.allowedPaths ?? parsed.allowed_paths,
+    allowedHosts: parsed.allowedHosts ?? parsed.allowed_hosts,
     config: parsed.config,
-    memory: {
-      maxHttpResponseBytes: parsed.memory?.max_http_response_bytes,
-      maxPages: parsed.memory?.max_pages,
-      maxVarBytes: parsed.memory?.max_var_bytes,
-    }
+    ...(parsed.memory ? {
+      maxHttpResponseBytes: parsed.memory.maxHttpResponseBytes ?? parsed.memory.max_http_response_bytes,
+      maxPages: parsed.memory.maxPages ?? parsed.memory.max_pages,
+      maxVarBytes: parsed.memory.maxVarBytes ?? parsed.memory.max_var_bytes,
+    } : {})
   };
 }
 

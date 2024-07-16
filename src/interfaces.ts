@@ -183,6 +183,10 @@ export interface ExtismPluginOptions {
    */
   allowedHosts?: string[] | undefined;
 
+  memory?: MemoryOptions;
+
+  timeoutMs?: number | null;
+
   /**
    * Whether WASI stdout should be forwarded to the host.
    *
@@ -211,24 +215,34 @@ export type MemoryOptions = {
   maxVarBytes?: number | undefined;
 };
 
-export type ManifestOptions = {
-  allowedPaths?: { [key: string]: string } | undefined;
-  allowedHosts?: string[] | undefined;
-  config?: PluginConfigLike;
-  memory?: MemoryOptions | undefined;
+type CamelToSnakeCase<S extends string> = S extends `${infer T}${infer U}`
+  ? `${T extends Capitalize<T> ? "_" : ""}${Lowercase<T>}${CamelToSnakeCase<U>}`
+  : S;
+
+type SnakeCase<T extends Record<string, any>> = {
+  [K in keyof T as CamelToSnakeCase<K & string>]: T[K];
 };
 
-export interface InternalConfig {
+
+export interface NativeManifestOptions extends Pick<
+  ExtismPluginOptions,
+  "allowedPaths" | "allowedHosts" | "memory" | "config" | "timeoutMs"
+> {
+}
+/**
+ * The subset of {@link ExtismPluginOptions} attributes available for configuration via
+ * a {@link Manifest}. If an attribute is specified at both the {@link ExtismPluginOptions} and
+ * `ManifestOptions` level, the plugin option will take precedence.
+ */
+export type ManifestOptions = NativeManifestOptions & SnakeCase<NativeManifestOptions>;
+
+export interface InternalConfig extends Required<NativeManifestOptions> {
   logger: Console;
-  allowedHosts: string[];
-  allowedPaths: { [key: string]: string };
   enableWasiOutput: boolean;
   functions: { [namespace: string]: { [func: string]: any } };
   fetch: typeof fetch;
   wasiEnabled: boolean;
-  config: PluginConfig;
   sharedArrayBufferSize: number;
-  memory: MemoryOptions;
 }
 
 export interface InternalWasi {
@@ -314,32 +328,8 @@ export type ManifestWasm = (
  *
  * @see [Extism](https://extism.org/) > [Concepts](https://extism.org/docs/category/concepts) > [Manifest](https://extism.org/docs/concepts/manifest)
  */
-export interface Manifest {
+export interface Manifest extends ManifestOptions {
   wasm: Array<ManifestWasm>;
-  config?: PluginConfigLike;
-  allowedPaths?: { [key: string]: string } | undefined;
-
-  /**
-   * A list of allowed hostnames. Wildcard subdomains are supported via `*`.
-   *
-   * Requires the plugin to run in a worker using `runInWorker: true`.
-   *
-   * @example
-   * ```ts
-   * await createPlugin({
-   *   wasm: [{name: 'my-wasm', url: 'http://example.com/path/to/wasm'}]
-   *   allowedHosts: ['*.example.com', 'www.dylibso.com']
-   * }, {
-   *   runInWorker: true,
-   * })
-   * ```
-   */
-  allowedHosts?: string[] | undefined;
-
-  /**
-   * Memory options
-   */
-  memory?: MemoryOptions | undefined;
 }
 
 /**
