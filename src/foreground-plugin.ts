@@ -62,6 +62,8 @@ export class ForegroundPlugin {
   }
 
   async call<T = any>(funcName: string, input?: string | Uint8Array, hostContext?: T): Promise<PluginOutput | null> {
+    this.#context[RESET]();
+
     const inputIdx = this.#context[STORE](input);
     this.#context[SET_HOST_CONTEXT](hostContext);
 

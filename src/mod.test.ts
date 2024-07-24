@@ -330,7 +330,7 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  test('plugins cant allocate more var bytes than allowed', async () => {
+  test('plugins cannot allocate more var bytes than allowed', async () => {
     const plugin = await createPlugin(
       { wasm: [{ url: 'http://localhost:8124/wasm/memory.wasm' }], memory: { maxVarBytes: 100 } },
       { useWasi: true });
@@ -342,7 +342,7 @@ if (typeof WebAssembly === 'undefined') {
       );
 
       assert(err)
-      assert.equal(err.message, 'var memory limit exceeded: 1024 bytes requested, 100 allowed');
+      assert(/var memory limit exceeded: 1024 bytes requested, 100 allowed/.test(err.message));
     } finally {
       await plugin.close();
     }
@@ -456,6 +456,40 @@ if (typeof WebAssembly === 'undefined') {
       }
     });
 
+    test('plugin callcontext reflects vars set in plugin', async () => {
+      let seen: string = 'nope nope'
+      let key: string = 'nope nope'
+      const plugin = await createPlugin('http://localhost:8124/wasm/02-var-reflected.wasm', {
+        useWasi: true,
+        runInWorker: true,
+        functions: {
+          user: {
+            async test(callContext, n) {
+              key = callContext.read(n)!.text()!
+              seen = callContext.getVariable(callContext.read(n)!.text())!.text()
+            }
+          }
+        }
+      });
+      try {
+        // This plugin has a value in memory, "hi there". It writes that variable into
+        // extism memory, then stores that as an extism var -- mapping "hi there" => "hi there".
+        // (This is just out of expedience so we don't have to store another value!) We then
+        // call the host function with the result of 'var_get "hi there"'; so we're testing
+        // that the guest and host have the _same_ view of variables.
+        const [err, _] = await plugin.call('test').then(
+          (data) => [null, data],
+          (err) => [err, null],
+        );
+
+        assert(!err)
+        assert.equal(key, 'hi there')
+        assert.equal(seen, 'hi there')
+      } finally {
+        await plugin.close();
+      }
+    });
+
     if (CAPABILITIES.supportsTimeouts) {
       test('timeout works on call()', async () => {
         const plugin = await createPlugin(
@@ -511,7 +545,6 @@ if (typeof WebAssembly === 'undefined') {
         'extism:host/user': {
           async hello_world(context: CallContext, _off: bigint) {
             seen = context.hostContext<{ hi: string }>()
-            console.log({ seen })
 
             await new Promise((resolve) => setTimeout(resolve, 100));
             return context.store('it works');

@@ -53,7 +53,8 @@ export class CallContext {
   #encoder: TextEncoder;
   #arrayBufferType: { new(size: number): ArrayBufferLike };
   #config: PluginConfig;
-  #vars: Map<string, number> = new Map();
+  #vars: Map<string, Uint8Array> = new Map();
+  #varsSize: number;
   #memoryOptions: MemoryOptions;
   #hostContext: any
 
@@ -65,6 +66,7 @@ export class CallContext {
     this.#encoder = new TextEncoder();
     this.#memoryOptions = memoryOptions;
 
+    this.#varsSize = 0;
     this.#stack = [];
 
     // reserve the null page.
@@ -109,34 +111,39 @@ export class CallContext {
     if (!this.#vars.has(name)) {
       return null;
     }
-    return this.read(this.#vars.get(name) as number);
+    return new PluginOutput(this.#vars.get(name)!.buffer);
   }
 
   /**
-   * Set a variable to a given string or byte array value. Returns the start
-   * address of the variable. The start address is reused when changing the
-   * value of an existing variable.
-   *
-   * @returns bigint
+   * Set a variable to a given string or byte array value.
    */
-  setVariable(name: string, value: string | Uint8Array): bigint {
-    const newIdx = this[STORE](value);
-    if (newIdx === null) {
-      return 0n;
-    }
+  setVariable(name: string, value: string | Uint8Array) {
+    const buffer = (
+      typeof value === 'string'
+        ? this.#encoder.encode(value)
+        : value
+    )
 
-    // Re-use the old address mapping.
-    const oldIdx = this.#vars.get(name) ?? null;
-    if (oldIdx !== null) {
-      this.#blocks[oldIdx] = this.#blocks[newIdx];
-      this.#blocks[newIdx] = null;
-      if (newIdx === this.#blocks.length - 1) {
-        this.#blocks.pop();
-      }
-    }
+    const variable = this.#vars.get(name)
 
-    this.#vars.set(name, oldIdx ?? newIdx);
-    return Block.indexToAddress(oldIdx ?? newIdx);
+    const newSize = this.#varsSize + buffer.byteLength - (variable?.byteLength || 0)
+    if (newSize > (this.#memoryOptions?.maxVarBytes || Infinity)) {
+      throw new Error(`var memory limit exceeded: ${newSize} bytes requested, ${this.#memoryOptions.maxVarBytes} allowed`)
+    }
+    this.#varsSize = newSize
+    this.#vars.set(name, buffer);
+  }
+
+  /**
+   * Delete a variable if present.
+   */
+  deleteVariable(name: string) {
+    const variable = this.#vars.get(name)
+    if (!variable) {
+      return
+    }
+    this.#vars.delete(name)
+    this.#varsSize -= variable.byteLength
   }
 
   /**
@@ -180,6 +187,15 @@ export class CallContext {
       return 0n;
     }
     return BigInt(block.buffer.byteLength);
+  }
+
+  setError(err: string | Error | null = null) {
+    const blockIdx = err ? this[STORE](err instanceof Error ? err.message : err) : 0
+    if (!blockIdx) {
+      throw new Error('could not store error value')
+    }
+
+    this.#stack[this.#stack.length - 1][2] = blockIdx;
   }
 
   /** @hidden */
@@ -257,10 +273,18 @@ export class CallContext {
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
-        throw new Error('cannot assign to this block');
+        throw new Error('cannot assign error to this block');
       }
 
       this.#stack[this.#stack.length - 1][2] = blockIdx;
+    },
+
+    error_get: (): bigint => {
+      const error = this.#stack[this.#stack.length - 1][2]
+      if (error) {
+        return Block.indexToAddress(error)
+      }
+      return 0n
     },
 
     config_get: (addr: bigint): bigint => {
@@ -287,32 +311,44 @@ export class CallContext {
       }
 
       const key = item.string();
-      return this.#vars.has(key) ? Block.indexToAddress(this.#vars.get(key) as number) : 0n;
+      const result = this.getVariable(key);
+      const stored = result ? this[STORE](result.bytes()) || 0 : 0;
+      return Block.indexToAddress(stored)
     },
 
-    var_set: (addr: bigint, valueaddr: bigint): 0n | undefined => {
+    var_set: (addr: bigint, valueaddr: bigint): void => {
       const item = this.read(addr);
 
       if (item === null) {
-        return 0n;
+        this.#logger.error(`attempted to set variable using invalid key address (addr="${addr.toString(16)}H")`);
+        return;
       }
 
       const key = item.string();
+
       if (valueaddr === 0n) {
-        this.#vars.delete(key);
-        return 0n;
+        this.deleteVariable(key)
+        return;
       }
 
       const valueBlock = this.#blocks[Block.addressToIndex(valueaddr)];
-      if (this.#memoryOptions.maxVarBytes) {
-        const currentBytes = [...this.#vars.values()].map(idx => this.#blocks[idx]?.byteLength ?? 0).reduce((acc, length) => acc + length, 0)
-        const totalBytes = currentBytes + (valueBlock?.byteLength ?? 0);
-        if (totalBytes > this.#memoryOptions.maxVarBytes) {
-          throw Error(`var memory limit exceeded: ${totalBytes} bytes requested, ${this.#memoryOptions.maxVarBytes} allowed`);
-        }
+      if (!valueBlock) {
+        this.#logger.error(`attempted to set variable to invalid address (key="${key}"; addr="${valueaddr.toString(16)}H")`);
+        return;
       }
 
-      this.#vars.set(key, Block.addressToIndex(valueaddr));
+      try {
+        // Copy the variable value out of the block for TWO reasons:
+        // 1. Variables outlive blocks -- blocks are reset after each invocation.
+        // 2. If the block is backed by a SharedArrayBuffer, we can't read text out of it directly (in many browser contexts.)
+        const copied = new Uint8Array(valueBlock.buffer.byteLength)
+        copied.set(new Uint8Array(valueBlock.buffer), 0)
+        this.setVariable(key, copied);
+      } catch (err: any) {
+        this.#logger.error(err.message)
+        this.setError(err)
+        return;
+      }
     },
 
     http_request: (_requestOffset: bigint, _bodyOffset: bigint): bigint => {
