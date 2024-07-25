@@ -103,6 +103,14 @@ export async function createPlugin(
     );
   }
 
+  for (const guest in opts.allowedPaths) {
+    const host = opts.allowedPaths[guest];
+
+    if (host.startsWith('ro:')) {
+      throw new Error(`Readonly dirs are not supported: ${host}`)
+    }
+  }
+
   const ic: InternalConfig = {
     allowedHosts: opts.allowedHosts as [],
     allowedPaths: opts.allowedPaths,

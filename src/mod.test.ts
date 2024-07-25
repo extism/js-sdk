@@ -869,6 +869,21 @@ if (typeof WebAssembly === 'undefined') {
   }
 
   if (CAPABILITIES.fsAccess && CAPABILITIES.supportsWasiPreview1) {
+    test('readonly allowed paths are not supported', async () => {
+      try {
+        await createPlugin(
+          { wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/fs.wasm' }], allowedPaths: { '/mnt': 'ro:tests/data' } },
+          { useWasi: true, functions: {}, runInWorker: true },
+        );
+
+        assert.fail('should not reach here');
+      } catch (err) {
+        if (err instanceof Error) {
+          assert.equal(err.message, 'Readonly dirs are not supported: ro:tests/data');
+        }
+      }
+    });
+
     test('can access fs', async () => {
       const plugin = await createPlugin('http://localhost:8124/wasm/fs.wasm', {
         allowedPaths: { '/mnt': 'tests/data' },
