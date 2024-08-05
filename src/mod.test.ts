@@ -432,6 +432,31 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
+  test('input data respects byte offsets and lengths', async () => {
+    const plugin = await createPlugin({
+      wasm: [
+        { name: 'main', url: 'http://localhost:8124/wasm/reflect.wasm' },
+        { name: 'extism:host/user', url: 'http://localhost:8124/wasm/upper.wasm' },
+      ],
+    });
+
+    const arrayBuffer = new ArrayBuffer(8192)
+    const view = new Uint8Array(arrayBuffer, 10, "Hello world!".length)
+    new TextEncoder().encodeInto("Hello world!", view);
+
+    try {
+      const [err, data] = await plugin.call('reflect', view).then(
+        (data) => [null, data],
+        (err) => [err, null],
+      );
+
+      assert.equal(err, null);
+      assert.equal(data.string(), 'HELLO WORLD!');
+    } finally {
+      await plugin.close();
+    }
+  });
+
   if (CAPABILITIES.hasWorkerCapability) {
     test('host functions may be async if worker is off-main-thread', async () => {
       const functions = {

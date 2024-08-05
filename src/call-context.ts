@@ -496,7 +496,11 @@ export class CallContext {
     }
 
     if (input instanceof Uint8Array) {
-      if (input.buffer.constructor === this.#arrayBufferType) {
+      if (
+        input.buffer.constructor === this.#arrayBufferType &&
+        input.byteOffset === 0 &&
+        input.byteLength === input.buffer.byteLength
+      ) {
         // no action necessary, wrap it up in a block
         const idx = this.#blocks.length;
         this.#blocks.push(new Block(input.buffer, true));
