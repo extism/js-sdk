@@ -268,7 +268,7 @@ if (typeof WebAssembly === "undefined") {
       assert.deepEqual(intercept, {
         trace: "this is a trace log",
         debug: "this is a debug log",
-        error: "this is an erorr log",
+        error: "this is an error log",
         info: "this is an info log",
         warn: "this is a warning log",
       });
