@@ -1,15 +1,23 @@
-import { type PluginConfig, PluginOutput, MemoryOptions } from './interfaces.ts';
-import { CAPABILITIES } from './polyfills/deno-capabilities.ts';
+import {
+  LogLevel,
+  MemoryOptions,
+  type PluginConfig,
+  PluginOutput,
+  LogLevelPriority,
+  priorityToLogLevel,
+  logLevelToPriority,
+} from "./interfaces.ts";
+import { CAPABILITIES } from "./polyfills/deno-capabilities.ts";
 
-export const BEGIN = Symbol('begin');
-export const END = Symbol('end');
-export const ENV = Symbol('env');
-export const SET_HOST_CONTEXT = Symbol('set-host-context');
-export const GET_BLOCK = Symbol('get-block');
-export const IMPORT_STATE = Symbol('import-state');
-export const EXPORT_STATE = Symbol('export-state');
-export const STORE = Symbol('store-value');
-export const RESET = Symbol('reset');
+export const BEGIN = Symbol("begin");
+export const END = Symbol("end");
+export const ENV = Symbol("env");
+export const SET_HOST_CONTEXT = Symbol("set-host-context");
+export const GET_BLOCK = Symbol("get-block");
+export const IMPORT_STATE = Symbol("import-state");
+export const EXPORT_STATE = Symbol("export-state");
+export const STORE = Symbol("store-value");
+export const RESET = Symbol("reset");
 
 export class Block {
   buffer: ArrayBufferLike;
@@ -49,6 +57,7 @@ export class CallContext {
   /** @hidden */
   #blocks: (Block | null)[] = [];
   #logger: Console;
+  #logLevel: LogLevelPriority;
   #decoder: TextDecoder;
   #encoder: TextEncoder;
   #arrayBufferType: { new(size: number): ArrayBufferLike };
@@ -56,12 +65,19 @@ export class CallContext {
   #vars: Map<string, Uint8Array> = new Map();
   #varsSize: number;
   #memoryOptions: MemoryOptions;
-  #hostContext: any
+  #hostContext: any;
 
   /** @hidden */
-  constructor(type: { new(size: number): ArrayBufferLike }, logger: Console, config: PluginConfig, memoryOptions: MemoryOptions) {
+  constructor(
+    type: { new(size: number): ArrayBufferLike },
+    logger: Console,
+    logLevel: LogLevelPriority,
+    config: PluginConfig,
+    memoryOptions: MemoryOptions,
+  ) {
     this.#arrayBufferType = type;
     this.#logger = logger;
+    this.#logLevel = logLevel ?? 0x7fff_ffff;
     this.#decoder = new TextDecoder();
     this.#encoder = new TextEncoder();
     this.#memoryOptions = memoryOptions;
@@ -76,7 +92,7 @@ export class CallContext {
   }
 
   hostContext<T = any>(): T {
-    return this.#hostContext as T
+    return this.#hostContext as T;
   }
 
   /**
@@ -90,11 +106,16 @@ export class CallContext {
 
     if (this.#memoryOptions.maxPages) {
       const pageSize = 64 * 1024;
-      const totalBytes = this.#blocks.reduce((acc, block) => acc + (block?.buffer.byteLength ?? 0), 0)
+      const totalBytes = this.#blocks.reduce(
+        (acc, block) => acc + (block?.buffer.byteLength ?? 0),
+        0,
+      );
       const totalPages = Math.ceil(totalBytes / pageSize);
 
       if (totalPages > this.#memoryOptions.maxPages) {
-        this.#logger.error(`memory limit exceeded: ${totalPages} pages requested, ${this.#memoryOptions.maxPages} allowed`);
+        this.#logger.error(
+          `memory limit exceeded: ${totalPages} pages requested, ${this.#memoryOptions.maxPages} allowed`,
+        );
         return 0n;
       }
     }
@@ -118,19 +139,20 @@ export class CallContext {
    * Set a variable to a given string or byte array value.
    */
   setVariable(name: string, value: string | Uint8Array) {
-    const buffer = (
-      typeof value === 'string'
-        ? this.#encoder.encode(value)
-        : value
-    )
+    const buffer = typeof value === "string"
+      ? this.#encoder.encode(value)
+      : value;
 
-    const variable = this.#vars.get(name)
+    const variable = this.#vars.get(name);
 
-    const newSize = this.#varsSize + buffer.byteLength - (variable?.byteLength || 0)
+    const newSize = this.#varsSize + buffer.byteLength -
+      (variable?.byteLength || 0);
     if (newSize > (this.#memoryOptions?.maxVarBytes || Infinity)) {
-      throw new Error(`var memory limit exceeded: ${newSize} bytes requested, ${this.#memoryOptions.maxVarBytes} allowed`)
+      throw new Error(
+        `var memory limit exceeded: ${newSize} bytes requested, ${this.#memoryOptions.maxVarBytes} allowed`,
+      );
     }
-    this.#varsSize = newSize
+    this.#varsSize = newSize;
     this.#vars.set(name, buffer);
   }
 
@@ -138,12 +160,12 @@ export class CallContext {
    * Delete a variable if present.
    */
   deleteVariable(name: string) {
-    const variable = this.#vars.get(name)
+    const variable = this.#vars.get(name);
     if (!variable) {
-      return
+      return;
     }
-    this.#vars.delete(name)
-    this.#varsSize -= variable.byteLength
+    this.#vars.delete(name);
+    this.#varsSize -= variable.byteLength;
   }
 
   /**
@@ -159,10 +181,10 @@ export class CallContext {
       return null;
     }
 
-    const buffer =
-      !(block.buffer instanceof ArrayBuffer) && !CAPABILITIES.allowSharedBufferCodec
-        ? new Uint8Array(block.buffer).slice().buffer
-        : block.buffer;
+    const buffer = !(block.buffer instanceof ArrayBuffer) &&
+      !CAPABILITIES.allowSharedBufferCodec
+      ? new Uint8Array(block.buffer).slice().buffer
+      : block.buffer;
 
     return new PluginOutput(buffer);
   }
@@ -175,7 +197,7 @@ export class CallContext {
   store(input: string | Uint8Array): bigint {
     const idx = this[STORE](input);
     if (!idx) {
-      throw new Error('failed to store output');
+      throw new Error("failed to store output");
     }
     return Block.indexToAddress(idx);
   }
@@ -190,16 +212,26 @@ export class CallContext {
   }
 
   setError(err: string | Error | null = null) {
-    const blockIdx = err ? this[STORE](err instanceof Error ? err.message : err) : 0
+    const blockIdx = err
+      ? this[STORE](err instanceof Error ? err.message : err)
+      : 0;
     if (!blockIdx) {
-      throw new Error('could not store error value')
+      throw new Error("could not store error value");
     }
 
     this.#stack[this.#stack.length - 1][2] = blockIdx;
   }
 
+  get logLevel(): LogLevel {
+    return priorityToLogLevel(this.#logLevel)
+  }
+
+  set logLevel(v: LogLevel) {
+    this.#logLevel = logLevelToPriority(v)
+  }
+
   /** @hidden */
-  [ENV] = {
+  [ENV]: Record<string, CallableFunction> = {
     alloc: (n: bigint): bigint => {
       return this.alloc(n);
     },
@@ -259,11 +291,14 @@ export class CallContext {
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
-        throw new Error(`cannot assign to this block (addr=${addr.toString(16).padStart(16, '0')}; length=${length})`);
+        throw new Error(
+          `cannot assign to this block (addr=${addr.toString(16).padStart(16, "0")
+          }; length=${length})`,
+        );
       }
 
       if (length > block.buffer.byteLength) {
-        throw new Error('length longer than target block');
+        throw new Error("length longer than target block");
       }
 
       this.#stack[this.#stack.length - 1][1] = blockIdx;
@@ -273,18 +308,18 @@ export class CallContext {
       const blockIdx = Block.addressToIndex(addr);
       const block = this.#blocks[blockIdx];
       if (!block) {
-        throw new Error('cannot assign error to this block');
+        throw new Error("cannot assign error to this block");
       }
 
       this.#stack[this.#stack.length - 1][2] = blockIdx;
     },
 
     error_get: (): bigint => {
-      const error = this.#stack[this.#stack.length - 1][2]
+      const error = this.#stack[this.#stack.length - 1][2];
       if (error) {
-        return Block.indexToAddress(error)
+        return Block.indexToAddress(error);
       }
-      return 0n
+      return 0n;
     },
 
     config_get: (addr: bigint): bigint => {
@@ -294,12 +329,13 @@ export class CallContext {
         return 0n;
       }
 
-      const key = item.string();
-
-      this[ENV].free(addr);
-
-      if (key in this.#config) {
-        return this.store(this.#config[key]);
+      try {
+        const key = item.string();
+        if (key in this.#config) {
+          return this.store(this.#config[key]);
+        }
+      } finally {
+        this[ENV].free(addr);
       }
 
       return 0n;
@@ -312,32 +348,41 @@ export class CallContext {
         return 0n;
       }
 
-      const key = item.string();
-      this[ENV].free(addr);
+      try {
+        const key = item.string();
 
-      const result = this.getVariable(key);
-      const stored = result ? this[STORE](result.bytes()) || 0 : 0;
-      return Block.indexToAddress(stored)
+        const result = this.getVariable(key);
+        const stored = result ? this[STORE](result.bytes()) || 0 : 0;
+        return Block.indexToAddress(stored);
+      } finally {
+        this[ENV].free(addr);
+      }
     },
 
     var_set: (addr: bigint, valueaddr: bigint): void => {
       const item = this.read(addr);
 
       if (item === null) {
-        this.#logger.error(`attempted to set variable using invalid key address (addr="${addr.toString(16)}H")`);
+        this.#logger.error(
+          `attempted to set variable using invalid key address (addr="${addr.toString(16)
+          }H")`,
+        );
         return;
       }
 
       const key = item.string();
 
       if (valueaddr === 0n) {
-        this.deleteVariable(key)
+        this.deleteVariable(key);
         return;
       }
 
       const valueBlock = this.#blocks[Block.addressToIndex(valueaddr)];
       if (!valueBlock) {
-        this.#logger.error(`attempted to set variable to invalid address (key="${key}"; addr="${valueaddr.toString(16)}H")`);
+        this.#logger.error(
+          `attempted to set variable to invalid address (key="${key}"; addr="${valueaddr.toString(16)
+          }H")`,
+        );
         return;
       }
 
@@ -345,23 +390,23 @@ export class CallContext {
         // Copy the variable value out of the block for TWO reasons:
         // 1. Variables outlive blocks -- blocks are reset after each invocation.
         // 2. If the block is backed by a SharedArrayBuffer, we can't read text out of it directly (in many browser contexts.)
-        const copied = new Uint8Array(valueBlock.buffer.byteLength)
-        copied.set(new Uint8Array(valueBlock.buffer), 0)
+        const copied = new Uint8Array(valueBlock.buffer.byteLength);
+        copied.set(new Uint8Array(valueBlock.buffer), 0);
         this.setVariable(key, copied);
       } catch (err: any) {
-        this.#logger.error(err.message)
-        this.setError(err)
+        this.#logger.error(err.message);
+        this.setError(err);
         return;
       }
     },
 
     http_request: (_requestOffset: bigint, _bodyOffset: bigint): bigint => {
-      this.#logger.error('http_request is not enabled');
+      this.#logger.error("http_request is not enabled");
       return 0n;
     },
 
     http_status_code: (): number => {
-      this.#logger.error('http_status_code is not enabled');
+      this.#logger.error("http_status_code is not enabled");
       return 0;
     },
 
@@ -373,62 +418,38 @@ export class CallContext {
       return this.length(addr);
     },
 
-    log_warn: (addr: bigint) => {
-      const blockIdx = Block.addressToIndex(addr);
-      const block = this.#blocks[blockIdx];
-      if (!block) {
-        this.#logger.error(
-          `failed to log(warn): bad block reference in addr 0x${addr.toString(16).padStart(64, '0')}`,
-        );
-        return;
-      }
-      const text = this.#decoder.decode(block.buffer);
-      this.#logger.warn(text);
-      this[ENV].free(addr);
-    },
+    log_warn: this.#handleLog.bind(this, logLevelToPriority('warn'), 'warn'),
+    log_info: this.#handleLog.bind(this, logLevelToPriority('info'), 'info'),
+    log_debug: this.#handleLog.bind(this, logLevelToPriority('debug'), 'debug'),
+    log_error: this.#handleLog.bind(this, logLevelToPriority('error'), 'error'),
+    log_trace: this.#handleLog.bind(this, logLevelToPriority('trace'), 'trace'),
 
-    log_info: (addr: bigint) => {
-      const blockIdx = Block.addressToIndex(addr);
-      const block = this.#blocks[blockIdx];
-      if (!block) {
-        this.#logger.error(
-          `failed to log(info): bad block reference in addr 0x${addr.toString(16).padStart(64, '0')}`,
-        );
-        return;
-      }
-      const text = this.#decoder.decode(block.buffer);
-      this.#logger.info(text);
-      this[ENV].free(addr);
-    },
-
-    log_debug: (addr: bigint) => {
-      const blockIdx = Block.addressToIndex(addr);
-      const block = this.#blocks[blockIdx];
-      if (!block) {
-        this.#logger.error(
-          `failed to log(debug): bad block reference in addr 0x${addr.toString(16).padStart(64, '0')}`,
-        );
-        return;
-      }
-      const text = this.#decoder.decode(block.buffer);
-      this.#logger.debug(text);
-      this[ENV].free(addr);
-    },
-
-    log_error: (addr: bigint) => {
-      const blockIdx = Block.addressToIndex(addr);
-      const block = this.#blocks[blockIdx];
-      if (!block) {
-        this.#logger.error(
-          `failed to log(error): bad block reference in addr 0x${addr.toString(16).padStart(64, '0')}`,
-        );
-        return;
-      }
-      const text = this.#decoder.decode(block.buffer);
-      this.#logger.error(text);
-      this[ENV].free(addr);
+    get_log_level: (): number => {
+      return isFinite(this.#logLevel) ? this.#logLevel : 0xffff_ffff;
     },
   };
+
+  /** @hidden */
+  #handleLog(threshold: LogLevelPriority, level: LogLevel, addr: bigint) {
+    if (this.#logLevel > threshold) {
+      return;
+    }
+    const blockIdx = Block.addressToIndex(addr);
+    const block = this.#blocks[blockIdx];
+    if (!block) {
+      this.#logger.error(
+        `failed to log(${level}): bad block reference in addr 0x${addr.toString(16).padStart(64, "0")
+        }`,
+      );
+      return;
+    }
+    try {
+      const text = this.#decoder.decode(block.buffer);
+      (this.#logger[level as keyof Console] as any)(text);
+    } finally {
+      this.#blocks[blockIdx] = null;
+    }
+  }
 
   /** @hidden */
   get #input(): Block | null {
@@ -464,7 +485,9 @@ export class CallContext {
     // eslint-disable-next-line prefer-const
     for (let [buf, idx] of state.blocks) {
       if (buf && copy) {
-        const dst = new Uint8Array(new this.#arrayBufferType(Number(buf.byteLength)));
+        const dst = new Uint8Array(
+          new this.#arrayBufferType(Number(buf.byteLength)),
+        );
         dst.set(new Uint8Array(buf));
         buf = dst.buffer;
       }
@@ -495,7 +518,7 @@ export class CallContext {
 
   /** @hidden */
   [STORE](input?: string | Uint8Array): number | null {
-    if (typeof input === 'string') {
+    if (typeof input === "string") {
       input = this.#encoder.encode(input);
     }
 
@@ -526,7 +549,7 @@ export class CallContext {
 
   /** @hidden */
   [SET_HOST_CONTEXT](hostContext: any) {
-    this.#hostContext = hostContext
+    this.#hostContext = hostContext;
   }
 
   /** @hidden */
@@ -536,7 +559,7 @@ export class CallContext {
 
   /** @hidden */
   [END](): [number | null, number | null] {
-    this.#hostContext = null
+    this.#hostContext = null;
     const [, outputIdx, errorIdx] = this.#stack.pop() as (number | null)[];
     const outputPosition = errorIdx === null ? 1 : 0;
     const idx = errorIdx ?? outputIdx;

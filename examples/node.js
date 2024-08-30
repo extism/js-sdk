@@ -10,14 +10,17 @@ async function main() {
 
   const plugin = await createPlugin(filename, {
     useWasi: true,
+    logger: console,
     config: { thing: 'testing' },
     allowedHosts: ['*.typicode.com'],
-    runInWorker: true
+    runInWorker: true,
+    logLevel: 'trace',
   });
 
+  console.log('calling', { filename, funcname, input });
   const res = await plugin.call(funcname, new TextEncoder().encode(input));
-  const s = new TextDecoder().decode(res.buffer);
-  console.log(s);
+  // const s = new TextDecoder().decode(res.buffer);
+  // console.log(s);
 
   await plugin.close();
 }
