@@ -1,5 +1,4 @@
 #!/usr/bin/env deno run -A
-import { LogLevelTrace } from "../src/interfaces.ts";
 import createPlugin from "../src/mod.ts";
 
 const filename = Deno.args[0] || "wasm/hello.wasm";
@@ -8,7 +7,7 @@ const input = Deno.args[2] || "this is a test";
 
 const plugin = await createPlugin(filename, {
   useWasi: true,
-  logLevel: LogLevelTrace,
+  logLevel: 'trace',
   logger: console,
   config: {
     thing: "testing",

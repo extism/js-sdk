@@ -3,6 +3,9 @@ import {
   MemoryOptions,
   type PluginConfig,
   PluginOutput,
+  LogLevelPriority,
+  priorityToLogLevel,
+  logLevelToPriority,
 } from "./interfaces.ts";
 import { CAPABILITIES } from "./polyfills/deno-capabilities.ts";
 
@@ -54,10 +57,10 @@ export class CallContext {
   /** @hidden */
   #blocks: (Block | null)[] = [];
   #logger: Console;
-  #logLevel: LogLevel;
+  #logLevel: LogLevelPriority;
   #decoder: TextDecoder;
   #encoder: TextEncoder;
-  #arrayBufferType: { new (size: number): ArrayBufferLike };
+  #arrayBufferType: { new(size: number): ArrayBufferLike };
   #config: PluginConfig;
   #vars: Map<string, Uint8Array> = new Map();
   #varsSize: number;
@@ -66,15 +69,15 @@ export class CallContext {
 
   /** @hidden */
   constructor(
-    type: { new (size: number): ArrayBufferLike },
+    type: { new(size: number): ArrayBufferLike },
     logger: Console,
-    logLevel: LogLevel,
+    logLevel: LogLevelPriority,
     config: PluginConfig,
     memoryOptions: MemoryOptions,
   ) {
     this.#arrayBufferType = type;
     this.#logger = logger;
-    this.#logLevel = logLevel ?? LogLevel.Off;
+    this.#logLevel = logLevel ?? Infinity;
     this.#decoder = new TextDecoder();
     this.#encoder = new TextEncoder();
     this.#memoryOptions = memoryOptions;
@@ -179,7 +182,7 @@ export class CallContext {
     }
 
     const buffer = !(block.buffer instanceof ArrayBuffer) &&
-        !CAPABILITIES.allowSharedBufferCodec
+      !CAPABILITIES.allowSharedBufferCodec
       ? new Uint8Array(block.buffer).slice().buffer
       : block.buffer;
 
@@ -219,12 +222,12 @@ export class CallContext {
     this.#stack[this.#stack.length - 1][2] = blockIdx;
   }
 
-  setLogLevel(level: LogLevel) {
-    this.#logLevel = level;
+  get logLevel() {
+    return priorityToLogLevel(this.#logLevel)
   }
 
-  getLogLevel(): LogLevel {
-    return this.#logLevel;
+  set logLevel(v: LogLevel) {
+    this.#logLevel = logLevelToPriority(v)
   }
 
   /** @hidden */
@@ -289,8 +292,7 @@ export class CallContext {
       const block = this.#blocks[blockIdx];
       if (!block) {
         throw new Error(
-          `cannot assign to this block (addr=${
-            addr.toString(16).padStart(16, "0")
+          `cannot assign to this block (addr=${addr.toString(16).padStart(16, "0")
           }; length=${length})`,
         );
       }
@@ -354,8 +356,7 @@ export class CallContext {
 
       if (item === null) {
         this.#logger.error(
-          `attempted to set variable using invalid key address (addr="${
-            addr.toString(16)
+          `attempted to set variable using invalid key address (addr="${addr.toString(16)
           }H")`,
         );
         return;
@@ -371,8 +372,7 @@ export class CallContext {
       const valueBlock = this.#blocks[Block.addressToIndex(valueaddr)];
       if (!valueBlock) {
         this.#logger.error(
-          `attempted to set variable to invalid address (key="${key}"; addr="${
-            valueaddr.toString(16)
+          `attempted to set variable to invalid address (key="${key}"; addr="${valueaddr.toString(16)
           }H")`,
         );
         return;
@@ -410,100 +410,34 @@ export class CallContext {
       return this.length(addr);
     },
 
-    log_warn: (addr: bigint) => {
-      if (this.#logLevel > LogLevel.Warn) {
-        return;
-      }
-      const blockIdx = Block.addressToIndex(addr);
-      const block = this.#blocks[blockIdx];
-      if (!block) {
-        this.#logger.error(
-          `failed to log(warn): bad block reference in addr 0x${
-            addr.toString(16).padStart(64, "0")
-          }`,
-        );
-        return;
-      }
-      const text = this.#decoder.decode(block.buffer);
-      this.#logger.warn(text);
-    },
-
-    log_info: (addr: bigint) => {
-      if (this.#logLevel > LogLevel.Info) {
-        return;
-      }
-      const blockIdx = Block.addressToIndex(addr);
-      const block = this.#blocks[blockIdx];
-      if (!block) {
-        this.#logger.error(
-          `failed to log(info): bad block reference in addr 0x${
-            addr.toString(16).padStart(64, "0")
-          }`,
-        );
-        return;
-      }
-      const text = this.#decoder.decode(block.buffer);
-      this.#logger.info(text);
-    },
-
-    log_debug: (addr: bigint) => {
-      if (this.#logLevel > LogLevel.Debug) {
-        return;
-      }
-      const blockIdx = Block.addressToIndex(addr);
-      const block = this.#blocks[blockIdx];
-      if (!block) {
-        this.#logger.error(
-          `failed to log(debug): bad block reference in addr 0x${
-            addr.toString(16).padStart(64, "0")
-          }`,
-        );
-        return;
-      }
-      const text = this.#decoder.decode(block.buffer);
-      this.#logger.debug(text);
-    },
-
-    log_error: (addr: bigint) => {
-      if (this.#logLevel > LogLevel.Error) {
-        return;
-      }
-      const blockIdx = Block.addressToIndex(addr);
-      const block = this.#blocks[blockIdx];
-      if (!block) {
-        this.#logger.error(
-          `failed to log(error): bad block reference in addr 0x${
-            addr.toString(16).padStart(64, "0")
-          }`,
-        );
-        return;
-      }
-      const text = this.#decoder.decode(block.buffer);
-      this.#logger.error(text);
-    },
-
-    log_trace: (addr: bigint) => {
-      if (this.#logLevel > LogLevel.Trace) {
-        return;
-      }
-      const blockIdx = Block.addressToIndex(addr);
-      const block = this.#blocks[blockIdx];
-      if (!block) {
-        this.#logger.trace(
-          `failed to log(trace): bad block reference in addr 0x${
-            addr.toString(16).padStart(64, "0")
-          }`,
-        );
-        return;
-      }
-      const text = this.#decoder.decode(block.buffer);
-      this.#logger.trace(text);
-    },
+    log_warn: this.#handleLog.bind(this, logLevelToPriority('warn'), 'warn'),
+    log_info: this.#handleLog.bind(this, logLevelToPriority('info'), 'info'),
+    log_debug: this.#handleLog.bind(this, logLevelToPriority('debug'), 'debug'),
+    log_error: this.#handleLog.bind(this, logLevelToPriority('error'), 'error'),
+    log_trace: this.#handleLog.bind(this, logLevelToPriority('trace'), 'trace'),
 
     get_log_level: (): number => {
-      return this.#logLevel;
+      return isFinite(this.#logLevel) ? this.#logLevel : 0xffff_ffff;
     },
   };
+
+  /** @hidden */
+  #handleLog(threshold: LogLevelPriority, level: LogLevel, addr: bigint) {
+    if (this.#logLevel > threshold) {
+      return;
+    }
+    const blockIdx = Block.addressToIndex(addr);
+    const block = this.#blocks[blockIdx];
+    if (!block) {
+      this.#logger.error(
+        `failed to log(${level}): bad block reference in addr 0x${addr.toString(16).padStart(64, "0")
+        }`,
+      );
+      return;
+    }
+    const text = this.#decoder.decode(block.buffer);
+    (this.#logger[level as keyof Console] as any)(text);
+  }
 
   /** @hidden */
   get #input(): Block | null {

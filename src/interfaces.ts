@@ -277,7 +277,7 @@ export type ManifestOptions =
 
 export interface InternalConfig extends Required<NativeManifestOptions> {
   logger: Console;
-  logLevel: LogLevel;
+  logLevel: LogLevelPriority;
   enableWasiOutput: boolean;
   functions: { [namespace: string]: { [func: string]: any } };
   fetch: typeof fetch;
@@ -517,18 +517,42 @@ export enum SharedArrayBufferSection {
   Block = 4,
 }
 
-export enum LogLevel {
-  Trace = 0,
-  Debug = 1,
-  Info = 2,
-  Warn = 3,
-  Error = 4,
-  Off = 0xffffffff, // I32.MAX
+export type LogLevel =
+  | 'trace'
+  | 'debug'
+  | 'info'
+  | 'warn'
+  | 'error'
+  | 'silent'
+
+export function logLevelToPriority(level: LogLevel) {
+  switch (level) {
+    case 'trace': return 0;
+    case 'debug': return 1;
+    case 'info': return 2;
+    case 'warn': return 3;
+    case 'error': return 4;
+    case 'silent': return Infinity;
+    default:
+      throw new TypeError(
+        `unrecognized log level "${level}"; expected one of "trace", "debug", "info", "warn", "error", "silent"`
+      )
+  }
 }
 
-export const LogLevelTrace = LogLevel.Trace;
-export const LogLevelDebug = LogLevel.Debug;
-export const LogLevelInfo = LogLevel.Info;
-export const LogLevelWarn = LogLevel.Warn;
-export const LogLevelError = LogLevel.Error;
-export const LogLevelOff = LogLevel.Off;
+export type LogLevelPriority = ReturnType<typeof logLevelToPriority>;
+
+export function priorityToLogLevel(level: LogLevelPriority) {
+  switch (level) {
+    case 0: return 'trace';
+    case 1: return 'debug';
+    case 2: return 'info';
+    case 3: return 'warn';
+    case 4: return 'error';
+    case Infinity: return 'silent';
+    default:
+      throw new TypeError(
+        `unrecognized log level "${level}"; expected one of "trace", "debug", "info", "warn", "error", "silent"`
+      )
+  }
+}

@@ -1,7 +1,6 @@
 #!/usr/bin/env node --no-warnings
 /* eslint-disable @typescript-eslint/no-var-requires */
 const createPlugin = require('../dist/cjs').default;
-const { LogLevelTrace } = require('../dist/cjs');
 const { argv } = require('process');
 
 async function main() {
@@ -15,10 +14,10 @@ async function main() {
     config: { thing: 'testing' },
     allowedHosts: ['*.typicode.com'],
     runInWorker: true,
-    logLevel: LogLevelTrace,
+    logLevel: 'trace',
   });
 
-  console.log('calling', {filename, funcname, input});
+  console.log('calling', { filename, funcname, input });
   const res = await plugin.call(funcname, new TextEncoder().encode(input));
   // const s = new TextDecoder().decode(res.buffer);
   // console.log(s);

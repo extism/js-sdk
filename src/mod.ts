@@ -1,9 +1,9 @@
 import { CAPABILITIES } from "./polyfills/deno-capabilities.ts";
 
 import {
+  logLevelToPriority,
   type ExtismPluginOptions,
   type InternalConfig,
-  LogLevel,
   type ManifestLike,
   type Plugin,
 } from "./interfaces.ts";
@@ -18,6 +18,7 @@ export { CAPABILITIES } from "./polyfills/deno-capabilities.ts";
 export type {
   Capabilities,
   ExtismPluginOptions,
+  LogLevel,
   Manifest,
   ManifestLike,
   ManifestWasm,
@@ -90,7 +91,7 @@ export async function createPlugin(
   opts.runInWorker ??= false;
 
   opts.logger ??= console;
-  opts.logLevel ??= LogLevel.Off;
+  opts.logLevel ??= 'silent';
   opts.fetch ??= fetch;
 
   const [manifestOpts, names, moduleData] = await _toWasmModuleData(
@@ -137,7 +138,7 @@ export async function createPlugin(
     fetch: opts.fetch || fetch,
     wasiEnabled: opts.useWasi,
     logger: opts.logger,
-    logLevel: opts.logLevel,
+    logLevel: logLevelToPriority(opts.logLevel || 'silent'),
     config: opts.config,
     enableWasiOutput: opts.enableWasiOutput,
     sharedArrayBufferSize: Number(opts.sharedArrayBufferSize) || 1 << 16,

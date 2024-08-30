@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert";
 import createPlugin, { CallContext, CAPABILITIES } from "./mod.ts";
-import { LogLevelTrace } from "./interfaces.ts";
 
 if (typeof WebAssembly === "undefined") {
   test("this platform lacks WebAssembly support", async () => {
@@ -260,7 +259,7 @@ if (typeof WebAssembly === "undefined") {
 
     const plugin = await createPlugin(
       { wasm: [{ url: "http://localhost:8124/wasm/log.wasm" }] },
-      { useWasi: true, logger, logLevel: LogLevelTrace },
+      { useWasi: true, logger, logLevel: 'trace' },
     );
 
     try {
