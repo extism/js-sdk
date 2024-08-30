@@ -1,8 +1,21 @@
-import { CallContext, RESET, GET_BLOCK, BEGIN, END, ENV, STORE, SET_HOST_CONTEXT } from './call-context.ts';
-import { PluginOutput, type InternalConfig, InternalWasi } from './interfaces.ts';
-import { loadWasi } from './polyfills/deno-wasi.ts';
+import {
+  BEGIN,
+  CallContext,
+  END,
+  ENV,
+  GET_BLOCK,
+  RESET,
+  SET_HOST_CONTEXT,
+  STORE,
+} from "./call-context.ts";
+import {
+  type InternalConfig,
+  InternalWasi,
+  PluginOutput,
+} from "./interfaces.ts";
+import { loadWasi } from "./polyfills/deno-wasi.ts";
 
-export const EXTISM_ENV = 'extism:host/env';
+export const EXTISM_ENV = "extism:host/env";
 
 type InstantiatedModule = [WebAssembly.Module, WebAssembly.Instance];
 
@@ -13,7 +26,12 @@ export class ForegroundPlugin {
   #wasi: InternalWasi[];
   #opts: InternalConfig;
 
-  constructor(opts: InternalConfig, context: CallContext, instancePair: InstantiatedModule, wasi: InternalWasi[]) {
+  constructor(
+    opts: InternalConfig,
+    context: CallContext,
+    instancePair: InstantiatedModule,
+    wasi: InternalWasi[],
+  ) {
     this.#context = context;
     this.#instancePair = instancePair;
     this.#wasi = wasi;
@@ -34,18 +52,22 @@ export class ForegroundPlugin {
   }
 
   async functionExists(funcName: string): Promise<boolean> {
-    return typeof this.#instancePair[1].exports[funcName] === 'function';
+    return typeof this.#instancePair[1].exports[funcName] === "function";
   }
 
-  async callBlock(funcName: string, input: number | null): Promise<[number | null, number | null]> {
+  async callBlock(
+    funcName: string,
+    input: number | null,
+  ): Promise<[number | null, number | null]> {
     this.#active = true;
-    const func: CallableFunction | undefined = this.#instancePair[1].exports[funcName] as CallableFunction;
+    const func: CallableFunction | undefined = this.#instancePair[1]
+      .exports[funcName] as CallableFunction;
 
     if (!func) {
       throw Error(`Plugin error: function "${funcName}" does not exist`);
     }
 
-    if (typeof func !== 'function') {
+    if (typeof func !== "function") {
       throw Error(`Plugin error: export "${funcName}" is not a function`);
     }
 
@@ -61,7 +83,11 @@ export class ForegroundPlugin {
     }
   }
 
-  async call<T = any>(funcName: string, input?: string | Uint8Array, hostContext?: T): Promise<PluginOutput | null> {
+  async call<T = any>(
+    funcName: string,
+    input?: string | Uint8Array,
+    hostContext?: T,
+  ): Promise<PluginOutput | null> {
     this.#context[RESET]();
 
     const inputIdx = this.#context[STORE](input);
@@ -109,7 +135,13 @@ export async function createForegroundPlugin(
   opts: InternalConfig,
   names: string[],
   modules: WebAssembly.Module[],
-  context: CallContext = new CallContext(ArrayBuffer, opts.logger, opts.config, opts.memory),
+  context: CallContext = new CallContext(
+    ArrayBuffer,
+    opts.logger,
+    opts.logLevel,
+    opts.config,
+    opts.memory,
+  ),
 ): Promise<ForegroundPlugin> {
   const imports: Record<string, Record<string, any>> = {
     [EXTISM_ENV]: context[ENV],
@@ -119,21 +151,40 @@ export async function createForegroundPlugin(
   for (const namespace in opts.functions) {
     imports[namespace] = imports[namespace] || {};
     for (const func in opts.functions[namespace]) {
-      imports[namespace][func] = opts.functions[namespace][func].bind(null, context);
+      imports[namespace][func] = opts.functions[namespace][func].bind(
+        null,
+        context,
+      );
     }
   }
 
   // find the "main" module and try to instantiate it.
-  const mainIndex = names.indexOf('main');
+  const mainIndex = names.indexOf("main");
   if (mainIndex === -1) {
-    throw new Error('Unreachable: manifests must have at least one "main" module. Enforced by "src/manifest.ts")');
+    throw new Error(
+      'Unreachable: manifests must have at least one "main" module. Enforced by "src/manifest.ts")',
+    );
   }
   const seen: Map<WebAssembly.Module, WebAssembly.Instance> = new Map();
   const wasiList: InternalWasi[] = [];
 
-  const instance = await instantiateModule(['main'], modules[mainIndex], imports, opts, wasiList, names, modules, seen);
+  const instance = await instantiateModule(
+    ["main"],
+    modules[mainIndex],
+    imports,
+    opts,
+    wasiList,
+    names,
+    modules,
+    seen,
+  );
 
-  return new ForegroundPlugin(opts, context, [modules[mainIndex], instance], wasiList);
+  return new ForegroundPlugin(
+    opts,
+    context,
+    [modules[mainIndex], instance],
+    wasiList,
+  );
 }
 
 async function instantiateModule(
@@ -148,7 +199,10 @@ async function instantiateModule(
 ) {
   linked.set(module, null);
 
-  const instantiationImports: Record<string, Record<string, WebAssembly.ExportValue | CallableFunction>> = {};
+  const instantiationImports: Record<
+    string,
+    Record<string, WebAssembly.ExportValue | CallableFunction>
+  > = {};
   const requested = WebAssembly.Module.imports(module);
 
   let wasi = null;
@@ -156,9 +210,11 @@ async function instantiateModule(
     const nameIdx = names.indexOf(module);
 
     if (nameIdx === -1) {
-      if (module === 'wasi_snapshot_preview1' && wasi === null) {
+      if (module === "wasi_snapshot_preview1" && wasi === null) {
         if (!opts.wasiEnabled) {
-          throw new Error('WASI is not enabled; see the "wasiEnabled" plugin option');
+          throw new Error(
+            'WASI is not enabled; see the "wasiEnabled" plugin option',
+          );
         }
 
         if (wasi === null) {
@@ -171,31 +227,38 @@ async function instantiateModule(
       // lookup from "imports"
       if (!Object.hasOwnProperty.call(imports, module)) {
         throw new Error(
-          `from module "${current.join(
-            '"/"',
-          )}": cannot resolve import "${module}" "${name}": not provided by host imports nor linked manifest items`,
+          `from module "${
+            current.join(
+              '"/"',
+            )
+          }": cannot resolve import "${module}" "${name}": not provided by host imports nor linked manifest items`,
         );
       }
 
       if (!Object.hasOwnProperty.call(imports[module], name)) {
         throw new Error(
-          `from module "${current.join(
-            '"/"',
-          )}": cannot resolve import "${module}" "${name}" ("${module}" is a host module, but does not contain "${name}")`,
+          `from module "${
+            current.join(
+              '"/"',
+            )
+          }": cannot resolve import "${module}" "${name}" ("${module}" is a host module, but does not contain "${name}")`,
         );
       }
 
       switch (kind) {
         case `function`: {
           instantiationImports[module] ??= {};
-          instantiationImports[module][name] = imports[module][name] as CallableFunction;
+          instantiationImports[module][name] =
+            imports[module][name] as CallableFunction;
           break;
         }
         default:
           throw new Error(
-            `from module "${current.join(
-              '"/"',
-            )}": in import "${module}" "${name}", "${kind}"-typed host imports are not supported yet`,
+            `from module "${
+              current.join(
+                '"/"',
+              )
+            }": in import "${module}" "${name}", "${kind}"-typed host imports are not supported yet`,
           );
       }
     } else {
@@ -209,31 +272,55 @@ async function instantiateModule(
 
       if (!target) {
         throw new Error(
-          `from module "${current.join('"/"')}": cannot import "${module}" "${name}"; no export matched request`,
+          `from module "${
+            current.join('"/"')
+          }": cannot import "${module}" "${name}"; no export matched request`,
         );
       }
 
       // If the dependency provides "_start", treat it as a WASI Command module; instantiate it (and its subtree) directly.
-      const instance = providerExports.find((xs) => xs.name === '_start')
-        ? await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, new Map())
+      const instance = providerExports.find((xs) => xs.name === "_start")
+        ? await instantiateModule(
+          [...current, module],
+          provider,
+          imports,
+          opts,
+          wasiList,
+          names,
+          modules,
+          new Map(),
+        )
         : !linked.has(provider)
-          ? (await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, linked),
-            linked.get(provider))
-          : linked.get(provider);
+        ? (await instantiateModule(
+          [...current, module],
+          provider,
+          imports,
+          opts,
+          wasiList,
+          names,
+          modules,
+          linked,
+        ),
+          linked.get(provider))
+        : linked.get(provider);
 
       if (!instance) {
         // circular import, either make a trampoline or bail
-        if (kind === 'function') {
+        if (kind === "function") {
           instantiationImports[module] = {};
           let cached: CallableFunction | null = null;
-          instantiationImports[module][name] = (...args: (number | bigint)[]) => {
+          instantiationImports[module][name] = (
+            ...args: (number | bigint)[]
+          ) => {
             if (cached) {
               return cached(...args);
             }
             const instance = linked.get(modules[nameIdx]);
             if (!instance) {
               throw new Error(
-                `from module instance "${current.join('"/"')}": target module "${module}" was never instantiated`,
+                `from module instance "${
+                  current.join('"/"')
+                }": target module "${module}" was never instantiated`,
               );
             }
             cached = instance.exports[name] as CallableFunction;
@@ -241,16 +328,19 @@ async function instantiateModule(
           };
         } else {
           throw new Error(
-            `from module "${current.join(
-              '"/"',
-            )}": cannot import "${module}" "${name}"; circular imports of type="${kind}" are not supported`,
+            `from module "${
+              current.join(
+                '"/"',
+              )
+            }": cannot import "${module}" "${name}"; circular imports of type="${kind}" are not supported`,
           );
         }
       } else {
         // Add each requested import value piecemeal, since we have to validate that _all_ import requests are satisfied by this
         // module.
         instantiationImports[module] ??= {};
-        instantiationImports[module][name] = instance.exports[name] as WebAssembly.ExportValue;
+        instantiationImports[module][name] = instance
+          .exports[name] as WebAssembly.ExportValue;
       }
     }
   }
@@ -258,34 +348,35 @@ async function instantiateModule(
   const instance = await WebAssembly.instantiate(module, instantiationImports);
 
   const guestType = instance.exports.hs_init
-    ? 'haskell'
+    ? "haskell"
     : instance.exports._initialize
-      ? 'reactor'
-      : instance.exports._start
-        ? 'command'
-        : 'none';
+    ? "reactor"
+    : instance.exports._start
+    ? "command"
+    : "none";
 
   if (wasi) {
     await wasi?.initialize(instance);
     if (instance.exports.hs_init) {
       (instance.exports.hs_init as CallableFunction)();
     }
-  } else
+  } else {
     switch (guestType) {
-      case 'command':
+      case "command":
         if (instance.exports._initialize) {
           (instance.exports._initialize as CallableFunction)();
         }
 
         (instance.exports._start as CallableFunction)();
         break;
-      case 'reactor':
+      case "reactor":
         (instance.exports._initialize as CallableFunction)();
         break;
-      case 'haskell':
+      case "haskell":
         (instance.exports.hs_init as CallableFunction)();
         break;
     }
+  }
 
   linked.set(module, instance);
   return instance;
