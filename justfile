@@ -43,7 +43,6 @@ _build out args='[]': prepare
       const path = require("path");
 
       const args = [{
-          sourcemap: true,
           outdir: "dist/{{ out }}",
           bundle: true,
           minify: true,
@@ -60,6 +59,7 @@ _build out args='[]': prepare
         alias: combValue('alias'),
         polyfills: combValue('polyfills'),
         define: combValue('define'),
+        sourcemap: lastValue('sourcemap'),
       }
 
       const resolved = args.reduce((acc, xs) => {
@@ -95,7 +95,7 @@ _build out args='[]': prepare
 
             return { path: result, external: true }
           })
-        } 
+        }
       }];
 
 
@@ -125,6 +125,7 @@ build_worker out args='[]':
     #!/bin/bash
     config="$(<<<'{{ args }}' jq -cM '
       [{
+        "sourcemap": false,
         "entryPoints": ["src/worker.ts"],
         "bundle": true,
         "minify": true,
@@ -162,6 +163,7 @@ build_worker_browser out='worker/browser' args='[]':
     #!/bin/bash
     config="$(<<<'{{ args }}' jq -cM '
       [{
+        "sourcemap": true,
         "format": "esm",
         "alias": {
           "node:worker_threads": "./src/polyfills/worker-node-worker_threads.ts"
@@ -179,6 +181,7 @@ build_node_cjs out='cjs' args='[]':
     #!/bin/bash
     config="$(<<<'{{ args }}' jq -cM '
       [{
+        "sourcemap": true,
         "entryPoints": ["src/mod.ts"],
         "platform": "node",
         "minify": false,
@@ -209,6 +212,7 @@ build_node_esm out='esm' args='[]':
     #!/bin/bash
     config="$(<<<'{{ args }}' jq -cM '
       [{
+        "sourcemap": true,
         "entryPoints": ["src/mod.ts"],
         "platform": "node",
         "format": "esm",
@@ -229,6 +233,7 @@ build_bun out='bun' args='[]':
     #!/bin/bash
     config="$(<<<'{{ args }}' jq -cM '
       [{
+        "sourcemap": true,
         "entryPoints": ["src/mod.ts", "src/worker.ts"],
         "platform": "node",
         "format": "esm",
@@ -250,6 +255,7 @@ build_browser out='browser' args='[]':
     #!/bin/bash
     config="$(<<<'{{ args }}' jq -cM '
       [{
+        "sourcemap": true,
         "entryPoints": ["src/mod.ts"],
         "platform": "browser",
         "define": {"global": "globalThis"},
