@@ -179,7 +179,7 @@ build_node_cjs out='cjs' args='[]':
     #!/bin/bash
     config="$(<<<'{{ args }}' jq -cM '
       [{
-        "entryPoints": ["src/mod.ts"],
+        "entryPoints": ["src/mod.ts", "src/worker.ts"],
         "platform": "node",
         "minify": false,
         "polyfills": {
@@ -209,7 +209,7 @@ build_node_esm out='esm' args='[]':
     #!/bin/bash
     config="$(<<<'{{ args }}' jq -cM '
       [{
-        "entryPoints": ["src/mod.ts"],
+        "entryPoints": ["src/mod.ts", "src/worker.ts"],
         "platform": "node",
         "format": "esm",
         "minify": false,
