@@ -309,6 +309,7 @@ export class CallContext {
       if (item === null) {
         return 0n;
       }
+      this.free(addr);
 
       const key = item.string();
       const result = this.getVariable(key);
@@ -323,6 +324,7 @@ export class CallContext {
         this.#logger.error(`attempted to set variable using invalid key address (addr="${addr.toString(16)}H")`);
         return;
       }
+      this.free(addr);
 
       const key = item.string();
 
@@ -349,6 +351,8 @@ export class CallContext {
         this.setError(err)
         return;
       }
+
+      this.free(valueaddr);
     },
 
     http_request: (_requestOffset: bigint, _bodyOffset: bigint): bigint => {
@@ -380,6 +384,7 @@ export class CallContext {
       }
       const text = this.#decoder.decode(block.buffer);
       this.#logger.warn(text);
+      this.free(addr);
     },
 
     log_info: (addr: bigint) => {
@@ -393,6 +398,7 @@ export class CallContext {
       }
       const text = this.#decoder.decode(block.buffer);
       this.#logger.info(text);
+      this.free(addr);
     },
 
     log_debug: (addr: bigint) => {
@@ -406,6 +412,7 @@ export class CallContext {
       }
       const text = this.#decoder.decode(block.buffer);
       this.#logger.debug(text);
+      this.free(addr);
     },
 
     log_error: (addr: bigint) => {
@@ -419,6 +426,7 @@ export class CallContext {
       }
       const text = this.#decoder.decode(block.buffer);
       this.#logger.error(text);
+      this.free(addr);
     },
   };
 
