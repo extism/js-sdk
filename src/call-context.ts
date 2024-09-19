@@ -329,7 +329,6 @@ export class CallContext {
       }
 
       const key = item.string();
-      this[ENV].free(Number(addr));
 
       if (valueaddr === 0n) {
         this.deleteVariable(key)
