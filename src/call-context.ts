@@ -296,6 +296,8 @@ export class CallContext {
 
       const key = item.string();
 
+      this.free(addr);
+
       if (key in this.#config) {
         return this.store(this.#config[key]);
       }
@@ -309,9 +311,10 @@ export class CallContext {
       if (item === null) {
         return 0n;
       }
-      this.free(addr);
 
       const key = item.string();
+      this.free(addr);
+
       const result = this.getVariable(key);
       const stored = result ? this[STORE](result.bytes()) || 0 : 0;
       return Block.indexToAddress(stored)
@@ -324,9 +327,9 @@ export class CallContext {
         this.#logger.error(`attempted to set variable using invalid key address (addr="${addr.toString(16)}H")`);
         return;
       }
-      this.free(addr);
 
       const key = item.string();
+      this.free(addr);
 
       if (valueaddr === 0n) {
         this.deleteVariable(key)
@@ -346,13 +349,12 @@ export class CallContext {
         const copied = new Uint8Array(valueBlock.buffer.byteLength)
         copied.set(new Uint8Array(valueBlock.buffer), 0)
         this.setVariable(key, copied);
+        this.free(valueaddr);
       } catch (err: any) {
         this.#logger.error(err.message)
         this.setError(err)
         return;
       }
-
-      this.free(valueaddr);
     },
 
     http_request: (_requestOffset: bigint, _bodyOffset: bigint): bigint => {
