@@ -296,7 +296,7 @@ export class CallContext {
 
       const key = item.string();
 
-      this.free(addr);
+      this[ENV].free(addr);
 
       if (key in this.#config) {
         return this.store(this.#config[key]);
@@ -313,7 +313,7 @@ export class CallContext {
       }
 
       const key = item.string();
-      this.free(addr);
+      this[ENV].free(addr);
 
       const result = this.getVariable(key);
       const stored = result ? this[STORE](result.bytes()) || 0 : 0;
@@ -329,7 +329,7 @@ export class CallContext {
       }
 
       const key = item.string();
-      this.free(addr);
+      this[ENV].free(addr);
 
       if (valueaddr === 0n) {
         this.deleteVariable(key)
@@ -349,7 +349,7 @@ export class CallContext {
         const copied = new Uint8Array(valueBlock.buffer.byteLength)
         copied.set(new Uint8Array(valueBlock.buffer), 0)
         this.setVariable(key, copied);
-        this.free(valueaddr);
+        this[ENV].free(valueaddr);
       } catch (err: any) {
         this.#logger.error(err.message)
         this.setError(err)
@@ -386,7 +386,7 @@ export class CallContext {
       }
       const text = this.#decoder.decode(block.buffer);
       this.#logger.warn(text);
-      this.free(addr);
+      this[ENV].free(addr);
     },
 
     log_info: (addr: bigint) => {
@@ -400,7 +400,7 @@ export class CallContext {
       }
       const text = this.#decoder.decode(block.buffer);
       this.#logger.info(text);
-      this.free(addr);
+      this[ENV].free(addr);
     },
 
     log_debug: (addr: bigint) => {
@@ -414,7 +414,7 @@ export class CallContext {
       }
       const text = this.#decoder.decode(block.buffer);
       this.#logger.debug(text);
-      this.free(addr);
+      this[ENV].free(addr);
     },
 
     log_error: (addr: bigint) => {
@@ -428,7 +428,7 @@ export class CallContext {
       }
       const text = this.#decoder.decode(block.buffer);
       this.#logger.error(text);
-      this.free(addr);
+      this[ENV].free(addr);
     },
   };
 
