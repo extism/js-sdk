@@ -349,7 +349,6 @@ export class CallContext {
         const copied = new Uint8Array(valueBlock.buffer.byteLength)
         copied.set(new Uint8Array(valueBlock.buffer), 0)
         this.setVariable(key, copied);
-        this[ENV].free(Number(valueaddr));
       } catch (err: any) {
         this.#logger.error(err.message)
         this.setError(err)
