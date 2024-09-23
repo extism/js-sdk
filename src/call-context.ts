@@ -204,7 +204,7 @@ export class CallContext {
       return this.alloc(n);
     },
 
-    free: (addr: number): void => {
+    free: (addr: number | bigint): void => {
       this.#blocks[Block.addressToIndex(addr)] = null;
     },
 
@@ -296,6 +296,8 @@ export class CallContext {
 
       const key = item.string();
 
+      this[ENV].free(addr);
+
       if (key in this.#config) {
         return this.store(this.#config[key]);
       }
@@ -311,6 +313,8 @@ export class CallContext {
       }
 
       const key = item.string();
+      this[ENV].free(addr);
+
       const result = this.getVariable(key);
       const stored = result ? this[STORE](result.bytes()) || 0 : 0;
       return Block.indexToAddress(stored)
@@ -380,6 +384,7 @@ export class CallContext {
       }
       const text = this.#decoder.decode(block.buffer);
       this.#logger.warn(text);
+      this[ENV].free(addr);
     },
 
     log_info: (addr: bigint) => {
@@ -393,6 +398,7 @@ export class CallContext {
       }
       const text = this.#decoder.decode(block.buffer);
       this.#logger.info(text);
+      this[ENV].free(addr);
     },
 
     log_debug: (addr: bigint) => {
@@ -406,6 +412,7 @@ export class CallContext {
       }
       const text = this.#decoder.decode(block.buffer);
       this.#logger.debug(text);
+      this[ENV].free(addr);
     },
 
     log_error: (addr: bigint) => {
@@ -419,6 +426,7 @@ export class CallContext {
       }
       const text = this.#decoder.decode(block.buffer);
       this.#logger.error(text);
+      this[ENV].free(addr);
     },
   };
 
