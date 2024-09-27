@@ -1,8 +1,20 @@
-import { parentPort } from 'node:worker_threads';
+import { parentPort } from "node:worker_threads";
 
-import { ForegroundPlugin, createForegroundPlugin as _createForegroundPlugin } from './foreground-plugin.ts';
-import { CallContext, EXPORT_STATE, CallState, IMPORT_STATE } from './call-context.ts';
-import { SharedArrayBufferSection, SAB_BASE_OFFSET, type InternalConfig } from './interfaces.ts';
+import {
+  createForegroundPlugin as _createForegroundPlugin,
+  ForegroundPlugin,
+} from "./foreground-plugin.ts";
+import {
+  CallContext,
+  CallState,
+  EXPORT_STATE,
+  IMPORT_STATE,
+} from "./call-context.ts";
+import {
+  type InternalConfig,
+  SAB_BASE_OFFSET,
+  SharedArrayBufferSection,
+} from "./interfaces.ts";
 
 class Reactor {
   hostFlag: Int32Array | null;
@@ -15,68 +27,80 @@ class Reactor {
 
   constructor(port: typeof parentPort) {
     if (!port) {
-      throw new Error('This should be unreachable: this module should only be invoked as a web worker.');
+      throw new Error(
+        "This should be unreachable: this module should only be invoked as a web worker.",
+      );
     }
 
     this.sharedData = null;
     this.sharedDataView = null;
     this.hostFlag = null;
     this.port = port;
-    this.port.on('message', (ev: any) => this.handleMessage(ev));
-    this.port.postMessage({ type: 'initialized' });
+    this.port.on("message", (ev: any) => this.handleMessage(ev));
+    this.port.postMessage({ type: "initialized" });
 
     this.dynamicHandlers = new Map();
-    this.dynamicHandlers.set('call', async (transfer: any[], name: string, input: number | null, state: CallState) => {
-      if (!this.context) {
-        throw new Error('invalid state: no context available to worker reactor');
-      }
-
-      this.context[IMPORT_STATE](state);
-
-      const results: any = await this.plugin?.callBlock(name, input).then(
-        (indices) => [null, indices],
-        (err) => [err, null],
-      );
-
-      state = this.context[EXPORT_STATE]();
-      for (const [block] of state.blocks) {
-        if (block) {
-          transfer.push(block);
+    this.dynamicHandlers.set(
+      "call",
+      async (
+        transfer: any[],
+        name: string,
+        input: number | null,
+        state: CallState,
+      ) => {
+        if (!this.context) {
+          throw new Error(
+            "invalid state: no context available to worker reactor",
+          );
         }
-      }
 
-      if (results[0]) {
-        results[0] = {
-          originalStack: results[0]?.stack,
-          message: results[0]?.message,
-        };
-      }
+        this.context[IMPORT_STATE](state);
 
-      return { results, state };
-    });
+        const results: any = await this.plugin?.callBlock(name, input).then(
+          (indices) => [null, indices],
+          (err) => [err, null],
+        );
 
-    this.dynamicHandlers.set('reset', async (_txf) => {
+        state = this.context[EXPORT_STATE]();
+        for (const [block] of state.blocks) {
+          if (block) {
+            transfer.push(block);
+          }
+        }
+
+        if (results[0]) {
+          results[0] = {
+            originalStack: results[0]?.stack,
+            message: results[0]?.message,
+          };
+        }
+
+        return { results, state };
+      },
+    );
+
+    this.dynamicHandlers.set("reset", async (_txf) => {
       return this.plugin?.reset();
     });
 
-    this.dynamicHandlers.set('getExports', async (_txf) => {
+    this.dynamicHandlers.set("getExports", async (_txf) => {
       return this.plugin?.getExports();
     });
 
-    this.dynamicHandlers.set('getImports', async (_txf) => {
+    this.dynamicHandlers.set("getImports", async (_txf) => {
       return this.plugin?.getImports();
     });
 
-    this.dynamicHandlers.set('functionExists', async (_txf, name) => {
+    this.dynamicHandlers.set("functionExists", async (_txf, name) => {
       return this.plugin?.functionExists(name);
     });
   }
 
   async handleMessage(ev: any) {
     switch (ev.type) {
-      case 'init':
+      case "init":
         return await this.handleInit(ev);
-      case 'invoke':
+      case "invoke":
         return await this.handleInvoke(ev);
     }
   }
@@ -85,7 +109,7 @@ class Reactor {
     const handler = this.dynamicHandlers.get(ev.handler);
     if (!handler) {
       return this.port.postMessage({
-        type: 'return',
+        type: "return",
         result: [`no handler registered for ${ev.handler}`, null],
       });
     }
@@ -105,7 +129,7 @@ class Reactor {
 
     return this.port.postMessage(
       {
-        type: 'return',
+        type: "return",
         results,
       },
       transfer,
@@ -133,7 +157,8 @@ class Reactor {
             funcs.map((funcName) => {
               return [
                 funcName,
-                (context: CallContext, ...args: any[]) => this.callHost(context, namespace, funcName, args),
+                (context: CallContext, ...args: any[]) =>
+                  this.callHost(context, namespace, funcName, args),
               ];
             }),
           ),
@@ -143,15 +168,24 @@ class Reactor {
 
     const { type: _, modules, functions: __, ...opts } = ev;
 
-    const logLevel = (level: string) => (message: string) => this.port.postMessage({ type: 'log', level, message });
+    const logLevel = (level: string) => (message: string) =>
+      this.port.postMessage({ type: "log", level, message });
 
     // TODO: we're using non-blocking log functions here; to properly preserve behavior we
     // should invoke these and wait on the host to return.
     const logger = Object.fromEntries(
-      ['info', 'debug', 'warn', 'error'].map((lvl) => [lvl, logLevel(lvl)]),
+      ["info", "debug", "warn", "error", "trace"].map((
+        lvl,
+      ) => [lvl, logLevel(lvl)]),
     ) as unknown as Console;
 
-    this.context = new CallContext(ArrayBuffer, logger, ev.config, ev.memory);
+    this.context = new CallContext(
+      ArrayBuffer,
+      logger,
+      ev.logLevel,
+      ev.config,
+      ev.memory,
+    );
 
     // TODO: replace our internal fetch and logger
     this.plugin = await _createForegroundPlugin(
@@ -161,18 +195,25 @@ class Reactor {
       this.context,
     );
 
-    this.port.postMessage({ type: 'ready' });
+    this.port.postMessage({ type: "ready" });
   }
 
-  callHost(context: CallContext, namespace: string, func: string, args: (number | bigint)[]): number | bigint | void {
+  callHost(
+    context: CallContext,
+    namespace: string,
+    func: string,
+    args: (number | bigint)[],
+  ): number | bigint | void {
     if (!this.hostFlag) {
-      throw new Error('attempted to call host before receiving shared array buffer');
+      throw new Error(
+        "attempted to call host before receiving shared array buffer",
+      );
     }
     Atomics.store(this.hostFlag, 0, SAB_BASE_OFFSET);
 
     const state = context[EXPORT_STATE]();
     this.port.postMessage({
-      type: 'invoke',
+      type: "invoke",
       namespace,
       func,
       args,
@@ -270,7 +311,7 @@ class RingBufferReader {
       value = Atomics.load(this.flag, 0);
       if (value === SAB_BASE_OFFSET) {
         const result = Atomics.wait(this.flag, 0, SAB_BASE_OFFSET, MAX_WAIT);
-        if (result === 'timed-out') {
+        if (result === "timed-out") {
           continue;
         }
       }
@@ -298,7 +339,12 @@ class RingBufferReader {
   read(output: Uint8Array) {
     this.position += output.byteLength;
     if (output.byteLength < this.available) {
-      output.set(new Uint8Array(this.input).subarray(this.inputOffset, this.inputOffset + output.byteLength));
+      output.set(
+        new Uint8Array(this.input).subarray(
+          this.inputOffset,
+          this.inputOffset + output.byteLength,
+        ),
+      );
       this.inputOffset += output.byteLength;
       return;
     }
@@ -308,7 +354,13 @@ class RingBufferReader {
     // read ::= [outputoffset, inputoffset, extent]
     // firstread = [this.outputOffset, 0, this.available - this.outputOffset]
     do {
-      output.set(new Uint8Array(this.input).subarray(this.inputOffset, this.inputOffset + extent), outputOffset);
+      output.set(
+        new Uint8Array(this.input).subarray(
+          this.inputOffset,
+          this.inputOffset + extent,
+        ),
+        outputOffset,
+      );
       outputOffset += extent;
       this.inputOffset += extent;
       if (outputOffset === output.byteLength) {
@@ -320,7 +372,10 @@ class RingBufferReader {
       }
 
       this.pull();
-      extent = Math.min(Math.max(this.available, 0), output.byteLength - outputOffset);
+      extent = Math.min(
+        Math.max(this.available, 0),
+        output.byteLength - outputOffset,
+      );
     } while (outputOffset !== output.byteLength);
   }
 
