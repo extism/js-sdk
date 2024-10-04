@@ -8,27 +8,28 @@ import {
   RESET,
   SET_HOST_CONTEXT,
   STORE,
-} from "./call-context.ts";
+} from './call-context.ts';
 import {
   type InternalConfig,
   MemoryOptions,
   PluginOutput,
   SAB_BASE_OFFSET,
   SharedArrayBufferSection,
-} from "./interfaces.ts";
-import { readBodyUpTo } from "./utils.ts";
-import { WORKER_URL } from "./worker-url.ts";
-import { Worker } from "node:worker_threads";
-import { CAPABILITIES } from "./polyfills/deno-capabilities.ts";
-import { EXTISM_ENV } from "./foreground-plugin.ts";
-import { matches } from "./polyfills/deno-minimatch.ts";
+} from './interfaces.ts';
+import { readBodyUpTo } from './utils.ts';
+import { WORKER_URL } from './worker-url.ts';
+import { Worker } from 'node:worker_threads';
+import { CAPABILITIES } from './polyfills/deno-capabilities.ts';
+import { EXTISM_ENV } from './foreground-plugin.ts';
+import { matches } from './polyfills/deno-minimatch.ts';
 
 // Firefox has not yet implemented Atomics.waitAsync, but we can polyfill
 // it using a worker as a one-off.
 //
 // TODO: we should probably give _each_ background plugin its own waiter
 // script.
-const AtomicsWaitAsync = Atomics.waitAsync ||
+const AtomicsWaitAsync =
+  Atomics.waitAsync ||
   (() => {
     const src = `onmessage = ev => {
     const [b, i, v] = ev.data
@@ -36,12 +37,12 @@ const AtomicsWaitAsync = Atomics.waitAsync ||
     postMessage(Atomics.wait(f, i, v));
   }`;
 
-    const blob = new (Blob as any)([src], { type: "text/javascript" });
+    const blob = new (Blob as any)([src], { type: 'text/javascript' });
     const url = URL.createObjectURL(blob);
     const w = new Worker(url);
     return (ia: any, index, value) => {
       const promise = new Promise((resolve) => {
-        w.once("message", (data) => {
+        w.once('message', (data) => {
           resolve(data);
         });
       });
@@ -80,7 +81,7 @@ class BackgroundPlugin {
     this.#context = context;
     this.hostFlag[0] = SAB_BASE_OFFSET;
 
-    this.worker.on("message", (ev) => this.#handleMessage(ev));
+    this.worker.on('message', (ev) => this.#handleMessage(ev));
   }
 
   async #handleTimeout() {
@@ -90,18 +91,12 @@ class BackgroundPlugin {
 
     const timedOut = {};
     const failed = {};
-    const result = await Promise.race([
-      timeout(this.opts.timeoutMs, timedOut),
-      Promise.all([
-        terminateWorker(this.worker),
-        createWorker(
-          this.opts,
-          this.names,
-          this.modules,
-          this.sharedData,
-        ),
-      ]),
-    ].filter(Boolean)).catch(() => failed);
+    const result = await Promise.race(
+      [
+        timeout(this.opts.timeoutMs, timedOut),
+        Promise.all([terminateWorker(this.worker), createWorker(this.opts, this.names, this.modules, this.sharedData)]),
+      ].filter(Boolean),
+    ).catch(() => failed);
     this.#context[RESET]();
 
     // Oof. The Wasm module failed to even _restart_ in the time allotted. There's
@@ -109,7 +104,7 @@ class BackgroundPlugin {
     // squatting on `this.#request` so the plugin always looks "active".
     if (result === timedOut) {
       this.opts.logger.error(
-        "EXTISM: Plugin timed out while handling a timeout. Plugin will hang. This Wasm module may have a non-trivial `start` section.",
+        'EXTISM: Plugin timed out while handling a timeout. Plugin will hang. This Wasm module may have a non-trivial `start` section.',
       );
       this.worker = null as unknown as any;
       // TODO: expose some way to observe that the plugin is in a "poisoned" state.
@@ -118,9 +113,7 @@ class BackgroundPlugin {
 
     // The worker failed to start up for some other reason. This is pretty unlikely to happen!
     if (result === failed) {
-      this.opts.logger.error(
-        "EXTISM: Plugin failed to restart during a timeout. Plugin will hang.",
-      );
+      this.opts.logger.error('EXTISM: Plugin failed to restart during a timeout. Plugin will hang.');
       this.worker = null as unknown as any;
       return;
     }
@@ -128,11 +121,11 @@ class BackgroundPlugin {
     this.worker = worker as Worker;
 
     if (request) {
-      request.pop()!(new Error("EXTISM: call canceled due to timeout"));
+      request.pop()!(new Error('EXTISM: call canceled due to timeout'));
     }
     this.#request = null;
 
-    this.worker.on("message", (ev) => this.#handleMessage(ev));
+    this.worker.on('message', (ev) => this.#handleMessage(ev));
   }
 
   async reset(): Promise<boolean> {
@@ -140,7 +133,7 @@ class BackgroundPlugin {
       return false;
     }
 
-    await this.#invoke("reset");
+    await this.#invoke('reset');
 
     this.#context[RESET]();
     return true;
@@ -152,21 +145,19 @@ class BackgroundPlugin {
 
   async #handleMessage(ev: any) {
     switch (ev?.type) {
-      case "invoke":
+      case 'invoke':
         return this.#handleInvoke(ev);
-      case "return":
+      case 'return':
         return this.#handleReturn(ev);
-      case "log":
+      case 'log':
         return this.#handleLog(ev);
     }
   }
 
   #handleLog(ev: any) {
     const fn = (this.opts.logger as any)[ev.level as string];
-    if (typeof fn !== "function") {
-      this.opts.logger?.error(
-        `failed to find loglevel="${ev.level}" on logger: message=${ev.message}`,
-      );
+    if (typeof fn !== 'function') {
+      this.opts.logger?.error(`failed to find loglevel="${ev.level}" on logger: message=${ev.message}`);
     } else {
       fn.call(this.opts.logger, ev.message);
     }
@@ -195,7 +186,7 @@ class BackgroundPlugin {
   // host -> guest() invoke
   async #invoke(handler: string, ...args: any[]): Promise<any> {
     if (this.#request) {
-      throw new Error("plugin is not reentrant");
+      throw new Error('plugin is not reentrant');
     }
     let resolve, reject;
     const promise = new Promise((res, rej) => {
@@ -206,24 +197,24 @@ class BackgroundPlugin {
     this.#request = [resolve as any, reject as any];
 
     if (!this.worker) {
-      throw new Error("worker not initialized");
+      throw new Error('worker not initialized');
     }
 
     const timedOut = {};
 
     // Since this creates a new promise, we need to provide
     // an empty error handler.
-    Promise.race([
-      timeout(this.opts.timeoutMs, timedOut),
-      promise,
-    ].filter(Boolean)).then(async (v) => {
-      if (v === timedOut) {
-        await this.#handleTimeout();
-      }
-    }, () => {});
+    Promise.race([timeout(this.opts.timeoutMs, timedOut), promise].filter(Boolean)).then(
+      async (v) => {
+        if (v === timedOut) {
+          await this.#handleTimeout();
+        }
+      },
+      () => {},
+    );
 
     this.worker.postMessage({
-      type: "invoke",
+      type: 'invoke',
       handler,
       args,
     });
@@ -232,15 +223,11 @@ class BackgroundPlugin {
   }
 
   async functionExists(funcName: string): Promise<boolean> {
-    return await this.#invoke("functionExists", funcName);
+    return await this.#invoke('functionExists', funcName);
   }
 
   // host -> guest invoke()
-  async call<T = any>(
-    funcName: string,
-    input?: string | Uint8Array,
-    hostContext?: T,
-  ): Promise<PluginOutput | null> {
+  async call<T = any>(funcName: string, input?: string | Uint8Array, hostContext?: T): Promise<PluginOutput | null> {
     const index = this.#context[STORE](input);
     this.#context[SET_HOST_CONTEXT](hostContext);
 
@@ -260,9 +247,7 @@ class BackgroundPlugin {
     }
 
     const buf = new PluginOutput(
-      CAPABILITIES.allowSharedBufferCodec
-        ? block.buffer
-        : new Uint8Array(block.buffer).slice().buffer,
+      CAPABILITIES.allowSharedBufferCodec ? block.buffer : new Uint8Array(block.buffer).slice().buffer,
     );
 
     if (shouldThrow) {
@@ -273,17 +258,9 @@ class BackgroundPlugin {
     return buf;
   }
 
-  async callBlock(
-    funcName: string,
-    input: number | null,
-  ): Promise<[number | null, number | null]> {
+  async callBlock(funcName: string, input: number | null): Promise<[number | null, number | null]> {
     const exported = this.#context[EXPORT_STATE]();
-    const { results, state } = await this.#invoke(
-      "call",
-      funcName,
-      input,
-      exported,
-    );
+    const { results, state } = await this.#invoke('call', funcName, input, exported);
     this.#context[IMPORT_STATE](state, true);
 
     const [err, data] = results;
@@ -295,15 +272,15 @@ class BackgroundPlugin {
   }
 
   async getExports(): Promise<WebAssembly.ModuleExportDescriptor[]> {
-    return await this.#invoke("getExports");
+    return await this.#invoke('getExports');
   }
 
   async getImports(): Promise<WebAssembly.ModuleImportDescriptor[]> {
-    return await this.#invoke("getImports");
+    return await this.#invoke('getImports');
   }
 
   async getInstance(): Promise<WebAssembly.Instance> {
-    throw new Error("todo");
+    throw new Error('todo');
   }
 
   async close(): Promise<void> {
@@ -326,9 +303,7 @@ class BackgroundPlugin {
     const timer = setInterval(() => {}, 0);
     try {
       if (!func) {
-        throw Error(
-          `Plugin error: host function "${ev.namespace}" "${ev.func}" does not exist`,
-        );
+        throw Error(`Plugin error: host function "${ev.namespace}" "${ev.func}" does not exist`);
       }
 
       // Fill the shared array buffer with an expected garbage value to make debugging
@@ -368,7 +343,7 @@ class BackgroundPlugin {
         }
       }
 
-      if (typeof data === "bigint") {
+      if (typeof data === 'bigint') {
         promise = writer.writeUint8(SharedArrayBufferSection.RetI64);
         if (promise) {
           await promise;
@@ -378,7 +353,7 @@ class BackgroundPlugin {
         if (promise) {
           await promise;
         }
-      } else if (typeof data === "number") {
+      } else if (typeof data === 'number') {
         promise = writer.writeUint8(SharedArrayBufferSection.RetF64);
         if (promise) {
           await promise;
@@ -438,14 +413,9 @@ class RingBufferWriter {
     do {
       value = Atomics.load(this.flag, 0);
       if (value === lastKnownValue) {
-        const { value: result, async } = AtomicsWaitAsync(
-          this.flag,
-          0,
-          lastKnownValue,
-          MAX_WAIT,
-        );
+        const { value: result, async } = AtomicsWaitAsync(this.flag, 0, lastKnownValue, MAX_WAIT);
         if (async) {
-          if ((await result) === "timed-out") {
+          if ((await result) === 'timed-out') {
             continue;
           }
         }
@@ -455,9 +425,7 @@ class RingBufferWriter {
 
   signal() {
     const old = Atomics.load(this.flag, 0);
-    while (
-      Atomics.compareExchange(this.flag, 0, old, this.outputOffset) === old
-    ) {}
+    while (Atomics.compareExchange(this.flag, 0, old, this.outputOffset) === old) {}
     Atomics.notify(this.flag, 0, 1);
   }
 
@@ -476,19 +444,11 @@ class RingBufferWriter {
   async spanningWrite(input: Uint8Array) {
     let inputOffset = 0;
     let toWrite = this.output.byteLength - this.outputOffset;
-    let flushedWriteCount = 1 +
-      Math.floor(
-        (input.byteLength - toWrite) /
-          (this.output.byteLength - SAB_BASE_OFFSET),
-      );
-    const finalWrite = (input.byteLength - toWrite) %
-      (this.output.byteLength - SAB_BASE_OFFSET);
+    let flushedWriteCount = 1 + Math.floor((input.byteLength - toWrite) / (this.output.byteLength - SAB_BASE_OFFSET));
+    const finalWrite = (input.byteLength - toWrite) % (this.output.byteLength - SAB_BASE_OFFSET);
 
     do {
-      new Uint8Array(this.output).set(
-        input.subarray(inputOffset, inputOffset + toWrite),
-        this.outputOffset,
-      );
+      new Uint8Array(this.output).set(input.subarray(inputOffset, inputOffset + toWrite), this.outputOffset);
 
       // increment the offset so we know we've written _something_ (and can bypass the "did we not write anything" check in `flush()`)
       this.outputOffset += toWrite;
@@ -542,11 +502,7 @@ class HttpContext {
   allowedHosts: string[];
   memoryOptions: MemoryOptions;
 
-  constructor(
-    _fetch: typeof fetch,
-    allowedHosts: string[],
-    memoryOptions: MemoryOptions,
-  ) {
+  constructor(_fetch: typeof fetch, allowedHosts: string[], memoryOptions: MemoryOptions) {
     this.fetch = _fetch;
     this.allowedHosts = allowedHosts;
     this.lastStatusCode = 0;
@@ -555,26 +511,19 @@ class HttpContext {
 
   contribute(functions: Record<string, Record<string, any>>) {
     functions[EXTISM_ENV] ??= {};
-    functions[EXTISM_ENV].http_request = (
-      callContext: CallContext,
-      reqaddr: bigint,
-      bodyaddr: bigint,
-    ) => this.makeRequest(callContext, reqaddr, bodyaddr);
+    functions[EXTISM_ENV].http_request = (callContext: CallContext, reqaddr: bigint, bodyaddr: bigint) =>
+      this.makeRequest(callContext, reqaddr, bodyaddr);
     functions[EXTISM_ENV].http_status_code = () => this.lastStatusCode;
   }
 
-  async makeRequest(
-    callContext: CallContext,
-    reqaddr: bigint,
-    bodyaddr: bigint,
-  ) {
+  async makeRequest(callContext: CallContext, reqaddr: bigint, bodyaddr: bigint) {
     const req = callContext.read(reqaddr);
     if (req === null) {
       return 0n;
     }
 
     const { headers, header, url: rawUrl, method: m } = req.json();
-    const method = m ?? "GET";
+    const method = m ?? 'GET';
     const url = new URL(rawUrl);
 
     const isAllowed = this.allowedHosts.some((allowedHost) => {
@@ -582,14 +531,10 @@ class HttpContext {
     });
 
     if (!isAllowed) {
-      throw new Error(
-        `Call error: HTTP request to "${url}" is not allowed (no allowedHosts match "${url.hostname}")`,
-      );
+      throw new Error(`Call error: HTTP request to "${url}" is not allowed (no allowedHosts match "${url.hostname}")`);
     }
 
-    const body = bodyaddr === 0n || method === "GET" || method === "HEAD"
-      ? null
-      : callContext.read(bodyaddr)?.bytes();
+    const body = bodyaddr === 0n || method === 'GET' || method === 'HEAD' ? null : callContext.read(bodyaddr)?.bytes();
     const fetch = this.fetch;
     const response = await fetch(rawUrl, {
       headers: headers || header,
@@ -623,18 +568,8 @@ export async function createBackgroundPlugin(
   names: string[],
   modules: WebAssembly.Module[],
 ): Promise<BackgroundPlugin> {
-  const context = new CallContext(
-    SharedArrayBuffer,
-    opts.logger,
-    opts.logLevel,
-    opts.config,
-    opts.memory,
-  );
-  const httpContext = new HttpContext(
-    opts.fetch,
-    opts.allowedHosts,
-    opts.memory,
-  );
+  const context = new CallContext(SharedArrayBuffer, opts.logger, opts.logLevel, opts.config, opts.memory);
+  const httpContext = new HttpContext(opts.fetch, opts.allowedHosts, opts.memory);
   httpContext.contribute(opts.functions);
 
   // NB(chrisdickinson): In order for the host and guest to have the same "view" of the
@@ -644,11 +579,7 @@ export async function createBackgroundPlugin(
   opts.functions[EXTISM_ENV].var_get ??= (_: CallContext, key: bigint) => {
     return context[ENV].var_get(key);
   };
-  opts.functions[EXTISM_ENV].var_set ??= (
-    _: CallContext,
-    key: bigint,
-    val: bigint,
-  ) => {
+  opts.functions[EXTISM_ENV].var_set ??= (_: CallContext, key: bigint, val: bigint) => {
     return context[ENV].var_set(key, val);
   };
 
@@ -668,25 +599,15 @@ export async function createBackgroundPlugin(
     earlyWorker = w;
   };
 
-  const worker = await Promise.race([
-    timeout(opts.timeoutMs, timedOut),
-    createWorker(opts, names, modules, sharedData, onworker),
-  ].filter(Boolean));
+  const worker = await Promise.race(
+    [timeout(opts.timeoutMs, timedOut), createWorker(opts, names, modules, sharedData, onworker)].filter(Boolean),
+  );
 
   if (worker === timedOut) {
     await terminateWorker(earlyWorker!);
-    throw new Error(
-      "EXTISM: timed out while waiting for plugin to instantiate",
-    );
+    throw new Error('EXTISM: timed out while waiting for plugin to instantiate');
   }
-  return new BackgroundPlugin(
-    worker as Worker,
-    sharedData,
-    names,
-    modules,
-    opts,
-    context,
-  );
+  return new BackgroundPlugin(worker as Worker, sharedData, names, modules, opts, context);
 }
 
 async function createWorker(
@@ -700,23 +621,23 @@ async function createWorker(
   onworker(worker);
 
   await new Promise((resolve, reject) => {
-    worker.on("message", function handler(ev) {
-      if (ev?.type !== "initialized") {
+    worker.on('message', function handler(ev) {
+      if (ev?.type !== 'initialized') {
         reject(new Error(`received unexpected message (type=${ev?.type})`));
       }
 
-      worker.removeListener("message", handler);
+      worker.removeListener('message', handler);
       resolve(null);
     });
   });
 
   const onready = new Promise((resolve, reject) => {
-    worker.on("message", function handler(ev) {
-      if (ev?.type !== "ready") {
+    worker.on('message', function handler(ev) {
+      if (ev?.type !== 'ready') {
         reject(new Error(`received unexpected message (type=${ev?.type})`));
       }
 
-      worker.removeListener("message", handler);
+      worker.removeListener('message', handler);
       resolve(null);
     });
   });
@@ -724,10 +645,8 @@ async function createWorker(
   const { fetch: _, logger: __, ...rest } = opts;
   const message = {
     ...rest,
-    type: "init",
-    functions: Object.fromEntries(
-      Object.entries(opts.functions || {}).map(([k, v]) => [k, Object.keys(v)]),
-    ),
+    type: 'init',
+    functions: Object.fromEntries(Object.entries(opts.functions || {}).map(([k, v]) => [k, Object.keys(v)])),
     names,
     modules,
     sharedData,
@@ -740,15 +659,11 @@ async function createWorker(
 }
 
 function timeout(ms: number | null, sentinel: any) {
-  return (
-    ms === null
-      ? null
-      : new Promise((resolve) => setTimeout(() => resolve(sentinel), ms))
-  );
+  return ms === null ? null : new Promise((resolve) => setTimeout(() => resolve(sentinel), ms));
 }
 
 async function terminateWorker(w: Worker) {
-  if (typeof (globalThis as any).Bun !== "undefined") {
+  if (typeof (globalThis as any).Bun !== 'undefined') {
     const timer = setTimeout(() => {}, 10);
     await w.terminate();
     clearTimeout(timer);

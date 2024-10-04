@@ -1,4 +1,4 @@
-import { CallContext } from "./call-context.ts";
+import { CallContext } from './call-context.ts';
 
 /**
  * {@link Plugin} Config
@@ -46,67 +46,43 @@ export class PluginOutput extends DataView {
   }
 
   setInt8(_byteOffset: number, _value: number): void {
-    throw new Error("Cannot set values on output");
+    throw new Error('Cannot set values on output');
   }
 
   setInt16(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
-    throw new Error("Cannot set values on output");
+    throw new Error('Cannot set values on output');
   }
 
   setInt32(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
-    throw new Error("Cannot set values on output");
+    throw new Error('Cannot set values on output');
   }
 
   setUint8(_byteOffset: number, _value: number): void {
-    throw new Error("Cannot set values on output");
+    throw new Error('Cannot set values on output');
   }
 
-  setUint16(
-    _byteOffset: number,
-    _value: number,
-    _littleEndian?: boolean,
-  ): void {
-    throw new Error("Cannot set values on output");
+  setUint16(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
+    throw new Error('Cannot set values on output');
   }
 
-  setUint32(
-    _byteOffset: number,
-    _value: number,
-    _littleEndian?: boolean,
-  ): void {
-    throw new Error("Cannot set values on output");
+  setUint32(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
+    throw new Error('Cannot set values on output');
   }
 
-  setFloat32(
-    _byteOffset: number,
-    _value: number,
-    _littleEndian?: boolean,
-  ): void {
-    throw new Error("Cannot set values on output");
+  setFloat32(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
+    throw new Error('Cannot set values on output');
   }
 
-  setFloat64(
-    _byteOffset: number,
-    _value: number,
-    _littleEndian?: boolean,
-  ): void {
-    throw new Error("Cannot set values on output");
+  setFloat64(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
+    throw new Error('Cannot set values on output');
   }
 
-  setBigInt64(
-    _byteOffset: number,
-    _value: bigint,
-    _littleEndian?: boolean,
-  ): void {
-    throw new Error("Cannot set values on output");
+  setBigInt64(_byteOffset: number, _value: bigint, _littleEndian?: boolean): void {
+    throw new Error('Cannot set values on output');
   }
 
-  setBigUint64(
-    _byteOffset: number,
-    _value: bigint,
-    _littleEndian?: boolean,
-  ): void {
-    throw new Error("Cannot set values on output");
+  setBigUint64(_byteOffset: number, _value: bigint, _littleEndian?: boolean): void {
+    throw new Error('Cannot set values on output');
   }
 }
 
@@ -130,11 +106,7 @@ export interface Plugin {
    * @param {T} hostContext Per-call context to make available to host functions
    * @returns {Promise<PluginOutput | null>} The result from the function call
    */
-  call<T>(
-    funcName: string,
-    input?: string | number | Uint8Array,
-    hostContext?: T,
-  ): Promise<PluginOutput | null>;
+  call<T>(funcName: string, input?: string | number | Uint8Array, hostContext?: T): Promise<PluginOutput | null>;
   getExports(): Promise<WebAssembly.ModuleExportDescriptor[]>;
   getImports(): Promise<WebAssembly.ModuleImportDescriptor[]>;
   getInstance(): Promise<WebAssembly.Instance>;
@@ -198,11 +170,13 @@ export interface ExtismPluginOptions {
    * }
    * ```
    */
-  functions?: {
-    [key: string]: {
-      [key: string]: (callContext: CallContext, ...args: any[]) => any;
-    };
-  } | undefined;
+  functions?:
+    | {
+        [key: string]: {
+          [key: string]: (callContext: CallContext, ...args: any[]) => any;
+        };
+      }
+    | undefined;
   allowedPaths?: { [key: string]: string } | undefined;
 
   /**
@@ -253,27 +227,21 @@ export type MemoryOptions = {
 };
 
 type CamelToSnakeCase<S extends string> = S extends `${infer T}${infer U}`
-  ? `${T extends Capitalize<T> ? "_" : ""}${Lowercase<T>}${CamelToSnakeCase<U>}`
+  ? `${T extends Capitalize<T> ? '_' : ''}${Lowercase<T>}${CamelToSnakeCase<U>}`
   : S;
 
 type SnakeCase<T extends Record<string, any>> = {
   [K in keyof T as CamelToSnakeCase<K & string>]: T[K];
 };
 
-export interface NativeManifestOptions extends
-  Pick<
-    ExtismPluginOptions,
-    "allowedPaths" | "allowedHosts" | "memory" | "config" | "timeoutMs"
-  > {
-}
+export interface NativeManifestOptions
+  extends Pick<ExtismPluginOptions, 'allowedPaths' | 'allowedHosts' | 'memory' | 'config' | 'timeoutMs'> {}
 /**
  * The subset of {@link ExtismPluginOptions} attributes available for configuration via
  * a {@link Manifest}. If an attribute is specified at both the {@link ExtismPluginOptions} and
  * `ManifestOptions` level, the plugin option will take precedence.
  */
-export type ManifestOptions =
-  & NativeManifestOptions
-  & SnakeCase<NativeManifestOptions>;
+export type ManifestOptions = NativeManifestOptions & SnakeCase<NativeManifestOptions>;
 
 export interface InternalConfig extends Required<NativeManifestOptions> {
   logger: Console;
@@ -340,18 +308,16 @@ export interface ManifestWasmModule {
  * ⚠️ `module` cannot be used in conjunction with `hash`: the Web Platform does not currently provide a way to get source
  * bytes from a `WebAssembly.Module` in order to hash.
  */
-export type ManifestWasm =
-  & (
-    | ManifestWasmUrl
-    | ManifestWasmData
-    | ManifestWasmPath
-    | ManifestWasmResponse
-    | ManifestWasmModule
-  )
-  & {
-    name?: string;
-    hash?: string;
-  };
+export type ManifestWasm = (
+  | ManifestWasmUrl
+  | ManifestWasmData
+  | ManifestWasmPath
+  | ManifestWasmResponse
+  | ManifestWasmModule
+) & {
+  name?: string;
+  hash?: string;
+};
 
 /**
  * The manifest which describes the {@link Plugin} code and runtime constraints. This is passed to {@link createPlugin}
@@ -401,13 +367,7 @@ export interface Manifest extends ManifestOptions {
  *
  * @see [Extism](https://extism.org/) > [Concepts](https://extism.org/docs/category/concepts) > [Manifest](https://extism.org/docs/concepts/manifest)
  */
-export type ManifestLike =
-  | Manifest
-  | Response
-  | WebAssembly.Module
-  | ArrayBuffer
-  | string
-  | URL;
+export type ManifestLike = Manifest | Response | WebAssembly.Module | ArrayBuffer | string | URL;
 
 export interface Capabilities {
   /**
@@ -517,42 +477,48 @@ export enum SharedArrayBufferSection {
   Block = 4,
 }
 
-export type LogLevel =
-  | 'trace'
-  | 'debug'
-  | 'info'
-  | 'warn'
-  | 'error'
-  | 'silent'
+export type LogLevel = 'trace' | 'debug' | 'info' | 'warn' | 'error' | 'silent';
 
 export function logLevelToPriority(level: LogLevel): LogLevelPriority {
   switch (level) {
-    case 'trace': return 0;
-    case 'debug': return 1;
-    case 'info': return 2;
-    case 'warn': return 3;
-    case 'error': return 4;
-    case 'silent': return 0x7fffffff;
+    case 'trace':
+      return 0;
+    case 'debug':
+      return 1;
+    case 'info':
+      return 2;
+    case 'warn':
+      return 3;
+    case 'error':
+      return 4;
+    case 'silent':
+      return 0x7fffffff;
     default:
       throw new TypeError(
-        `unrecognized log level "${level}"; expected one of "trace", "debug", "info", "warn", "error", "silent"`
-      )
+        `unrecognized log level "${level}"; expected one of "trace", "debug", "info", "warn", "error", "silent"`,
+      );
   }
 }
 
-export type LogLevelPriority = 0 | 1 | 2 | 3 | 4 | 0x7fffffff
+export type LogLevelPriority = 0 | 1 | 2 | 3 | 4 | 0x7fffffff;
 
 export function priorityToLogLevel(level: LogLevelPriority): LogLevel {
   switch (level) {
-    case 0: return 'trace';
-    case 1: return 'debug';
-    case 2: return 'info';
-    case 3: return 'warn';
-    case 4: return 'error';
-    case 0x7fffffff: return 'silent';
+    case 0:
+      return 'trace';
+    case 1:
+      return 'debug';
+    case 2:
+      return 'info';
+    case 3:
+      return 'warn';
+    case 4:
+      return 'error';
+    case 0x7fffffff:
+      return 'silent';
     default:
       throw new TypeError(
-        `unrecognized log level "${level}"; expected one of "trace", "debug", "info", "warn", "error", "silent"`
-      )
+        `unrecognized log level "${level}"; expected one of "trace", "debug", "info", "warn", "error", "silent"`,
+      );
   }
 }

@@ -1,5 +1,5 @@
 import type { Capabilities } from '../interfaces.ts';
-import { platform } from 'node:os'
+import { platform } from 'node:os';
 
 export const CAPABILITIES: Capabilities = {
   // When false, shared buffers have to be copied to an array

@@ -10,7 +10,7 @@
 // In Node, Bun, and browser environments, this entire file is *ignored*: the esbuild config
 // replaces it with a prebuilt base64'd inline javascript URL. See `build_worker_node` in
 // the `justfile`.
-const relativeUrl = (await (import.meta.resolve as any)('./worker.ts')) as string
+const relativeUrl = (await (import.meta.resolve as any)('./worker.ts')) as string;
 export const WORKER_URL = `data:text/javascript;base64,${btoa(`
   export * from ${JSON.stringify(relativeUrl)};
-`)}`
+`)}`;

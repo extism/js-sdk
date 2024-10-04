@@ -73,8 +73,8 @@
  * @module
  */
 
-import { relative } from "jsr:@std/path@0.223.0/relative";
-import { resolve } from "jsr:@std/path@0.223.0/resolve";
+import { relative } from 'jsr:@std/path@0.223.0/relative';
+import { resolve } from 'jsr:@std/path@0.223.0/resolve';
 
 const CLOCKID_REALTIME = 0;
 const CLOCKID_MONOTONIC = 1;
@@ -277,7 +277,7 @@ const _SDFLAGS_WR = 0x0002;
 const PREOPENTYPE_DIR = 0;
 
 function syscall<T extends CallableFunction>(target: T) {
-  return function(...args: unknown[]) {
+  return function (...args: unknown[]) {
     try {
       return target(...args);
     } catch (err) {
@@ -290,46 +290,46 @@ function syscall<T extends CallableFunction>(target: T) {
       }
 
       switch (err.name) {
-        case "NotFound":
+        case 'NotFound':
           return ERRNO_NOENT;
 
-        case "PermissionDenied":
+        case 'PermissionDenied':
           return ERRNO_ACCES;
 
-        case "ConnectionRefused":
+        case 'ConnectionRefused':
           return ERRNO_CONNREFUSED;
 
-        case "ConnectionReset":
+        case 'ConnectionReset':
           return ERRNO_CONNRESET;
 
-        case "ConnectionAborted":
+        case 'ConnectionAborted':
           return ERRNO_CONNABORTED;
 
-        case "NotConnected":
+        case 'NotConnected':
           return ERRNO_NOTCONN;
 
-        case "AddrInUse":
+        case 'AddrInUse':
           return ERRNO_ADDRINUSE;
 
-        case "AddrNotAvailable":
+        case 'AddrNotAvailable':
           return ERRNO_ADDRNOTAVAIL;
 
-        case "BrokenPipe":
+        case 'BrokenPipe':
           return ERRNO_PIPE;
 
-        case "InvalidData":
+        case 'InvalidData':
           return ERRNO_INVAL;
 
-        case "TimedOut":
+        case 'TimedOut':
           return ERRNO_TIMEDOUT;
 
-        case "Interrupted":
+        case 'Interrupted':
           return ERRNO_INTR;
 
-        case "BadResource":
+        case 'BadResource':
           return ERRNO_BADF;
 
-        case "Busy":
+        case 'Busy':
           return ERRNO_BUSY;
 
         default:
@@ -464,10 +464,7 @@ export default class Context {
     }
 
     this.exports = {
-      "args_get": syscall((
-        argvOffset: number,
-        argvBufferOffset: number,
-      ): number => {
+      args_get: syscall((argvOffset: number, argvBufferOffset: number): number => {
         const args = this.#args;
         const textEncoder = new TextEncoder();
         const memoryData = new Uint8Array(this.#memory.buffer);
@@ -485,10 +482,7 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "args_sizes_get": syscall((
-        argcOffset: number,
-        argvBufferSizeOffset: number,
-      ): number => {
+      args_sizes_get: syscall((argcOffset: number, argvBufferSizeOffset: number): number => {
         const args = this.#args;
         const textEncoder = new TextEncoder();
         const memoryView = new DataView(this.#memory.buffer);
@@ -496,7 +490,7 @@ export default class Context {
         memoryView.setUint32(argcOffset, args.length, true);
         memoryView.setUint32(
           argvBufferSizeOffset,
-          args.reduce(function(acc, arg) {
+          args.reduce(function (acc, arg) {
             return acc + textEncoder.encode(`${arg}\0`).length;
           }, 0),
           true,
@@ -505,10 +499,7 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "environ_get": syscall((
-        environOffset: number,
-        environBufferOffset: number,
-      ): number => {
+      environ_get: syscall((environOffset: number, environBufferOffset: number): number => {
         const entries = Object.entries(this.#env);
         const textEncoder = new TextEncoder();
         const memoryData = new Uint8Array(this.#memory.buffer);
@@ -526,10 +517,7 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "environ_sizes_get": syscall((
-        environcOffset: number,
-        environBufferSizeOffset: number,
-      ): number => {
+      environ_sizes_get: syscall((environcOffset: number, environBufferSizeOffset: number): number => {
         const entries = Object.entries(this.#env);
         const textEncoder = new TextEncoder();
         const memoryView = new DataView(this.#memory.buffer);
@@ -537,7 +525,7 @@ export default class Context {
         memoryView.setUint32(environcOffset, entries.length, true);
         memoryView.setUint32(
           environBufferSizeOffset,
-          entries.reduce(function(acc, [key, value]) {
+          entries.reduce(function (acc, [key, value]) {
             return acc + textEncoder.encode(`${key}=${value}\0`).length;
           }, 0),
           true,
@@ -546,21 +534,14 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "clock_res_get": syscall((
-        id: number,
-        resolutionOffset: number,
-      ): number => {
+      clock_res_get: syscall((id: number, resolutionOffset: number): number => {
         const memoryView = new DataView(this.#memory.buffer);
 
         switch (id) {
           case CLOCKID_REALTIME: {
             const resolution = BigInt(1e6);
 
-            memoryView.setBigUint64(
-              resolutionOffset,
-              resolution,
-              true,
-            );
+            memoryView.setBigUint64(resolutionOffset, resolution, true);
             break;
           }
 
@@ -579,11 +560,7 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "clock_time_get": syscall((
-        id: number,
-        precision: bigint,
-        timeOffset: number,
-      ): number => {
+      clock_time_get: syscall((id: number, precision: bigint, timeOffset: number): number => {
         const memoryView = new DataView(this.#memory.buffer);
 
         switch (id) {
@@ -613,26 +590,15 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "fd_advise": syscall((
-        _fd: number,
-        _offset: bigint,
-        _length: bigint,
-        _advice: number,
-      ): number => {
+      fd_advise: syscall((_fd: number, _offset: bigint, _length: bigint, _advice: number): number => {
         return ERRNO_NOSYS;
       }),
 
-      "fd_allocate": syscall((
-        _fd: number,
-        _offset: bigint,
-        _length: bigint,
-      ): number => {
+      fd_allocate: syscall((_fd: number, _offset: bigint, _length: bigint): number => {
         return ERRNO_NOSYS;
       }),
 
-      "fd_close": syscall((
-        fd: number,
-      ): number => {
+      fd_close: syscall((fd: number): number => {
         const entry = this.#fds[fd];
         if (!entry) {
           return ERRNO_BADF;
@@ -647,9 +613,7 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "fd_datasync": syscall((
-        fd: number,
-      ): number => {
+      fd_datasync: syscall((fd: number): number => {
         const entry = this.#fds[fd];
         if (!entry) {
           return ERRNO_BADF;
@@ -660,10 +624,7 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "fd_fdstat_get": syscall((
-        fd: number,
-        offset: number,
-      ): number => {
+      fd_fdstat_get: syscall((fd: number, offset: number): number => {
         const entry = this.#fds[fd];
         if (!entry) {
           return ERRNO_BADF;
@@ -680,25 +641,15 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "fd_fdstat_set_flags": syscall((
-        _fd: number,
-        _flags: number,
-      ): number => {
+      fd_fdstat_set_flags: syscall((_fd: number, _flags: number): number => {
         return ERRNO_NOSYS;
       }),
 
-      "fd_fdstat_set_rights": syscall((
-        _fd: number,
-        _rightsBase: bigint,
-        _rightsInheriting: bigint,
-      ): number => {
+      fd_fdstat_set_rights: syscall((_fd: number, _rightsBase: bigint, _rightsInheriting: bigint): number => {
         return ERRNO_NOSYS;
       }),
 
-      "fd_filestat_get": syscall((
-        fd: number,
-        offset: number,
-      ): number => {
+      fd_filestat_get: syscall((fd: number, offset: number): number => {
         const entry = this.#fds[fd];
         if (!entry) {
           return ERRNO_BADF;
@@ -743,34 +694,19 @@ export default class Context {
         memoryView.setBigUint64(offset, BigInt(info.size), true);
         offset += 8;
 
-        memoryView.setBigUint64(
-          offset,
-          BigInt(info.atime ? info.atime.getTime() * 1e6 : 0),
-          true,
-        );
+        memoryView.setBigUint64(offset, BigInt(info.atime ? info.atime.getTime() * 1e6 : 0), true);
         offset += 8;
 
-        memoryView.setBigUint64(
-          offset,
-          BigInt(info.mtime ? info.mtime.getTime() * 1e6 : 0),
-          true,
-        );
+        memoryView.setBigUint64(offset, BigInt(info.mtime ? info.mtime.getTime() * 1e6 : 0), true);
         offset += 8;
 
-        memoryView.setBigUint64(
-          offset,
-          BigInt(info.birthtime ? info.birthtime.getTime() * 1e6 : 0),
-          true,
-        );
+        memoryView.setBigUint64(offset, BigInt(info.birthtime ? info.birthtime.getTime() * 1e6 : 0), true);
         offset += 8;
 
         return ERRNO_SUCCESS;
       }),
 
-      "fd_filestat_set_size": syscall((
-        fd: number,
-        size: bigint,
-      ): number => {
+      fd_filestat_set_size: syscall((fd: number, size: bigint): number => {
         const entry = this.#fds[fd];
         if (!entry) {
           return ERRNO_BADF;
@@ -781,12 +717,7 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "fd_filestat_set_times": syscall((
-        fd: number,
-        atim: bigint,
-        mtim: bigint,
-        flags: number,
-      ): number => {
+      fd_filestat_set_times: syscall((fd: number, atim: bigint, mtim: bigint, flags: number): number => {
         const entry = this.#fds[fd];
         if (!entry) {
           return ERRNO_BADF;
@@ -809,47 +740,36 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "fd_pread": syscall((
-        fd: number,
-        iovsOffset: number,
-        iovsLength: number,
-        offset: bigint,
-        nreadOffset: number,
-      ): number => {
-        const entry = this.#fds[fd];
-        if (entry === null) {
-          return ERRNO_BADF;
-        }
+      fd_pread: syscall(
+        (fd: number, iovsOffset: number, iovsLength: number, offset: bigint, nreadOffset: number): number => {
+          const entry = this.#fds[fd];
+          if (entry === null) {
+            return ERRNO_BADF;
+          }
 
-        const seek = Deno.seekSync(entry.rid!, 0, Deno.SeekMode.Current);
-        const memoryView = new DataView(this.#memory.buffer);
+          const seek = Deno.seekSync(entry.rid!, 0, Deno.SeekMode.Current);
+          const memoryView = new DataView(this.#memory.buffer);
 
-        let nread = 0;
-        for (let i = 0; i < iovsLength; i++) {
-          const dataOffset = memoryView.getUint32(iovsOffset, true);
-          iovsOffset += 4;
+          let nread = 0;
+          for (let i = 0; i < iovsLength; i++) {
+            const dataOffset = memoryView.getUint32(iovsOffset, true);
+            iovsOffset += 4;
 
-          const dataLength = memoryView.getUint32(iovsOffset, true);
-          iovsOffset += 4;
+            const dataLength = memoryView.getUint32(iovsOffset, true);
+            iovsOffset += 4;
 
-          const data = new Uint8Array(
-            this.#memory.buffer,
-            dataOffset,
-            dataLength,
-          );
-          nread += Deno.readSync(entry.rid!, data) as number;
-        }
+            const data = new Uint8Array(this.#memory.buffer, dataOffset, dataLength);
+            nread += Deno.readSync(entry.rid!, data) as number;
+          }
 
-        Deno.seekSync(entry.rid!, seek, Deno.SeekMode.Start);
-        memoryView.setUint32(nreadOffset, nread, true);
+          Deno.seekSync(entry.rid!, seek, Deno.SeekMode.Start);
+          memoryView.setUint32(nreadOffset, nread, true);
 
-        return ERRNO_SUCCESS;
-      }),
+          return ERRNO_SUCCESS;
+        },
+      ),
 
-      "fd_prestat_get": syscall((
-        fd: number,
-        prestatOffset: number,
-      ): number => {
+      fd_prestat_get: syscall((fd: number, prestatOffset: number): number => {
         const entry = this.#fds[fd];
         if (!entry) {
           return ERRNO_BADF;
@@ -861,20 +781,12 @@ export default class Context {
 
         const memoryView = new DataView(this.#memory.buffer);
         memoryView.setUint8(prestatOffset, PREOPENTYPE_DIR);
-        memoryView.setUint32(
-          prestatOffset + 4,
-          new TextEncoder().encode(entry.vpath).byteLength,
-          true,
-        );
+        memoryView.setUint32(prestatOffset + 4, new TextEncoder().encode(entry.vpath).byteLength, true);
 
         return ERRNO_SUCCESS;
       }),
 
-      "fd_prestat_dir_name": syscall((
-        fd: number,
-        pathOffset: number,
-        pathLength: number,
-      ): number => {
+      fd_prestat_dir_name: syscall((fd: number, pathOffset: number, pathLength: number): number => {
         const entry = this.#fds[fd];
         if (!entry) {
           return ERRNO_BADF;
@@ -884,59 +796,42 @@ export default class Context {
           return ERRNO_BADF;
         }
 
-        const data = new Uint8Array(
-          this.#memory.buffer,
-          pathOffset,
-          pathLength,
-        );
+        const data = new Uint8Array(this.#memory.buffer, pathOffset, pathLength);
         data.set(new TextEncoder().encode(entry.vpath));
 
         return ERRNO_SUCCESS;
       }),
 
-      "fd_pwrite": syscall((
-        fd: number,
-        iovsOffset: number,
-        iovsLength: number,
-        offset: bigint,
-        nwrittenOffset: number,
-      ): number => {
-        const entry = this.#fds[fd];
-        if (!entry) {
-          return ERRNO_BADF;
-        }
+      fd_pwrite: syscall(
+        (fd: number, iovsOffset: number, iovsLength: number, offset: bigint, nwrittenOffset: number): number => {
+          const entry = this.#fds[fd];
+          if (!entry) {
+            return ERRNO_BADF;
+          }
 
-        const seek = Deno.seekSync(entry.rid!, 0, Deno.SeekMode.Current);
-        const memoryView = new DataView(this.#memory.buffer);
+          const seek = Deno.seekSync(entry.rid!, 0, Deno.SeekMode.Current);
+          const memoryView = new DataView(this.#memory.buffer);
 
-        let nwritten = 0;
-        for (let i = 0; i < iovsLength; i++) {
-          const dataOffset = memoryView.getUint32(iovsOffset, true);
-          iovsOffset += 4;
+          let nwritten = 0;
+          for (let i = 0; i < iovsLength; i++) {
+            const dataOffset = memoryView.getUint32(iovsOffset, true);
+            iovsOffset += 4;
 
-          const dataLength = memoryView.getUint32(iovsOffset, true);
-          iovsOffset += 4;
+            const dataLength = memoryView.getUint32(iovsOffset, true);
+            iovsOffset += 4;
 
-          const data = new Uint8Array(
-            this.#memory.buffer,
-            dataOffset,
-            dataLength,
-          );
-          nwritten += Deno.writeSync(entry.rid!, data) as number;
-        }
+            const data = new Uint8Array(this.#memory.buffer, dataOffset, dataLength);
+            nwritten += Deno.writeSync(entry.rid!, data) as number;
+          }
 
-        Deno.seekSync(entry.rid!, seek, Deno.SeekMode.Start);
-        memoryView.setUint32(nwrittenOffset, nwritten, true);
+          Deno.seekSync(entry.rid!, seek, Deno.SeekMode.Start);
+          memoryView.setUint32(nwrittenOffset, nwritten, true);
 
-        return ERRNO_SUCCESS;
-      }),
+          return ERRNO_SUCCESS;
+        },
+      ),
 
-      "fd_read": syscall((
-        fd: number,
-        iovsOffset: number,
-        iovsLength: number,
-        nreadOffset: number,
-      ): number => {
+      fd_read: syscall((fd: number, iovsOffset: number, iovsLength: number, nreadOffset: number): number => {
         const entry = this.#fds[fd];
         if (!entry) {
           return ERRNO_BADF;
@@ -952,11 +847,7 @@ export default class Context {
           const dataLength = memoryView.getUint32(iovsOffset, true);
           iovsOffset += 4;
 
-          const data = new Uint8Array(
-            this.#memory.buffer,
-            dataOffset,
-            dataLength,
-          );
+          const data = new Uint8Array(this.#memory.buffer, dataOffset, dataLength);
           nread += Deno.readSync(entry.rid!, data) as number;
         }
 
@@ -965,80 +856,64 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "fd_readdir": syscall((
-        fd: number,
-        bufferOffset: number,
-        bufferLength: number,
-        cookie: bigint,
-        bufferUsedOffset: number,
-      ): number => {
-        const entry = this.#fds[fd];
-        if (!entry) {
-          return ERRNO_BADF;
-        }
-
-        const memoryData = new Uint8Array(this.#memory.buffer);
-        const memoryView = new DataView(this.#memory.buffer);
-
-        let bufferUsed = 0;
-
-        const entries = Array.from(Deno.readDirSync(entry.path!) as Iterable<Deno.DirEntry>);
-        for (let i = Number(cookie); i < entries.length; i++) {
-          const nameData = new TextEncoder().encode(entries[i].name);
-
-          const entryInfo = Deno.statSync(
-            resolve(entry.path!, entries[i].name),
-          );
-          const entryData = new Uint8Array(24 + nameData.byteLength);
-          const entryView = new DataView(entryData.buffer);
-
-          entryView.setBigUint64(0, BigInt(i + 1), true);
-          entryView.setBigUint64(
-            8,
-            BigInt(entryInfo.ino ? entryInfo.ino : 0),
-            true,
-          );
-          entryView.setUint32(16, nameData.byteLength, true);
-
-          let type: number;
-          switch (true) {
-            case entries[i].isFile:
-              type = FILETYPE_REGULAR_FILE;
-              break;
-
-            case entries[i].isDirectory:
-              type = FILETYPE_REGULAR_FILE;
-              break;
-
-            case entries[i].isSymlink:
-              type = FILETYPE_SYMBOLIC_LINK;
-              break;
-
-            default:
-              type = FILETYPE_REGULAR_FILE;
-              break;
+      fd_readdir: syscall(
+        (fd: number, bufferOffset: number, bufferLength: number, cookie: bigint, bufferUsedOffset: number): number => {
+          const entry = this.#fds[fd];
+          if (!entry) {
+            return ERRNO_BADF;
           }
 
-          entryView.setUint8(20, type);
-          entryData.set(nameData, 24);
+          const memoryData = new Uint8Array(this.#memory.buffer);
+          const memoryView = new DataView(this.#memory.buffer);
 
-          const data = entryData.slice(
-            0,
-            Math.min(entryData.length, bufferLength - bufferUsed),
-          );
-          memoryData.set(data, bufferOffset + bufferUsed);
-          bufferUsed += data.byteLength;
-        }
+          let bufferUsed = 0;
 
-        memoryView.setUint32(bufferUsedOffset, bufferUsed, true);
+          const entries = Array.from(Deno.readDirSync(entry.path!) as Iterable<Deno.DirEntry>);
+          for (let i = Number(cookie); i < entries.length; i++) {
+            const nameData = new TextEncoder().encode(entries[i].name);
 
-        return ERRNO_SUCCESS;
-      }),
+            const entryInfo = Deno.statSync(resolve(entry.path!, entries[i].name));
+            const entryData = new Uint8Array(24 + nameData.byteLength);
+            const entryView = new DataView(entryData.buffer);
 
-      "fd_renumber": syscall((
-        fd: number,
-        to: number,
-      ): number => {
+            entryView.setBigUint64(0, BigInt(i + 1), true);
+            entryView.setBigUint64(8, BigInt(entryInfo.ino ? entryInfo.ino : 0), true);
+            entryView.setUint32(16, nameData.byteLength, true);
+
+            let type: number;
+            switch (true) {
+              case entries[i].isFile:
+                type = FILETYPE_REGULAR_FILE;
+                break;
+
+              case entries[i].isDirectory:
+                type = FILETYPE_REGULAR_FILE;
+                break;
+
+              case entries[i].isSymlink:
+                type = FILETYPE_SYMBOLIC_LINK;
+                break;
+
+              default:
+                type = FILETYPE_REGULAR_FILE;
+                break;
+            }
+
+            entryView.setUint8(20, type);
+            entryData.set(nameData, 24);
+
+            const data = entryData.slice(0, Math.min(entryData.length, bufferLength - bufferUsed));
+            memoryData.set(data, bufferOffset + bufferUsed);
+            bufferUsed += data.byteLength;
+          }
+
+          memoryView.setUint32(bufferUsedOffset, bufferUsed, true);
+
+          return ERRNO_SUCCESS;
+        },
+      ),
+
+      fd_renumber: syscall((fd: number, to: number): number => {
         if (!this.#fds[fd]) {
           return ERRNO_BADF;
         }
@@ -1057,12 +932,7 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "fd_seek": syscall((
-        fd: number,
-        offset: bigint,
-        whence: number,
-        newOffsetOffset: number,
-      ): number => {
+      fd_seek: syscall((fd: number, offset: bigint, whence: number, newOffsetOffset: number): number => {
         const entry = this.#fds[fd];
         if (!entry) {
           return ERRNO_BADF;
@@ -1077,9 +947,7 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "fd_sync": syscall((
-        fd: number,
-      ): number => {
+      fd_sync: syscall((fd: number): number => {
         const entry = this.#fds[fd];
         if (!entry) {
           return ERRNO_BADF;
@@ -1090,10 +958,7 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "fd_tell": syscall((
-        fd: number,
-        offsetOffset: number,
-      ): number => {
+      fd_tell: syscall((fd: number, offsetOffset: number): number => {
         const entry = this.#fds[fd];
         if (!entry) {
           return ERRNO_BADF;
@@ -1107,12 +972,7 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "fd_write": syscall((
-        fd: number,
-        iovsOffset: number,
-        iovsLength: number,
-        nwrittenOffset: number,
-      ): number => {
+      fd_write: syscall((fd: number, iovsOffset: number, iovsLength: number, nwrittenOffset: number): number => {
         const entry = this.#fds[fd];
         if (!entry) {
           return ERRNO_BADF;
@@ -1128,11 +988,7 @@ export default class Context {
           const dataLength = memoryView.getUint32(iovsOffset, true);
           iovsOffset += 4;
 
-          const data = new Uint8Array(
-            this.#memory.buffer,
-            dataOffset,
-            dataLength,
-          );
+          const data = new Uint8Array(this.#memory.buffer, dataOffset, dataLength);
           nwritten += Deno.writeSync(entry.rid!, data) as number;
         }
 
@@ -1141,11 +997,7 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "path_create_directory": syscall((
-        fd: number,
-        pathOffset: number,
-        pathLength: number,
-      ): number => {
+      path_create_directory: syscall((fd: number, pathOffset: number, pathLength: number): number => {
         const entry = this.#fds[fd];
         if (!entry) {
           return ERRNO_BADF;
@@ -1156,11 +1008,7 @@ export default class Context {
         }
 
         const textDecoder = new TextDecoder();
-        const data = new Uint8Array(
-          this.#memory.buffer,
-          pathOffset,
-          pathLength,
-        );
+        const data = new Uint8Array(this.#memory.buffer, pathOffset, pathLength);
         const path = resolve(entry.path!, textDecoder.decode(data));
 
         Deno.mkdirSync(path);
@@ -1168,363 +1016,313 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "path_filestat_get": syscall((
-        fd: number,
-        flags: number,
-        pathOffset: number,
-        pathLength: number,
-        bufferOffset: number,
-      ): number => {
-        const entry = this.#fds[fd];
-        if (!entry) {
-          return ERRNO_BADF;
-        }
+      path_filestat_get: syscall(
+        (fd: number, flags: number, pathOffset: number, pathLength: number, bufferOffset: number): number => {
+          const entry = this.#fds[fd];
+          if (!entry) {
+            return ERRNO_BADF;
+          }
 
-        if (!entry.path) {
-          return ERRNO_INVAL;
-        }
+          if (!entry.path) {
+            return ERRNO_INVAL;
+          }
 
-        const textDecoder = new TextDecoder();
-        const data = new Uint8Array(
-          this.#memory.buffer,
-          pathOffset,
-          pathLength,
-        );
-        const path = resolve(entry.path!, textDecoder.decode(data));
+          const textDecoder = new TextDecoder();
+          const data = new Uint8Array(this.#memory.buffer, pathOffset, pathLength);
+          const path = resolve(entry.path!, textDecoder.decode(data));
 
-        const memoryView = new DataView(this.#memory.buffer);
+          const memoryView = new DataView(this.#memory.buffer);
 
-        const info = (flags & LOOKUPFLAGS_SYMLINK_FOLLOW) !== 0
-          ? Deno.statSync(path)
-          : Deno.lstatSync(path);
+          const info = (flags & LOOKUPFLAGS_SYMLINK_FOLLOW) !== 0 ? Deno.statSync(path) : Deno.lstatSync(path);
 
-        memoryView.setBigUint64(
-          bufferOffset,
-          BigInt(info.dev ? info.dev : 0),
-          true,
-        );
-        bufferOffset += 8;
+          memoryView.setBigUint64(bufferOffset, BigInt(info.dev ? info.dev : 0), true);
+          bufferOffset += 8;
 
-        memoryView.setBigUint64(
-          bufferOffset,
-          BigInt(info.ino ? info.ino : 0),
-          true,
-        );
-        bufferOffset += 8;
+          memoryView.setBigUint64(bufferOffset, BigInt(info.ino ? info.ino : 0), true);
+          bufferOffset += 8;
 
-        switch (true) {
-          case info.isFile:
-            memoryView.setUint8(bufferOffset, FILETYPE_REGULAR_FILE);
-            bufferOffset += 8;
-            break;
+          switch (true) {
+            case info.isFile:
+              memoryView.setUint8(bufferOffset, FILETYPE_REGULAR_FILE);
+              bufferOffset += 8;
+              break;
 
-          case info.isDirectory:
-            memoryView.setUint8(bufferOffset, FILETYPE_DIRECTORY);
-            bufferOffset += 8;
-            break;
+            case info.isDirectory:
+              memoryView.setUint8(bufferOffset, FILETYPE_DIRECTORY);
+              bufferOffset += 8;
+              break;
 
-          case info.isSymlink:
-            memoryView.setUint8(bufferOffset, FILETYPE_SYMBOLIC_LINK);
-            bufferOffset += 8;
-            break;
+            case info.isSymlink:
+              memoryView.setUint8(bufferOffset, FILETYPE_SYMBOLIC_LINK);
+              bufferOffset += 8;
+              break;
 
-          default:
-            memoryView.setUint8(bufferOffset, FILETYPE_UNKNOWN);
-            bufferOffset += 8;
-            break;
-        }
+            default:
+              memoryView.setUint8(bufferOffset, FILETYPE_UNKNOWN);
+              bufferOffset += 8;
+              break;
+          }
 
-        memoryView.setUint32(bufferOffset, Number(info.nlink), true);
-        bufferOffset += 8;
+          memoryView.setUint32(bufferOffset, Number(info.nlink), true);
+          bufferOffset += 8;
 
-        memoryView.setBigUint64(bufferOffset, BigInt(info.size), true);
-        bufferOffset += 8;
+          memoryView.setBigUint64(bufferOffset, BigInt(info.size), true);
+          bufferOffset += 8;
 
-        memoryView.setBigUint64(
-          bufferOffset,
-          BigInt(info.atime ? info.atime.getTime() * 1e6 : 0),
-          true,
-        );
-        bufferOffset += 8;
+          memoryView.setBigUint64(bufferOffset, BigInt(info.atime ? info.atime.getTime() * 1e6 : 0), true);
+          bufferOffset += 8;
 
-        memoryView.setBigUint64(
-          bufferOffset,
-          BigInt(info.mtime ? info.mtime.getTime() * 1e6 : 0),
-          true,
-        );
-        bufferOffset += 8;
+          memoryView.setBigUint64(bufferOffset, BigInt(info.mtime ? info.mtime.getTime() * 1e6 : 0), true);
+          bufferOffset += 8;
 
-        memoryView.setBigUint64(
-          bufferOffset,
-          BigInt(info.birthtime ? info.birthtime.getTime() * 1e6 : 0),
-          true,
-        );
-        bufferOffset += 8;
+          memoryView.setBigUint64(bufferOffset, BigInt(info.birthtime ? info.birthtime.getTime() * 1e6 : 0), true);
+          bufferOffset += 8;
 
-        return ERRNO_SUCCESS;
-      }),
+          return ERRNO_SUCCESS;
+        },
+      ),
 
-      "path_filestat_set_times": syscall((
-        fd: number,
-        flags: number,
-        pathOffset: number,
-        pathLength: number,
-        atim: bigint,
-        mtim: bigint,
-        fstflags: number,
-      ): number => {
-        const entry = this.#fds[fd];
-        if (!entry) {
-          return ERRNO_BADF;
-        }
+      path_filestat_set_times: syscall(
+        (
+          fd: number,
+          flags: number,
+          pathOffset: number,
+          pathLength: number,
+          atim: bigint,
+          mtim: bigint,
+          fstflags: number,
+        ): number => {
+          const entry = this.#fds[fd];
+          if (!entry) {
+            return ERRNO_BADF;
+          }
 
-        if (!entry.path) {
-          return ERRNO_INVAL;
-        }
+          if (!entry.path) {
+            return ERRNO_INVAL;
+          }
 
-        const textDecoder = new TextDecoder();
-        const data = new Uint8Array(
-          this.#memory.buffer,
-          pathOffset,
-          pathLength,
-        );
-        const path = resolve(entry.path!, textDecoder.decode(data));
+          const textDecoder = new TextDecoder();
+          const data = new Uint8Array(this.#memory.buffer, pathOffset, pathLength);
+          const path = resolve(entry.path!, textDecoder.decode(data));
 
-        if ((fstflags & FSTFLAGS_ATIM_NOW) === FSTFLAGS_ATIM_NOW) {
-          atim = BigInt(Date.now()) * BigInt(1e6);
-        }
+          if ((fstflags & FSTFLAGS_ATIM_NOW) === FSTFLAGS_ATIM_NOW) {
+            atim = BigInt(Date.now()) * BigInt(1e6);
+          }
 
-        if ((fstflags & FSTFLAGS_MTIM_NOW) === FSTFLAGS_MTIM_NOW) {
-          mtim = BigInt(Date.now()) * BigInt(1e6);
-        }
+          if ((fstflags & FSTFLAGS_MTIM_NOW) === FSTFLAGS_MTIM_NOW) {
+            mtim = BigInt(Date.now()) * BigInt(1e6);
+          }
 
-        Deno.utimeSync(path, Number(atim), Number(mtim));
+          Deno.utimeSync(path, Number(atim), Number(mtim));
 
-        return ERRNO_SUCCESS;
-      }),
+          return ERRNO_SUCCESS;
+        },
+      ),
 
-      "path_link": syscall((
-        oldFd: number,
-        oldFlags: number,
-        oldPathOffset: number,
-        oldPathLength: number,
-        newFd: number,
-        newPathOffset: number,
-        newPathLength: number,
-      ): number => {
-        const oldEntry = this.#fds[oldFd];
-        const newEntry = this.#fds[newFd];
-        if (!oldEntry || !newEntry) {
-          return ERRNO_BADF;
-        }
+      path_link: syscall(
+        (
+          oldFd: number,
+          oldFlags: number,
+          oldPathOffset: number,
+          oldPathLength: number,
+          newFd: number,
+          newPathOffset: number,
+          newPathLength: number,
+        ): number => {
+          const oldEntry = this.#fds[oldFd];
+          const newEntry = this.#fds[newFd];
+          if (!oldEntry || !newEntry) {
+            return ERRNO_BADF;
+          }
 
-        if (!oldEntry.path || !newEntry.path) {
-          return ERRNO_INVAL;
-        }
+          if (!oldEntry.path || !newEntry.path) {
+            return ERRNO_INVAL;
+          }
 
-        const textDecoder = new TextDecoder();
-        const oldData = new Uint8Array(
-          this.#memory.buffer,
-          oldPathOffset,
-          oldPathLength,
-        );
-        const oldPath = resolve(oldEntry.path!, textDecoder.decode(oldData));
-        const newData = new Uint8Array(
-          this.#memory.buffer,
-          newPathOffset,
-          newPathLength,
-        );
-        const newPath = resolve(newEntry.path!, textDecoder.decode(newData));
+          const textDecoder = new TextDecoder();
+          const oldData = new Uint8Array(this.#memory.buffer, oldPathOffset, oldPathLength);
+          const oldPath = resolve(oldEntry.path!, textDecoder.decode(oldData));
+          const newData = new Uint8Array(this.#memory.buffer, newPathOffset, newPathLength);
+          const newPath = resolve(newEntry.path!, textDecoder.decode(newData));
 
-        Deno.linkSync(oldPath, newPath);
+          Deno.linkSync(oldPath, newPath);
 
-        return ERRNO_SUCCESS;
-      }),
+          return ERRNO_SUCCESS;
+        },
+      ),
 
-      "path_open": syscall((
-        fd: number,
-        dirflags: number,
-        pathOffset: number,
-        pathLength: number,
-        oflags: number,
-        rightsBase: bigint,
-        rightsInheriting: bigint,
-        fdflags: number,
-        openedFdOffset: number,
-      ): number => {
-        const entry = this.#fds[fd];
-        if (!entry) {
-          return ERRNO_BADF;
-        }
+      path_open: syscall(
+        (
+          fd: number,
+          dirflags: number,
+          pathOffset: number,
+          pathLength: number,
+          oflags: number,
+          rightsBase: bigint,
+          rightsInheriting: bigint,
+          fdflags: number,
+          openedFdOffset: number,
+        ): number => {
+          const entry = this.#fds[fd];
+          if (!entry) {
+            return ERRNO_BADF;
+          }
 
-        if (!entry.path) {
-          return ERRNO_INVAL;
-        }
+          if (!entry.path) {
+            return ERRNO_INVAL;
+          }
 
-        const textDecoder = new TextDecoder();
-        const pathData = new Uint8Array(
-          this.#memory.buffer,
-          pathOffset,
-          pathLength,
-        );
-        const resolvedPath = resolve(entry.path!, textDecoder.decode(pathData));
+          const textDecoder = new TextDecoder();
+          const pathData = new Uint8Array(this.#memory.buffer, pathOffset, pathLength);
+          const resolvedPath = resolve(entry.path!, textDecoder.decode(pathData));
 
-        if (relative(entry.path, resolvedPath).startsWith("..")) {
-          return ERRNO_NOTCAPABLE;
-        }
+          if (relative(entry.path, resolvedPath).startsWith('..')) {
+            return ERRNO_NOTCAPABLE;
+          }
 
-        let path;
-        if (
-          (dirflags & LOOKUPFLAGS_SYMLINK_FOLLOW) === LOOKUPFLAGS_SYMLINK_FOLLOW
-        ) {
-          try {
-            path = Deno.realPathSync(resolvedPath);
-            if (relative(entry.path, path).startsWith("..")) {
-              return ERRNO_NOTCAPABLE;
+          let path;
+          if ((dirflags & LOOKUPFLAGS_SYMLINK_FOLLOW) === LOOKUPFLAGS_SYMLINK_FOLLOW) {
+            try {
+              path = Deno.realPathSync(resolvedPath);
+              if (relative(entry.path, path).startsWith('..')) {
+                return ERRNO_NOTCAPABLE;
+              }
+            } catch (_err) {
+              path = resolvedPath;
             }
-          } catch (_err) {
+          } else {
             path = resolvedPath;
           }
-        } else {
-          path = resolvedPath;
-        }
 
-        if ((oflags & OFLAGS_DIRECTORY) !== 0) {
-          // XXX (caspervonb) this isn't ideal as we can't get a rid for the
-          // directory this way so there's no native fstat but Deno.open
-          // doesn't work with directories on windows so we'll have to work
-          // around it for now.
-          const entries = Array.from(Deno.readDirSync(path) as Iterable<Deno.DirEntry>);
-          const openedFd = this.#fds.push({
-            flags: fdflags,
-            path,
-            entries,
-          }) - 1;
+          if ((oflags & OFLAGS_DIRECTORY) !== 0) {
+            // XXX (caspervonb) this isn't ideal as we can't get a rid for the
+            // directory this way so there's no native fstat but Deno.open
+            // doesn't work with directories on windows so we'll have to work
+            // around it for now.
+            const entries = Array.from(Deno.readDirSync(path) as Iterable<Deno.DirEntry>);
+            const openedFd =
+              this.#fds.push({
+                flags: fdflags,
+                path,
+                entries,
+              }) - 1;
+
+            const memoryView = new DataView(this.#memory.buffer);
+            memoryView.setUint32(openedFdOffset, openedFd, true);
+
+            return ERRNO_SUCCESS;
+          }
+
+          const options = {
+            read: false,
+            write: false,
+            append: false,
+            truncate: false,
+            create: false,
+            createNew: false,
+          };
+
+          if ((oflags & OFLAGS_CREAT) !== 0) {
+            options.create = true;
+            options.write = true;
+          }
+
+          if ((oflags & OFLAGS_EXCL) !== 0) {
+            options.createNew = true;
+          }
+
+          if ((oflags & OFLAGS_TRUNC) !== 0) {
+            options.truncate = true;
+            options.write = true;
+          }
+
+          const read = RIGHTS_FD_READ | RIGHTS_FD_READDIR;
+
+          if ((rightsBase & read) !== 0n) {
+            options.read = true;
+          }
+
+          const write = RIGHTS_FD_DATASYNC | RIGHTS_FD_WRITE | RIGHTS_FD_ALLOCATE | RIGHTS_FD_FILESTAT_SET_SIZE;
+
+          if ((rightsBase & write) !== 0n) {
+            options.write = true;
+          }
+
+          if ((fdflags & FDFLAGS_APPEND) !== 0) {
+            options.append = true;
+          }
+
+          if ((fdflags & FDFLAGS_DSYNC) !== 0) {
+            // TODO(caspervonb): review if we can emulate this.
+          }
+
+          if ((fdflags & FDFLAGS_NONBLOCK) !== 0) {
+            // TODO(caspervonb): review if we can emulate this.
+          }
+
+          if ((fdflags & FDFLAGS_RSYNC) !== 0) {
+            // TODO(caspervonb): review if we can emulate this.
+          }
+
+          if ((fdflags & FDFLAGS_SYNC) !== 0) {
+            // TODO(caspervonb): review if we can emulate this.
+          }
+
+          if (!options.read && !options.write && !options.truncate) {
+            options.read = true;
+          }
+
+          const { rid } = Deno.openSync(path, options);
+          const openedFd =
+            this.#fds.push({
+              rid,
+              flags: fdflags,
+              path,
+            }) - 1;
 
           const memoryView = new DataView(this.#memory.buffer);
           memoryView.setUint32(openedFdOffset, openedFd, true);
 
           return ERRNO_SUCCESS;
-        }
+        },
+      ),
 
-        const options = {
-          read: false,
-          write: false,
-          append: false,
-          truncate: false,
-          create: false,
-          createNew: false,
-        };
+      path_readlink: syscall(
+        (
+          fd: number,
+          pathOffset: number,
+          pathLength: number,
+          bufferOffset: number,
+          bufferLength: number,
+          bufferUsedOffset: number,
+        ): number => {
+          const entry = this.#fds[fd];
+          if (!entry) {
+            return ERRNO_BADF;
+          }
 
-        if ((oflags & OFLAGS_CREAT) !== 0) {
-          options.create = true;
-          options.write = true;
-        }
+          if (!entry.path) {
+            return ERRNO_INVAL;
+          }
 
-        if ((oflags & OFLAGS_EXCL) !== 0) {
-          options.createNew = true;
-        }
+          const memoryData = new Uint8Array(this.#memory.buffer);
+          const memoryView = new DataView(this.#memory.buffer);
 
-        if ((oflags & OFLAGS_TRUNC) !== 0) {
-          options.truncate = true;
-          options.write = true;
-        }
+          const pathData = new Uint8Array(this.#memory.buffer, pathOffset, pathLength);
+          const path = resolve(entry.path!, new TextDecoder().decode(pathData));
 
-        const read = RIGHTS_FD_READ |
-          RIGHTS_FD_READDIR;
+          const link = Deno.readLinkSync(path);
+          const linkData = new TextEncoder().encode(link);
+          memoryData.set(new Uint8Array(linkData, 0, bufferLength), bufferOffset);
 
-        if ((rightsBase & read) !== 0n) {
-          options.read = true;
-        }
+          const bufferUsed = Math.min(linkData.byteLength, bufferLength);
+          memoryView.setUint32(bufferUsedOffset, bufferUsed, true);
 
-        const write = RIGHTS_FD_DATASYNC |
-          RIGHTS_FD_WRITE |
-          RIGHTS_FD_ALLOCATE |
-          RIGHTS_FD_FILESTAT_SET_SIZE;
+          return ERRNO_SUCCESS;
+        },
+      ),
 
-        if ((rightsBase & write) !== 0n) {
-          options.write = true;
-        }
-
-        if ((fdflags & FDFLAGS_APPEND) !== 0) {
-          options.append = true;
-        }
-
-        if ((fdflags & FDFLAGS_DSYNC) !== 0) {
-          // TODO(caspervonb): review if we can emulate this.
-        }
-
-        if ((fdflags & FDFLAGS_NONBLOCK) !== 0) {
-          // TODO(caspervonb): review if we can emulate this.
-        }
-
-        if ((fdflags & FDFLAGS_RSYNC) !== 0) {
-          // TODO(caspervonb): review if we can emulate this.
-        }
-
-        if ((fdflags & FDFLAGS_SYNC) !== 0) {
-          // TODO(caspervonb): review if we can emulate this.
-        }
-
-        if (!options.read && !options.write && !options.truncate) {
-          options.read = true;
-        }
-
-        const { rid } = Deno.openSync(path, options);
-        const openedFd = this.#fds.push({
-          rid,
-          flags: fdflags,
-          path,
-        }) - 1;
-
-        const memoryView = new DataView(this.#memory.buffer);
-        memoryView.setUint32(openedFdOffset, openedFd, true);
-
-        return ERRNO_SUCCESS;
-      }),
-
-      "path_readlink": syscall((
-        fd: number,
-        pathOffset: number,
-        pathLength: number,
-        bufferOffset: number,
-        bufferLength: number,
-        bufferUsedOffset: number,
-      ): number => {
-        const entry = this.#fds[fd];
-        if (!entry) {
-          return ERRNO_BADF;
-        }
-
-        if (!entry.path) {
-          return ERRNO_INVAL;
-        }
-
-        const memoryData = new Uint8Array(this.#memory.buffer);
-        const memoryView = new DataView(this.#memory.buffer);
-
-        const pathData = new Uint8Array(
-          this.#memory.buffer,
-          pathOffset,
-          pathLength,
-        );
-        const path = resolve(entry.path!, new TextDecoder().decode(pathData));
-
-        const link = Deno.readLinkSync(path);
-        const linkData = new TextEncoder().encode(link);
-        memoryData.set(new Uint8Array(linkData, 0, bufferLength), bufferOffset);
-
-        const bufferUsed = Math.min(linkData.byteLength, bufferLength);
-        memoryView.setUint32(bufferUsedOffset, bufferUsed, true);
-
-        return ERRNO_SUCCESS;
-      }),
-
-      "path_remove_directory": syscall((
-        fd: number,
-        pathOffset: number,
-        pathLength: number,
-      ): number => {
+      path_remove_directory: syscall((fd: number, pathOffset: number, pathLength: number): number => {
         const entry = this.#fds[fd];
         if (!entry) {
           return ERRNO_BADF;
@@ -1535,11 +1333,7 @@ export default class Context {
         }
 
         const textDecoder = new TextDecoder();
-        const data = new Uint8Array(
-          this.#memory.buffer,
-          pathOffset,
-          pathLength,
-        );
+        const data = new Uint8Array(this.#memory.buffer, pathOffset, pathLength);
         const path = resolve(entry.path!, textDecoder.decode(data));
 
         if (!Deno.statSync(path).isDirectory) {
@@ -1551,50 +1345,67 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "path_rename": syscall((
-        fd: number,
-        oldPathOffset: number,
-        oldPathLength: number,
-        newFd: number,
-        newPathOffset: number,
-        newPathLength: number,
-      ): number => {
-        const oldEntry = this.#fds[fd];
-        const newEntry = this.#fds[newFd];
-        if (!oldEntry || !newEntry) {
-          return ERRNO_BADF;
-        }
+      path_rename: syscall(
+        (
+          fd: number,
+          oldPathOffset: number,
+          oldPathLength: number,
+          newFd: number,
+          newPathOffset: number,
+          newPathLength: number,
+        ): number => {
+          const oldEntry = this.#fds[fd];
+          const newEntry = this.#fds[newFd];
+          if (!oldEntry || !newEntry) {
+            return ERRNO_BADF;
+          }
 
-        if (!oldEntry.path || !newEntry.path) {
-          return ERRNO_INVAL;
-        }
+          if (!oldEntry.path || !newEntry.path) {
+            return ERRNO_INVAL;
+          }
 
-        const textDecoder = new TextDecoder();
-        const oldData = new Uint8Array(
-          this.#memory.buffer,
-          oldPathOffset,
-          oldPathLength,
-        );
-        const oldPath = resolve(oldEntry.path!, textDecoder.decode(oldData));
-        const newData = new Uint8Array(
-          this.#memory.buffer,
-          newPathOffset,
-          newPathLength,
-        );
-        const newPath = resolve(newEntry.path!, textDecoder.decode(newData));
+          const textDecoder = new TextDecoder();
+          const oldData = new Uint8Array(this.#memory.buffer, oldPathOffset, oldPathLength);
+          const oldPath = resolve(oldEntry.path!, textDecoder.decode(oldData));
+          const newData = new Uint8Array(this.#memory.buffer, newPathOffset, newPathLength);
+          const newPath = resolve(newEntry.path!, textDecoder.decode(newData));
 
-        Deno.renameSync(oldPath, newPath);
+          Deno.renameSync(oldPath, newPath);
 
-        return ERRNO_SUCCESS;
-      }),
+          return ERRNO_SUCCESS;
+        },
+      ),
 
-      "path_symlink": syscall((
-        oldPathOffset: number,
-        oldPathLength: number,
-        fd: number,
-        newPathOffset: number,
-        newPathLength: number,
-      ): number => {
+      path_symlink: syscall(
+        (
+          oldPathOffset: number,
+          oldPathLength: number,
+          fd: number,
+          newPathOffset: number,
+          newPathLength: number,
+        ): number => {
+          const entry = this.#fds[fd];
+          if (!entry) {
+            return ERRNO_BADF;
+          }
+
+          if (!entry.path) {
+            return ERRNO_INVAL;
+          }
+
+          const textDecoder = new TextDecoder();
+          const oldData = new Uint8Array(this.#memory.buffer, oldPathOffset, oldPathLength);
+          const oldPath = textDecoder.decode(oldData);
+          const newData = new Uint8Array(this.#memory.buffer, newPathOffset, newPathLength);
+          const newPath = resolve(entry.path!, textDecoder.decode(newData));
+
+          Deno.symlinkSync(oldPath, newPath);
+
+          return ERRNO_SUCCESS;
+        },
+      ),
+
+      path_unlink_file: syscall((fd: number, pathOffset: number, pathLength: number): number => {
         const entry = this.#fds[fd];
         if (!entry) {
           return ERRNO_BADF;
@@ -1605,44 +1416,7 @@ export default class Context {
         }
 
         const textDecoder = new TextDecoder();
-        const oldData = new Uint8Array(
-          this.#memory.buffer,
-          oldPathOffset,
-          oldPathLength,
-        );
-        const oldPath = textDecoder.decode(oldData);
-        const newData = new Uint8Array(
-          this.#memory.buffer,
-          newPathOffset,
-          newPathLength,
-        );
-        const newPath = resolve(entry.path!, textDecoder.decode(newData));
-
-        Deno.symlinkSync(oldPath, newPath);
-
-        return ERRNO_SUCCESS;
-      }),
-
-      "path_unlink_file": syscall((
-        fd: number,
-        pathOffset: number,
-        pathLength: number,
-      ): number => {
-        const entry = this.#fds[fd];
-        if (!entry) {
-          return ERRNO_BADF;
-        }
-
-        if (!entry.path) {
-          return ERRNO_INVAL;
-        }
-
-        const textDecoder = new TextDecoder();
-        const data = new Uint8Array(
-          this.#memory.buffer,
-          pathOffset,
-          pathLength,
-        );
+        const data = new Uint8Array(this.#memory.buffer, pathOffset, pathLength);
         const path = resolve(entry.path!, textDecoder.decode(data));
 
         Deno.removeSync(path);
@@ -1650,18 +1424,13 @@ export default class Context {
         return ERRNO_SUCCESS;
       }),
 
-      "poll_oneoff": syscall((
-        _inOffset: number,
-        _outOffset: number,
-        _nsubscriptions: number,
-        _neventsOffset: number,
-      ): number => {
-        return ERRNO_NOSYS;
-      }),
+      poll_oneoff: syscall(
+        (_inOffset: number, _outOffset: number, _nsubscriptions: number, _neventsOffset: number): number => {
+          return ERRNO_NOSYS;
+        },
+      ),
 
-      "proc_exit": syscall((
-        rval: number,
-      ): never => {
+      proc_exit: syscall((rval: number): never => {
         if (this.#exitOnReturn) {
           Deno.exit(rval);
         }
@@ -1669,55 +1438,47 @@ export default class Context {
         throw new ExitStatus(rval);
       }),
 
-      "proc_raise": syscall((
-        _sig: number,
-      ): number => {
+      proc_raise: syscall((_sig: number): number => {
         return ERRNO_NOSYS;
       }),
 
-      "sched_yield": syscall((): number => {
+      sched_yield: syscall((): number => {
         return ERRNO_SUCCESS;
       }),
 
-      "random_get": syscall((
-        bufferOffset: number,
-        bufferLength: number,
-      ): number => {
-        const buffer = new Uint8Array(
-          this.#memory.buffer,
-          bufferOffset,
-          bufferLength,
-        );
+      random_get: syscall((bufferOffset: number, bufferLength: number): number => {
+        const buffer = new Uint8Array(this.#memory.buffer, bufferOffset, bufferLength);
         crypto.getRandomValues(buffer);
 
         return ERRNO_SUCCESS;
       }),
 
-      "sock_recv": syscall((
-        _fd: number,
-        _riDataOffset: number,
-        _riDataLength: number,
-        _riFlags: number,
-        _roDataLengthOffset: number,
-        _roFlagsOffset: number,
-      ): number => {
-        return ERRNO_NOSYS;
-      }),
+      sock_recv: syscall(
+        (
+          _fd: number,
+          _riDataOffset: number,
+          _riDataLength: number,
+          _riFlags: number,
+          _roDataLengthOffset: number,
+          _roFlagsOffset: number,
+        ): number => {
+          return ERRNO_NOSYS;
+        },
+      ),
 
-      "sock_send": syscall((
-        _fd: number,
-        _siDataOffset: number,
-        _siDataLength: number,
-        _siFlags: number,
-        _soDataLengthOffset: number,
-      ): number => {
-        return ERRNO_NOSYS;
-      }),
+      sock_send: syscall(
+        (
+          _fd: number,
+          _siDataOffset: number,
+          _siDataLength: number,
+          _siFlags: number,
+          _soDataLengthOffset: number,
+        ): number => {
+          return ERRNO_NOSYS;
+        },
+      ),
 
-      "sock_shutdown": syscall((
-        _fd: number,
-        _how: number,
-      ): number => {
+      sock_shutdown: syscall((_fd: number, _how: number): number => {
         return ERRNO_NOSYS;
       }),
     };
@@ -1738,7 +1499,7 @@ export default class Context {
    */
   start(instance: WebAssembly.Instance): null | number | never {
     if (this.#started) {
-      throw new Error("WebAssembly.Instance has already started");
+      throw new Error('WebAssembly.Instance has already started');
     }
 
     this.#started = true;
@@ -1746,21 +1507,17 @@ export default class Context {
     const { _start, _initialize, memory } = instance.exports;
 
     if (!(memory instanceof WebAssembly.Memory)) {
-      throw new TypeError("WebAssembly.instance must provide a memory export");
+      throw new TypeError('WebAssembly.instance must provide a memory export');
     }
 
     this.#memory = memory;
 
-    if (typeof _initialize === "function") {
-      throw new TypeError(
-        "WebAssembly.instance export _initialize must not be a function",
-      );
+    if (typeof _initialize === 'function') {
+      throw new TypeError('WebAssembly.instance export _initialize must not be a function');
     }
 
-    if (typeof _start !== "function") {
-      throw new TypeError(
-        "WebAssembly.Instance export _start must be a function",
-      );
+    if (typeof _start !== 'function') {
+      throw new TypeError('WebAssembly.Instance export _start must be a function');
     }
 
     try {
@@ -1787,7 +1544,7 @@ export default class Context {
    */
   initialize(instance: WebAssembly.Instance) {
     if (this.#started) {
-      throw new Error("WebAssembly.Instance has already started");
+      throw new Error('WebAssembly.Instance has already started');
     }
 
     this.#started = true;
@@ -1795,21 +1552,17 @@ export default class Context {
     const { _start, _initialize, memory } = instance.exports;
 
     if (!(memory instanceof WebAssembly.Memory)) {
-      throw new TypeError("WebAssembly.instance must provide a memory export");
+      throw new TypeError('WebAssembly.instance must provide a memory export');
     }
 
     this.#memory = memory;
 
-    if (typeof _start === "function") {
-      throw new TypeError(
-        "WebAssembly.Instance export _start must not be a function",
-      );
+    if (typeof _start === 'function') {
+      throw new TypeError('WebAssembly.Instance export _start must not be a function');
     }
 
-    if (_initialize && typeof _initialize !== "function") {
-      throw new TypeError(
-        "WebAssembly.Instance export _initialize must be a function or not be defined",
-      );
+    if (_initialize && typeof _initialize !== 'function') {
+      throw new TypeError('WebAssembly.Instance export _initialize must be a function or not be defined');
     }
     _initialize?.();
   }

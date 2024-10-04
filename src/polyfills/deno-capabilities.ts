@@ -21,5 +21,5 @@ export const CAPABILITIES: Capabilities = {
 
   supportsTimeouts: true,
 
-  extismStdoutEnvVarSet: Boolean(Deno.env.get('EXTISM_ENABLE_WASI_OUTPUT'))
+  extismStdoutEnvVarSet: Boolean(Deno.env.get('EXTISM_ENABLE_WASI_OUTPUT')),
 };
