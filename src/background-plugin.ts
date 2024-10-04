@@ -639,11 +639,12 @@ export async function createBackgroundPlugin(
 
   // NB(chrisdickinson): In order for the host and guest to have the same "view" of the
   // variables, forward the guest's var_get/var_set methods up to the host CallContext.
+  // If they're overridden, however, preserve the user-provided values.
   opts.functions[EXTISM_ENV] ??= {};
-  opts.functions[EXTISM_ENV].var_get = (_: CallContext, key: bigint) => {
+  opts.functions[EXTISM_ENV].var_get ??= (_: CallContext, key: bigint) => {
     return context[ENV].var_get(key);
   };
-  opts.functions[EXTISM_ENV].var_set = (
+  opts.functions[EXTISM_ENV].var_set ??= (
     _: CallContext,
     key: bigint,
     val: bigint,
