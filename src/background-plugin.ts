@@ -566,7 +566,7 @@ class HttpContext {
       for (var k of response.headers.keys()) {
         const v = response.headers.get(k);
         if (v !== null){
-          this.lastHeaders[k] = v;
+          this.lastHeaders[k.toLowerCase()] = v;
         }
       }
     }

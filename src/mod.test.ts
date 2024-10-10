@@ -816,6 +816,56 @@ if (typeof WebAssembly === 'undefined') {
         await plugin.close();
       }
     });
+
+    
+    test('http response headers are returned when enabled', async () => {
+      const plugin = await createPlugin(
+        {
+          wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http_headers.wasm' }],
+          allowedHosts: ['extism.org'],
+          memory: { maxHttpResponseBytes: 100 * 1024 * 1024 },
+        },
+        { useWasi: true, functions: {}, runInWorker: true, allowHttpResponseHeaders: true },
+      );
+
+      try {
+        const [err, data] = await plugin
+          .call('http_get', '{"url": "https://extism.org"}')
+          .then(
+            (data) => [null, data],
+            (err) => [err, null],
+          );
+        assert(err === null);
+        assert.equal(data.json()["content-type"], "text/html; charset=utf-8");
+      } finally {
+        await plugin.close();
+      }
+    });
+
+    
+    test('http response headers are not returned when disabled', async () => {
+      const plugin = await createPlugin(
+        {
+          wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http_headers.wasm' }],
+          allowedHosts: ['extism.org'],
+          memory: { maxHttpResponseBytes: 100 * 1024 * 1024 },
+        },
+        { useWasi: true, functions: {}, runInWorker: true },
+      );
+
+      try {
+        const [err, data] = await plugin
+          .call('http_get', '{"url": "https://extism.org"}')
+          .then(
+            (data) => [null, data],
+            (err) => [err, null],
+          );
+        assert(err === null);
+        assert.deepEqual(data.json(), {});
+      } finally {
+        await plugin.close();
+      }
+    });
   }
 
   test('createPlugin fails as expected when calling unknown function', async () => {
