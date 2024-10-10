@@ -139,6 +139,7 @@ export async function createPlugin(
     sharedArrayBufferSize: Number(opts.sharedArrayBufferSize) || 1 << 16,
     timeoutMs: opts.timeoutMs,
     memory: opts.memory,
+    allowHttpResponseHeaders: !!opts.allowHttpResponseHeaders,
   };
 
   return (opts.runInWorker ? _createBackgroundPlugin : _createForegroundPlugin)(ic, names, moduleData);

@@ -395,6 +395,11 @@ export class CallContext {
       return 0;
     },
 
+    http_headers: (): bigint => {
+      this.#logger.error("http_headers is not enabled");
+      return 0n;
+    },
+
     length: (addr: bigint): bigint => {
       return this.length(addr);
     },
