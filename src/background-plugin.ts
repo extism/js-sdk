@@ -563,12 +563,7 @@ class HttpContext {
     this.lastStatusCode = response.status;
 
     if (this.lastHeaders !== null){
-      for (var k of response.headers.keys()) {
-        const v = response.headers.get(k);
-        if (v !== null){
-          this.lastHeaders[k.toLowerCase()] = v;
-        }
-      }
+      this.lastHeaders = Object.fromEntries(response.headers); 
     }
 
     try {
