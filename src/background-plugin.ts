@@ -499,14 +499,21 @@ class RingBufferWriter {
 class HttpContext {
   fetch: typeof fetch;
   lastStatusCode: number;
+  lastHeaders: Record<string, string> | null;
   allowedHosts: string[];
   memoryOptions: MemoryOptions;
 
-  constructor(_fetch: typeof fetch, allowedHosts: string[], memoryOptions: MemoryOptions) {
+  constructor(
+    _fetch: typeof fetch,
+    allowedHosts: string[],
+    memoryOptions: MemoryOptions,
+    allowResponseHeaders: boolean,
+  ) {
     this.fetch = _fetch;
     this.allowedHosts = allowedHosts;
     this.lastStatusCode = 0;
     this.memoryOptions = memoryOptions;
+    this.lastHeaders = allowResponseHeaders ? {} : null;
   }
 
   contribute(functions: Record<string, Record<string, any>>) {
@@ -514,9 +521,20 @@ class HttpContext {
     functions[EXTISM_ENV].http_request = (callContext: CallContext, reqaddr: bigint, bodyaddr: bigint) =>
       this.makeRequest(callContext, reqaddr, bodyaddr);
     functions[EXTISM_ENV].http_status_code = () => this.lastStatusCode;
+    functions[EXTISM_ENV].http_headers = (callContext: CallContext) => {
+      if (this.lastHeaders === null){
+        return 0n;
+      }
+      return callContext.store(JSON.stringify(this.lastHeaders));  
+    };
   }
 
   async makeRequest(callContext: CallContext, reqaddr: bigint, bodyaddr: bigint) {
+    if (this.lastHeaders !== null) {
+      this.lastHeaders = {};
+    }
+    this.lastStatusCode = 0;
+    
     const req = callContext.read(reqaddr);
     if (req === null) {
       return 0n;
@@ -544,6 +562,10 @@ class HttpContext {
 
     this.lastStatusCode = response.status;
 
+    if (this.lastHeaders !== null){
+      this.lastHeaders = Object.fromEntries(response.headers); 
+    }
+
     try {
       let bytes = this.memoryOptions.maxHttpResponseBytes
         ? await readBodyUpTo(response, this.memoryOptions.maxHttpResponseBytes)
@@ -569,7 +591,7 @@ export async function createBackgroundPlugin(
   modules: WebAssembly.Module[],
 ): Promise<BackgroundPlugin> {
   const context = new CallContext(SharedArrayBuffer, opts.logger, opts.logLevel, opts.config, opts.memory);
-  const httpContext = new HttpContext(opts.fetch, opts.allowedHosts, opts.memory);
+  const httpContext = new HttpContext(opts.fetch, opts.allowedHosts, opts.memory, opts.allowHttpResponseHeaders);
   httpContext.contribute(opts.functions);
 
   // NB(chrisdickinson): In order for the host and guest to have the same "view" of the

@@ -207,6 +207,13 @@ export interface ExtismPluginOptions {
   config?: PluginConfigLike;
   fetch?: typeof fetch;
   sharedArrayBufferSize?: number;
+
+  /** 
+   * Determines whether or not HTTP response headers should be exposed to plugins,
+   * when set to `true`, `extism:host/env::http_headers` will return the response 
+   *  headers for HTTP requests made using `extism:host/env::http_request`
+   */
+  allowHttpResponseHeaders?: boolean;
 }
 
 export type MemoryOptions = {
@@ -251,6 +258,7 @@ export interface InternalConfig extends Required<NativeManifestOptions> {
   fetch: typeof fetch;
   wasiEnabled: boolean;
   sharedArrayBufferSize: number;
+  allowHttpResponseHeaders: boolean;
 }
 
 export interface InternalWasi {
