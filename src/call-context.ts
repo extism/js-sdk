@@ -415,8 +415,8 @@ export class CallContext {
   };
 
   /** @hidden */
-  #handleLog(threshold: LogLevelPriority, level: LogLevel, addr: bigint) {
-    if (this.#logLevel > threshold) {
+  #handleLog(incomingLevel: LogLevelPriority, level: LogLevel, addr: bigint) {
+    if (this.#logLevel < incomingLevel) {
       return;
     }
     const blockIdx = Block.addressToIndex(addr);
