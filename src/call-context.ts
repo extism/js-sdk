@@ -416,9 +416,6 @@ export class CallContext {
 
   /** @hidden */
   #handleLog(incomingLevel: LogLevelPriority, level: LogLevel, addr: bigint) {
-    if (this.#logLevel < incomingLevel) {
-      return;
-    }
     const blockIdx = Block.addressToIndex(addr);
     const block = this.#blocks[blockIdx];
     if (!block) {
@@ -428,8 +425,10 @@ export class CallContext {
       return;
     }
     try {
-      const text = this.#decoder.decode(block.buffer);
-      (this.#logger[level as keyof Console] as any)(text);
+      if (this.#logLevel <= incomingLevel) {
+        const text = this.#decoder.decode(block.buffer);
+        (this.#logger[level as keyof Console] as any)(text);
+      }
     } finally {
       this.#blocks[blockIdx] = null;
     }

@@ -248,6 +248,31 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
+  test('loglevel filtering works as expected', async () => {
+    const intercept: Record<string, string> = {};
+    const logLevel = (level: string) => (message: string) => (intercept[level] = message);
+
+    const logger = Object.fromEntries(
+      ['info', 'debug', 'warn', 'error', 'trace'].map((lvl) => [lvl, logLevel(lvl)]),
+    ) as unknown as Console;
+
+    const plugin = await createPlugin(
+      { wasm: [{ url: 'http://localhost:8124/wasm/log.wasm' }] },
+      { useWasi: true, logger, logLevel: 'info' },
+    );
+
+    try {
+      await plugin.call('run_test', '');
+      assert.deepEqual(intercept, {
+        error: 'this is an error log',
+        info: 'this is an info log',
+        warn: 'this is a warning log',
+      });
+    } finally {
+      await plugin.close();
+    }
+  });
+
   test('host functions may read info from context and return values', async () => {
     let executed: any;
     const functions = {
