@@ -45,43 +45,43 @@ export class PluginOutput extends DataView {
     return this.#bytes;
   }
 
-  setInt8(_byteOffset: number, _value: number): void {
+  override setInt8(_byteOffset: number, _value: number): void {
     throw new Error('Cannot set values on output');
   }
 
-  setInt16(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
+  override setInt16(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
     throw new Error('Cannot set values on output');
   }
 
-  setInt32(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
+  override setInt32(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
     throw new Error('Cannot set values on output');
   }
 
-  setUint8(_byteOffset: number, _value: number): void {
+  override setUint8(_byteOffset: number, _value: number): void {
     throw new Error('Cannot set values on output');
   }
 
-  setUint16(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
+  override setUint16(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
     throw new Error('Cannot set values on output');
   }
 
-  setUint32(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
+  override setUint32(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
     throw new Error('Cannot set values on output');
   }
 
-  setFloat32(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
+  override setFloat32(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
     throw new Error('Cannot set values on output');
   }
 
-  setFloat64(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
+  override setFloat64(_byteOffset: number, _value: number, _littleEndian?: boolean): void {
     throw new Error('Cannot set values on output');
   }
 
-  setBigInt64(_byteOffset: number, _value: bigint, _littleEndian?: boolean): void {
+  override setBigInt64(_byteOffset: number, _value: bigint, _littleEndian?: boolean): void {
     throw new Error('Cannot set values on output');
   }
 
-  setBigUint64(_byteOffset: number, _value: bigint, _littleEndian?: boolean): void {
+  override setBigUint64(_byteOffset: number, _value: bigint, _littleEndian?: boolean): void {
     throw new Error('Cannot set values on output');
   }
 }
