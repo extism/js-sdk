@@ -386,6 +386,17 @@ serve-docs: docs
 watch-docs: prepare
   watchexec -r -w types -w src -w README.md just serve-docs
 
+bench-deno: prepare
+  (cd benches/deno; deno bench -A --no-check main.ts)
+
+bench-node: build
+  (cd benches/node; npm ci; node --no-warnings main.js)
+
+bench-bun: build
+  (cd benches/node; npm ci; bun main.js)
+
+bench: bench-deno bench-node bench-bun
+
 serve port='8124' logs='true':
     #!/usr/bin/env node
 
