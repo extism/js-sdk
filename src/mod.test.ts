@@ -13,9 +13,7 @@ if (typeof WebAssembly === 'undefined') {
   // we have to be in the same directory in order to preserve the `__dirname` / `import.meta.url` value
   // between `mod.ts` and the tests in the build output.
   test('createPlugin loads a module and provides lookups', async () => {
-    const plugin = await createPlugin('http://localhost:8124/wasm/code.wasm', {
-      useWasi: true,
-    });
+    const plugin = await createPlugin('http://localhost:8124/wasm/code.wasm');
 
     try {
       assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
@@ -30,7 +28,7 @@ if (typeof WebAssembly === 'undefined') {
     const arrayBuffer = await response.arrayBuffer();
     const module = await WebAssembly.compile(arrayBuffer);
 
-    const plugin = await createPlugin(module, { useWasi: true });
+    const plugin = await createPlugin(module);
 
     try {
       assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
@@ -45,7 +43,6 @@ if (typeof WebAssembly === 'undefined') {
     const arrayBuffer = await response.arrayBuffer();
     const plugin = await createPlugin(
       { wasm: [{ module: await WebAssembly.compile(arrayBuffer) }] },
-      { useWasi: true },
     );
 
     try {
@@ -68,7 +65,6 @@ if (typeof WebAssembly === 'undefined') {
           },
         ],
       },
-      { useWasi: true },
     ).then(
       (plugin) => [null, plugin],
       (err) => [err, null],
@@ -82,7 +78,7 @@ if (typeof WebAssembly === 'undefined') {
   });
 
   test('createPlugin loads a fetch Response', async () => {
-    const plugin = await createPlugin(fetch('http://localhost:8124/wasm/code.wasm'), { useWasi: true });
+    const plugin = await createPlugin(fetch('http://localhost:8124/wasm/code.wasm'));
 
     try {
       assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
@@ -121,7 +117,6 @@ if (typeof WebAssembly === 'undefined') {
           },
         ],
       },
-      { useWasi: true },
     ).then(
       (data) => [null, data],
       (err) => [err, null],
@@ -144,7 +139,6 @@ if (typeof WebAssembly === 'undefined') {
           },
         ],
       },
-      { useWasi: true },
     ).then(
       (data) => [null, data],
       (err) => [err, null],
@@ -162,7 +156,6 @@ if (typeof WebAssembly === 'undefined') {
       {
         wasm: [{ url: 'http://localhost:8124/wasm/code.wasm' }],
       },
-      { useWasi: true },
     );
 
     try {
@@ -202,7 +195,6 @@ if (typeof WebAssembly === 'undefined') {
       {
         wasm: [{ url: 'http://localhost:8124/wasm/code.wasm' }],
       },
-      { useWasi: true },
     );
 
     try {
@@ -317,399 +309,6 @@ if (typeof WebAssembly === 'undefined') {
     }
   });
 
-  if (CAPABILITIES.hasWorkerCapability) {
-    test('host functions may be async if worker is off-main-thread', async () => {
-      const functions = {
-        'extism:host/user': {
-          async hello_world(context: CallContext, _off: bigint) {
-            await new Promise((resolve) => setTimeout(resolve, 100));
-            return context.store('it works');
-          },
-        },
-      };
-
-      const plugin = await createPlugin(
-        { wasm: [{ url: 'http://localhost:8124/wasm/code-functions.wasm' }] },
-        { useWasi: true, functions, runInWorker: true },
-      );
-
-      try {
-        const output = await plugin.call('count_vowels', 'hello world');
-        assert.equal(output?.string(), 'it works');
-      } finally {
-        await plugin.close();
-      }
-    });
-
-    test('plugin callcontext reflects vars set in plugin', async () => {
-      let seen: string = 'nope nope';
-      let key: string = 'nope nope';
-      const plugin = await createPlugin('http://localhost:8124/wasm/02-var-reflected.wasm', {
-        useWasi: true,
-        runInWorker: true,
-        functions: {
-          user: {
-            async test(callContext, n) {
-              key = callContext.read(n)!.text()!;
-              seen = callContext.getVariable(callContext.read(n)!.text())!.text();
-            },
-          },
-        },
-      });
-      try {
-        // This plugin has a value in memory, "hi there". It writes that variable into
-        // extism memory, then stores that as an extism var -- mapping "hi there" => "hi there".
-        // (This is just out of expedience so we don't have to store another value!) We then
-        // call the host function with the result of 'var_get "hi there"'; so we're testing
-        // that the guest and host have the _same_ view of variables.
-        const [err, _] = await plugin.call('test').then(
-          (data) => [null, data],
-          (err) => [err, null],
-        );
-
-        assert(!err);
-        assert.equal(key, 'hi there');
-        assert.equal(seen, 'hi there');
-      } finally {
-        await plugin.close();
-      }
-    });
-
-    if (CAPABILITIES.supportsTimeouts) {
-      test('timeout works on call()', async () => {
-        const plugin = await createPlugin(
-          { wasm: [{ url: 'http://localhost:8124/wasm/loop-forever.wasm' }] },
-          { useWasi: true, timeoutMs: 250, runInWorker: true },
-        );
-
-        try {
-          const [err, output] = await plugin.call('loop', 'hello world').then(
-            (res) => [, res],
-            (err) => [err],
-          );
-
-          if (output) {
-            assert.fail('Expected no output');
-          }
-
-          assert.equal(err!.message, `EXTISM: call canceled due to timeout`);
-        } finally {
-          await plugin.close();
-        }
-      });
-
-      test('timeout applies to initialization', async () => {
-        const [err, plugin] = await createPlugin(
-          {
-            wasm: [
-              {
-                url: 'http://localhost:8124/wasm/loop-forever-init.wasm',
-              },
-            ],
-          },
-          { useWasi: true, timeoutMs: 250, runInWorker: true },
-        ).then(
-          (res) => [, res],
-          (err) => [err],
-        );
-
-        if (plugin) {
-          await plugin.close();
-          assert.fail('Expected no output');
-        }
-
-        assert.equal(err!.message, `EXTISM: timed out while waiting for plugin to instantiate`);
-      });
-    }
-
-    test('host functions preserve call context', async () => {
-      const one = { hi: 'there' };
-      let seen: typeof one | null = null;
-      const functions = {
-        'extism:host/user': {
-          async hello_world(context: CallContext, _off: bigint) {
-            seen = context.hostContext<{ hi: string }>();
-
-            await new Promise((resolve) => setTimeout(resolve, 100));
-            return context.store('it works');
-          },
-        },
-      };
-
-      const plugin = await createPlugin(
-        { wasm: [{ url: 'http://localhost:8124/wasm/code-functions.wasm' }] },
-        { useWasi: true, functions, runInWorker: true },
-      );
-
-      try {
-        const output = await plugin.call('count_vowels', 'hello world', one);
-        assert.equal(output?.string(), 'it works');
-        assert.strictEqual(seen, one, 'we preserved the host context');
-      } finally {
-        await plugin.close();
-      }
-    });
-
-    test('test writes that span multiple blocks (w/small buffer)', async () => {
-      const value = '9:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ'.repeat(18428 / 34);
-      const functions = {
-        'extism:host/user': {
-          async hello_world(context: CallContext, _off: bigint) {
-            context.setVariable('hmmm okay storing a variable', 'hello world hello.');
-            const result = new TextEncoder().encode(value);
-            const ret = context.store(result);
-            return ret;
-          },
-        },
-      };
-
-      const plugin = await createPlugin(
-        { wasm: [{ url: 'http://localhost:8124/wasm/code-functions.wasm' }] },
-        {
-          useWasi: true,
-          functions,
-          runInWorker: true,
-          sharedArrayBufferSize: 1 << 6,
-        },
-      );
-
-      let i = 0;
-      try {
-        for (; i < 10; ++i) {
-          const output = await plugin.call('count_vowels', 'hello world');
-          assert.equal(output?.string(), value);
-        }
-
-        const again = await plugin.call('count_vowels', 'hello world');
-        assert.equal(again?.string(), value);
-      } finally {
-        await plugin.close();
-      }
-    });
-
-    test('host functions may not be reentrant off-main-thread', async () => {
-      const functions = {
-        'extism:host/user': {
-          async hello_world(context: CallContext, _off: bigint) {
-            await plugin?.call('count_vowels', 'hello world');
-            return context.store('it works');
-          },
-        },
-      };
-
-      const plugin = await createPlugin(
-        { wasm: [{ url: 'http://localhost:8124/wasm/code-functions.wasm' }] },
-        { useWasi: true, functions, runInWorker: true },
-      );
-
-      try {
-        const [err, data] = await plugin.call('count_vowels', 'hello world').then(
-          (data) => [null, data],
-          (err) => [err, null],
-        );
-
-        assert(data === null);
-        assert.equal(err?.message, 'plugin is not reentrant');
-      } finally {
-        await plugin.close();
-      }
-    });
-
-    if (!CAPABILITIES.crossOriginChecksEnforced) {
-      test('http fails as expected when no allowed hosts match', async () => {
-        const functions = {
-          'extism:host/user': {
-            async hello_world(context: CallContext, _off: bigint) {
-              await new Promise((resolve) => setTimeout(resolve, 100));
-              return context.store('it works');
-            },
-          },
-        };
-
-        const plugin = await createPlugin(
-          {
-            wasm: [
-              {
-                name: 'main',
-                url: 'http://localhost:8124/wasm/http.wasm',
-              },
-            ],
-          },
-          {
-            useWasi: true,
-            functions,
-            runInWorker: true,
-            allowedHosts: ['*.example.com'],
-          },
-        );
-
-        try {
-          const [err, data] = await plugin
-            .call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}')
-            .then(
-              (data) => [null, data],
-              (err) => [err, null],
-            );
-
-          assert(data === null);
-          assert.equal(
-            err.message,
-            `Call error: HTTP request to "https://jsonplaceholder.typicode.com/todos/1" is not allowed (no allowedHosts match "jsonplaceholder.typicode.com")`,
-          );
-        } finally {
-          await plugin.close();
-        }
-      });
-    }
-
-    test('http works as expected when host is allowed', async () => {
-      const plugin = await createPlugin(
-        {
-          wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http.wasm' }],
-          allowedHosts: ['*.typicode.com'],
-          memory: { maxHttpResponseBytes: 100 * 1024 * 1024 },
-        },
-        { useWasi: true, functions: {}, runInWorker: true },
-      );
-
-      try {
-        const [err, data] = await plugin
-          .call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}')
-          .then(
-            (data) => [null, data],
-            (err) => [err, null],
-          );
-        assert(err === null);
-        assert.deepEqual(data.json(), {
-          userId: 1,
-          id: 1,
-          title: 'delectus aut autem',
-          completed: false,
-        });
-      } finally {
-        await plugin.close();
-      }
-    });
-
-    test('http fails when body is larger than allowed', async () => {
-      const plugin = await createPlugin(
-        {
-          wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http.wasm' }],
-          allowedHosts: ['*.typicode.com'],
-          memory: { maxHttpResponseBytes: 1 },
-        },
-        { useWasi: true, functions: {}, runInWorker: true },
-      );
-
-      try {
-        const [err, _] = await plugin.call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}').then(
-          (data) => [null, data],
-          (err) => [err, null],
-        );
-
-        assert(err);
-      } finally {
-        await plugin.close();
-      }
-    });
-
-    test('we fallback to Manifest.allowedHosts if ExtismPluginOptions.allowedHosts is not specified', async () => {
-      const plugin = await createPlugin(
-        {
-          wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http.wasm' }],
-          allowedHosts: ['*.typicode.com'],
-        },
-        { useWasi: true, functions: {}, runInWorker: true },
-      );
-
-      try {
-        const [err, data] = await plugin
-          .call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}')
-          .then(
-            (data) => [null, data],
-            (err) => [err, null],
-          );
-        assert.equal(err, null);
-        assert.deepEqual(data.json(), {
-          userId: 1,
-          id: 1,
-          title: 'delectus aut autem',
-          completed: false,
-        });
-      } finally {
-        await plugin.close();
-      }
-    });
-
-
-    test('http response headers are returned when enabled', async () => {
-      const plugin = await createPlugin(
-        {
-          wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http_headers.wasm' }],
-          allowedHosts: ['extism.org'],
-          memory: { maxHttpResponseBytes: 100 * 1024 * 1024 },
-        },
-        { useWasi: true, functions: {}, runInWorker: true, allowHttpResponseHeaders: true },
-      );
-
-      try {
-        const [err, data] = await plugin
-          .call('http_get', '{"url": "https://extism.org"}')
-          .then(
-            (data) => [null, data],
-            (err) => [err, null],
-          );
-        assert(err === null);
-        assert.equal(data.json()["content-type"], "text/html; charset=utf-8");
-      } finally {
-        await plugin.close();
-      }
-    });
-
-
-    test('http response headers are not returned when disabled', async () => {
-      const plugin = await createPlugin(
-        {
-          wasm: [{ name: 'main', url: 'http://localhost:8124/wasm/http_headers.wasm' }],
-          allowedHosts: ['extism.org'],
-          memory: { maxHttpResponseBytes: 100 * 1024 * 1024 },
-        },
-        { useWasi: true, functions: {}, runInWorker: true },
-      );
-
-      try {
-        const [err, data] = await plugin
-          .call('http_get', '{"url": "https://extism.org"}')
-          .then(
-            (data) => [null, data],
-            (err) => [err, null],
-          );
-        assert(err === null);
-        assert.deepEqual(data.json(), {});
-      } finally {
-        await plugin.close();
-      }
-    });
-  }
-
-  test('createPlugin fails as expected when calling unknown function', async () => {
-    const plugin = await createPlugin('http://localhost:8124/wasm/code.wasm', {
-      useWasi: true,
-    });
-
-    try {
-      const [err, data] = await plugin.call('reticulate_splines', 'hello world').then(
-        (data) => [null, data],
-        (err) => [err, null],
-      );
-
-      assert(data === null);
-      assert.equal(err?.message, 'Plugin error: function "reticulate_splines" does not exist');
-    } finally {
-      await plugin.close();
-    }
-  });
-
   test('plugin can allocate memory', async () => {
     const plugin = await createPlugin('http://localhost:8124/wasm/alloc.wasm');
     try {
@@ -725,7 +324,6 @@ if (typeof WebAssembly === 'undefined') {
         wasm: [{ url: 'http://localhost:8124/wasm/memory.wasm' }],
         memory: { maxPages: 2 },
       },
-      { useWasi: true },
     );
 
     const pageSize = 64 * 1024;
@@ -748,7 +346,6 @@ if (typeof WebAssembly === 'undefined') {
         wasm: [{ url: 'http://localhost:8124/wasm/memory.wasm' }],
         memory: { maxPages: 6 },
       },
-      { useWasi: true },
     );
 
     const pageSize = 64 * 1024;
@@ -791,6 +388,24 @@ if (typeof WebAssembly === 'undefined') {
   });
 
   if (CAPABILITIES.supportsWasiPreview1) {
+    test('createPlugin fails as expected when calling unknown function', async () => {
+      const plugin = await createPlugin('http://localhost:8124/wasm/code.wasm', {
+        useWasi: true,
+      });
+
+      try {
+        const [err, data] = await plugin.call('reticulate_splines', 'hello world').then(
+          (data) => [null, data],
+          (err) => [err, null],
+        );
+
+        assert(data === null);
+        assert.equal(err?.message, 'Plugin error: function "reticulate_splines" does not exist');
+      } finally {
+        await plugin.close();
+      }
+    });
+
     test('logging works as expected', async () => {
       const intercept: Record<string, string> = {};
       const logLevel = (level: string) => (message: string) => (intercept[level] = message);
