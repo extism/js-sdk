@@ -1,10 +1,19 @@
 import { BEGIN, CallContext, END, ENV, GET_BLOCK, RESET, SET_HOST_CONTEXT, STORE } from './call-context.ts';
 import { type InternalConfig, InternalWasi, PluginOutput } from './interfaces.ts';
+import { CAPABILITIES } from './polyfills/deno-capabilities.ts';
 import { loadWasi } from './polyfills/deno-wasi.ts';
 
 export const EXTISM_ENV = 'extism:host/env';
 
 type InstantiatedModule = [WebAssembly.Module, WebAssembly.Instance];
+
+interface SuspendingCtor {
+  new(fn: CallableFunction): any
+}
+
+const AsyncFunction = (async () => { }).constructor
+const Suspending: SuspendingCtor | undefined = (WebAssembly as any).Suspending
+const promising: CallableFunction | undefined = (WebAssembly as any).promising
 
 export class ForegroundPlugin {
   #context: CallContext;
@@ -12,12 +21,20 @@ export class ForegroundPlugin {
   #active: boolean = false;
   #wasi: InternalWasi[];
   #opts: InternalConfig;
+  #suspendsOnInvoke: boolean;
 
-  constructor(opts: InternalConfig, context: CallContext, instancePair: InstantiatedModule, wasi: InternalWasi[]) {
+  constructor(
+    opts: InternalConfig,
+    context: CallContext,
+    instancePair: InstantiatedModule,
+    wasi: InternalWasi[],
+    suspendsOnInvoke: boolean
+  ) {
     this.#context = context;
     this.#instancePair = instancePair;
     this.#wasi = wasi;
     this.#opts = opts;
+    this.#suspendsOnInvoke = suspendsOnInvoke;
   }
 
   async reset(): Promise<boolean> {
@@ -51,7 +68,7 @@ export class ForegroundPlugin {
 
     this.#context[BEGIN](input ?? null);
     try {
-      func();
+      this.#suspendsOnInvoke ? await (promising as any)(func)() : func();
       return this.#context[END]();
     } catch (err) {
       this.#context[END]();
@@ -116,11 +133,19 @@ export async function createForegroundPlugin(
     env: {},
   };
 
+  let suspendsOnInvoke = false
   for (const namespace in opts.functions) {
     imports[namespace] = imports[namespace] || {};
-    for (const func in opts.functions[namespace]) {
-      imports[namespace][func] = opts.functions[namespace][func].bind(null, context);
+    for (const [name, func] of Object.entries(opts.functions[namespace])) {
+      const isAsync = func.constructor === AsyncFunction
+      suspendsOnInvoke ||= isAsync
+      const wrapped = func.bind(null, context)
+      imports[namespace][name] = isAsync ? new (WebAssembly as any).Suspending(wrapped) : wrapped
     }
+  }
+
+  if (suspendsOnInvoke && (!Suspending || !promising)) {
+    throw new TypeError('This platform does not support async function imports on the main thread; consider using `runInWorker`.')
   }
 
   // find the "main" module and try to instantiate it.
@@ -133,7 +158,7 @@ export async function createForegroundPlugin(
 
   const instance = await instantiateModule(['main'], modules[mainIndex], imports, opts, wasiList, names, modules, seen);
 
-  return new ForegroundPlugin(opts, context, [modules[mainIndex], instance], wasiList);
+  return new ForegroundPlugin(opts, context, [modules[mainIndex], instance], wasiList, suspendsOnInvoke);
 }
 
 async function instantiateModule(
@@ -157,6 +182,10 @@ async function instantiateModule(
 
     if (nameIdx === -1) {
       if (module === 'wasi_snapshot_preview1' && wasi === null) {
+        if (!CAPABILITIES.supportsWasiPreview1) {
+          throw new Error('WASI is not supported on this platform');
+        }
+
         if (!opts.wasiEnabled) {
           throw new Error('WASI is not enabled; see the "wasiEnabled" plugin option');
         }
@@ -217,9 +246,9 @@ async function instantiateModule(
       const instance = providerExports.find((xs) => xs.name === '_start')
         ? await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, new Map())
         : !linked.has(provider)
-        ? (await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, linked),
-          linked.get(provider))
-        : linked.get(provider);
+          ? (await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, linked),
+            linked.get(provider))
+          : linked.get(provider);
 
       if (!instance) {
         // circular import, either make a trampoline or bail
@@ -260,10 +289,10 @@ async function instantiateModule(
   const guestType = instance.exports.hs_init
     ? 'haskell'
     : instance.exports._initialize
-    ? 'reactor'
-    : instance.exports._start
-    ? 'command'
-    : 'none';
+      ? 'reactor'
+      : instance.exports._start
+        ? 'command'
+        : 'none';
 
   if (wasi) {
     await wasi?.initialize(instance);

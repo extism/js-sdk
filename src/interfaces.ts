@@ -171,12 +171,12 @@ export interface ExtismPluginOptions {
    * ```
    */
   functions?:
-    | {
-        [key: string]: {
-          [key: string]: (callContext: CallContext, ...args: any[]) => any;
-        };
-      }
-    | undefined;
+  | {
+    [key: string]: {
+      [key: string]: (callContext: CallContext, ...args: any[]) => any;
+    };
+  }
+  | undefined;
   allowedPaths?: { [key: string]: string } | undefined;
 
   /**
@@ -242,7 +242,7 @@ type SnakeCase<T extends Record<string, any>> = {
 };
 
 export interface NativeManifestOptions
-  extends Pick<ExtismPluginOptions, 'allowedPaths' | 'allowedHosts' | 'memory' | 'config' | 'timeoutMs'> {}
+  extends Pick<ExtismPluginOptions, 'allowedPaths' | 'allowedHosts' | 'memory' | 'config' | 'timeoutMs'> { }
 /**
  * The subset of {@link ExtismPluginOptions} attributes available for configuration via
  * a {@link Manifest}. If an attribute is specified at both the {@link ExtismPluginOptions} and
@@ -378,6 +378,21 @@ export interface Manifest extends ManifestOptions {
 export type ManifestLike = Manifest | Response | WebAssembly.Module | ArrayBuffer | string | URL;
 
 export interface Capabilities {
+  /**
+   * Whether or not the environment supports [JSPI](https://github.com/WebAssembly/js-promise-integration/blob/main/proposals/js-promise-integration/Overview.md).
+   *
+   * If supported, host functions may be asynchronous without running the plugin with `runInWorker: true`.
+   *
+   * - ✅ node 23+
+   * - ❌ deno
+   * - ❌ bun
+   * - ❌ firefox
+   * - ❌ chrome
+   * - ❌ webkit
+   */
+  supportsJSPromiseInterface: boolean;
+
+
   /**
    * Whether or not the environment allows SharedArrayBuffers to be passed to `TextDecoder.decode` and `TextEncoder.encodeInto` directly
    *
