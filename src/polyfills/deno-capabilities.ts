@@ -1,5 +1,7 @@
 import type { Capabilities } from '../interfaces.ts';
 
+const WebAssembly = globalThis.WebAssembly || {}
+
 const { Deno } = globalThis as unknown as { Deno: { env: Map<string, string> } };
 
 export const CAPABILITIES: Capabilities = {
