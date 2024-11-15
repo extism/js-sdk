@@ -310,12 +310,29 @@ _test filter='.*':
     trap cleanup EXIT
     trap cleanup ERR
 
+    case "$(uname -s)" in
+      [dD]arwin)
+        os=macos
+      ;;
+      [lL]inux*)
+        os=linux
+      ;;
+      *)
+        os=windows
+      ;;
+    esac
+    if [ "$os" = "windows" ]; then
+      browsers=chromium
+    else
+      browsers=all
+    fi
+
     sleep 0.1
     if [[ "deno" =~ {{ filter }} ]]; then deno test -A src/mod.test.ts; fi
     if [[ "node-cjs" =~ {{ filter }} ]]; then node --no-warnings --test --experimental-global-webcrypto dist/tests/cjs/*.test.js; fi
     if [[ "node-esm" =~ {{ filter }} ]]; then node --no-warnings --test --experimental-global-webcrypto dist/tests/esm/*.test.js; fi
     if [[ "bun" =~ {{ filter }} ]]; then if &>/dev/null which bun; then bun run dist/tests/bun/*.test.js; fi; fi
-    if [[ "browsers" =~ {{ filter }} ]]; then playwright test --browser all tests/playwright.test.js --trace retain-on-failure; fi
+    if [[ "browsers" =~ {{ filter }} ]]; then playwright test --browser $browsers tests/playwright.test.js --trace retain-on-failure; fi
 
 test: build && _test test-artifacts
 
