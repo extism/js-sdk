@@ -87,7 +87,7 @@ class BackgroundPlugin {
   async #handleTimeout() {
     // block new requests from coming in & the current request from settling
     const request = this.#request;
-    this.#request = [() => {}, () => {}];
+    this.#request = [() => { }, () => { }];
 
     const timedOut = {};
     const failed = {};
@@ -210,7 +210,7 @@ class BackgroundPlugin {
           await this.#handleTimeout();
         }
       },
-      () => {},
+      () => { },
     );
 
     this.worker.postMessage({
@@ -300,7 +300,7 @@ class BackgroundPlugin {
     //
     // - https://github.com/nodejs/node/pull/44409
     // - https://github.com/denoland/deno/issues/14786
-    const timer = setInterval(() => {}, 0);
+    const timer = setInterval(() => { }, 0);
     try {
       if (!func) {
         throw Error(`Plugin error: host function "${ev.namespace}" "${ev.func}" does not exist`);
@@ -425,7 +425,7 @@ class RingBufferWriter {
 
   signal() {
     const old = Atomics.load(this.flag, 0);
-    while (Atomics.compareExchange(this.flag, 0, old, this.outputOffset) === old) {}
+    while (Atomics.compareExchange(this.flag, 0, old, this.outputOffset) === old) { }
     Atomics.notify(this.flag, 0, 1);
   }
 
@@ -522,10 +522,10 @@ class HttpContext {
       this.makeRequest(callContext, reqaddr, bodyaddr);
     functions[EXTISM_ENV].http_status_code = () => this.lastStatusCode;
     functions[EXTISM_ENV].http_headers = (callContext: CallContext) => {
-      if (this.lastHeaders === null){
+      if (this.lastHeaders === null) {
         return 0n;
       }
-      return callContext.store(JSON.stringify(this.lastHeaders));  
+      return callContext.store(JSON.stringify(this.lastHeaders));
     };
   }
 
@@ -534,7 +534,7 @@ class HttpContext {
       this.lastHeaders = {};
     }
     this.lastStatusCode = 0;
-    
+
     const req = callContext.read(reqaddr);
     if (req === null) {
       return 0n;
@@ -562,12 +562,12 @@ class HttpContext {
 
     this.lastStatusCode = response.status;
 
-    if (this.lastHeaders !== null){
-      this.lastHeaders = Object.fromEntries(response.headers); 
+    if (this.lastHeaders !== null) {
+      this.lastHeaders = Object.fromEntries(response.headers);
     }
 
     try {
-      let bytes = this.memoryOptions.maxHttpResponseBytes
+      const bytes = this.memoryOptions.maxHttpResponseBytes
         ? await readBodyUpTo(response, this.memoryOptions.maxHttpResponseBytes)
         : new Uint8Array(await response.arrayBuffer());
 
@@ -637,7 +637,7 @@ async function createWorker(
   names: string[],
   modules: WebAssembly.Module[],
   sharedData: SharedArrayBuffer,
-  onworker: (_w: Worker) => void = (_w: Worker) => {},
+  onworker: (_w: Worker) => void = (_w: Worker) => { },
 ): Promise<Worker> {
   const worker = new Worker(WORKER_URL);
   onworker(worker);
@@ -686,7 +686,7 @@ function timeout(ms: number | null, sentinel: any) {
 
 async function terminateWorker(w: Worker) {
   if (typeof (globalThis as any).Bun !== 'undefined') {
-    const timer = setTimeout(() => {}, 10);
+    const timer = setTimeout(() => { }, 10);
     await w.terminate();
     clearTimeout(timer);
   } else {

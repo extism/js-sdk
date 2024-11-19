@@ -1,9 +1,10 @@
 import type { Capabilities } from '../interfaces.ts';
 
-const WebAssembly = globalThis.WebAssembly || {}
+const WebAssembly = globalThis.WebAssembly || {};
 
 export const CAPABILITIES: Capabilities = {
-  supportsJSPromiseInterface: typeof (WebAssembly as any).Suspending === 'function' && typeof (WebAssembly as any).promising === 'function',
+  supportsJSPromiseInterface:
+    typeof (WebAssembly as any).Suspending === 'function' && typeof (WebAssembly as any).promising === 'function',
 
   // When false, shared buffers have to be copied to an array
   // buffer before passing to Text{En,De}coding()

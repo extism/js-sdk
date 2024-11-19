@@ -1,3 +1,4 @@
+/* eslint no-sparse-arrays: "off" */
 import { test } from 'node:test';
 import assert from 'node:assert';
 import createPlugin, { CallContext, CAPABILITIES } from './mod.ts';
@@ -41,9 +42,7 @@ if (typeof WebAssembly === 'undefined') {
   test('createPlugin loads a WebAssembly.Module from manifest', async () => {
     const response = await fetch('http://localhost:8124/wasm/code.wasm');
     const arrayBuffer = await response.arrayBuffer();
-    const plugin = await createPlugin(
-      { wasm: [{ module: await WebAssembly.compile(arrayBuffer) }] },
-    );
+    const plugin = await createPlugin({ wasm: [{ module: await WebAssembly.compile(arrayBuffer) }] });
 
     try {
       assert(await plugin.functionExists('count_vowels'), 'count_vowels should exist');
@@ -56,16 +55,14 @@ if (typeof WebAssembly === 'undefined') {
   test('createPlugin fails if provided a module and hash', async () => {
     const response = await fetch('http://localhost:8124/wasm/code.wasm');
     const arrayBuffer = await response.arrayBuffer();
-    const [err, plugin] = await createPlugin(
-      {
-        wasm: [
-          {
-            module: await WebAssembly.compile(arrayBuffer),
-            hash: 'anything',
-          },
-        ],
-      },
-    ).then(
+    const [err, plugin] = await createPlugin({
+      wasm: [
+        {
+          module: await WebAssembly.compile(arrayBuffer),
+          hash: 'anything',
+        },
+      ],
+    }).then(
       (plugin) => [null, plugin],
       (err) => [err, null],
     );
@@ -108,16 +105,14 @@ if (typeof WebAssembly === 'undefined') {
   }
 
   test('createPlugin fails on hash mismatch (bad hash)', async () => {
-    const [err, plugin] = await createPlugin(
-      {
-        wasm: [
-          {
-            url: 'http://localhost:8124/wasm/code.wasm',
-            hash: 'not a good hash',
-          },
-        ],
-      },
-    ).then(
+    const [err, plugin] = await createPlugin({
+      wasm: [
+        {
+          url: 'http://localhost:8124/wasm/code.wasm',
+          hash: 'not a good hash',
+        },
+      ],
+    }).then(
       (data) => [null, data],
       (err) => [err, null],
     );
@@ -130,16 +125,14 @@ if (typeof WebAssembly === 'undefined') {
   });
 
   test('createPlugin fails on hash mismatch (hash mismatch)', async () => {
-    const [err, plugin] = await createPlugin(
-      {
-        wasm: [
-          {
-            url: 'http://localhost:8124/wasm/code.wasm',
-            hash: '93898457953d30d016f712ccf4336ce7e9971db5f7f3aff1edd252764f75d5d7',
-          },
-        ],
-      },
-    ).then(
+    const [err, plugin] = await createPlugin({
+      wasm: [
+        {
+          url: 'http://localhost:8124/wasm/code.wasm',
+          hash: '93898457953d30d016f712ccf4336ce7e9971db5f7f3aff1edd252764f75d5d7',
+        },
+      ],
+    }).then(
       (data) => [null, data],
       (err) => [err, null],
     );
@@ -152,11 +145,9 @@ if (typeof WebAssembly === 'undefined') {
   });
 
   test('createPlugin loads a module and provides access to exports/imports', async () => {
-    const plugin = await createPlugin(
-      {
-        wasm: [{ url: 'http://localhost:8124/wasm/code.wasm' }],
-      },
-    );
+    const plugin = await createPlugin({
+      wasm: [{ url: 'http://localhost:8124/wasm/code.wasm' }],
+    });
 
     try {
       const exports = await plugin.getExports();
@@ -191,11 +182,9 @@ if (typeof WebAssembly === 'undefined') {
   });
 
   test('createPlugin returns an interface that can call wasm functions', async () => {
-    const plugin = await createPlugin(
-      {
-        wasm: [{ url: 'http://localhost:8124/wasm/code.wasm' }],
-      },
-    );
+    const plugin = await createPlugin({
+      wasm: [{ url: 'http://localhost:8124/wasm/code.wasm' }],
+    });
 
     try {
       const result = await plugin.call('count_vowels', 'hello world');
@@ -319,12 +308,10 @@ if (typeof WebAssembly === 'undefined') {
   });
 
   test('plugins cant allocate more memory than allowed', async () => {
-    const plugin = await createPlugin(
-      {
-        wasm: [{ url: 'http://localhost:8124/wasm/memory.wasm' }],
-        memory: { maxPages: 2 },
-      },
-    );
+    const plugin = await createPlugin({
+      wasm: [{ url: 'http://localhost:8124/wasm/memory.wasm' }],
+      memory: { maxPages: 2 },
+    });
 
     const pageSize = 64 * 1024;
 
@@ -341,12 +328,10 @@ if (typeof WebAssembly === 'undefined') {
   });
 
   test('plugins can allocate memory if allowed', async () => {
-    const plugin = await createPlugin(
-      {
-        wasm: [{ url: 'http://localhost:8124/wasm/memory.wasm' }],
-        memory: { maxPages: 6 },
-      },
-    );
+    const plugin = await createPlugin({
+      wasm: [{ url: 'http://localhost:8124/wasm/memory.wasm' }],
+      memory: { maxPages: 6 },
+    });
 
     const pageSize = 64 * 1024;
 
@@ -491,7 +476,7 @@ if (typeof WebAssembly === 'undefined') {
           'extism:host/user': {
             async hello_world(context: CallContext, off: bigint) {
               executed = context.read(off)?.string();
-              await new Promise(resolve => setTimeout(resolve, 100))
+              await new Promise((resolve) => setTimeout(resolve, 100));
               return context.store('wow okay then');
             },
           },
@@ -1002,10 +987,12 @@ if (typeof WebAssembly === 'undefined') {
         );
 
         try {
-          const [err, _] = await plugin.call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}').then(
-            (data) => [null, data],
-            (err) => [err, null],
-          );
+          const [err, _] = await plugin
+            .call('http_get', '{"url": "https://jsonplaceholder.typicode.com/todos/1"}')
+            .then(
+              (data) => [null, data],
+              (err) => [err, null],
+            );
 
           assert(err);
         } finally {
@@ -1041,7 +1028,6 @@ if (typeof WebAssembly === 'undefined') {
         }
       });
     }
-
   }
 
   if (CAPABILITIES.fsAccess && CAPABILITIES.supportsWasiPreview1) {

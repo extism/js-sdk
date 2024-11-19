@@ -396,7 +396,7 @@ export class CallContext {
     },
 
     http_headers: (): bigint => {
-      this.#logger.error("http_headers is not enabled");
+      this.#logger.error('http_headers is not enabled');
       return 0n;
     },
 

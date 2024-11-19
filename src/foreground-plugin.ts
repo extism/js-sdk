@@ -8,12 +8,12 @@ export const EXTISM_ENV = 'extism:host/env';
 type InstantiatedModule = [WebAssembly.Module, WebAssembly.Instance];
 
 interface SuspendingCtor {
-  new(fn: CallableFunction): any
+  new (fn: CallableFunction): any;
 }
 
-const AsyncFunction = (async () => { }).constructor
-const Suspending: SuspendingCtor | undefined = (WebAssembly as any).Suspending
-const promising: CallableFunction | undefined = (WebAssembly as any).promising
+const AsyncFunction = (async () => {}).constructor;
+const Suspending: SuspendingCtor | undefined = (WebAssembly as any).Suspending;
+const promising: CallableFunction | undefined = (WebAssembly as any).promising;
 
 export class ForegroundPlugin {
   #context: CallContext;
@@ -28,7 +28,7 @@ export class ForegroundPlugin {
     context: CallContext,
     instancePair: InstantiatedModule,
     wasi: InternalWasi[],
-    suspendsOnInvoke: boolean
+    suspendsOnInvoke: boolean,
   ) {
     this.#context = context;
     this.#instancePair = instancePair;
@@ -133,19 +133,21 @@ export async function createForegroundPlugin(
     env: {},
   };
 
-  let suspendsOnInvoke = false
+  let suspendsOnInvoke = false;
   for (const namespace in opts.functions) {
     imports[namespace] = imports[namespace] || {};
     for (const [name, func] of Object.entries(opts.functions[namespace])) {
-      const isAsync = func.constructor === AsyncFunction
-      suspendsOnInvoke ||= isAsync
-      const wrapped = func.bind(null, context)
-      imports[namespace][name] = isAsync ? new (WebAssembly as any).Suspending(wrapped) : wrapped
+      const isAsync = func.constructor === AsyncFunction;
+      suspendsOnInvoke ||= isAsync;
+      const wrapped = func.bind(null, context);
+      imports[namespace][name] = isAsync ? new (WebAssembly as any).Suspending(wrapped) : wrapped;
     }
   }
 
   if (suspendsOnInvoke && (!Suspending || !promising)) {
-    throw new TypeError('This platform does not support async function imports on the main thread; consider using `runInWorker`.')
+    throw new TypeError(
+      'This platform does not support async function imports on the main thread; consider using `runInWorker`.',
+    );
   }
 
   // find the "main" module and try to instantiate it.
@@ -246,9 +248,9 @@ async function instantiateModule(
       const instance = providerExports.find((xs) => xs.name === '_start')
         ? await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, new Map())
         : !linked.has(provider)
-          ? (await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, linked),
-            linked.get(provider))
-          : linked.get(provider);
+        ? (await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, linked),
+          linked.get(provider))
+        : linked.get(provider);
 
       if (!instance) {
         // circular import, either make a trampoline or bail
@@ -289,10 +291,10 @@ async function instantiateModule(
   const guestType = instance.exports.hs_init
     ? 'haskell'
     : instance.exports._initialize
-      ? 'reactor'
-      : instance.exports._start
-        ? 'command'
-        : 'none';
+    ? 'reactor'
+    : instance.exports._start
+    ? 'command'
+    : 'none';
 
   if (wasi) {
     await wasi?.initialize(instance);

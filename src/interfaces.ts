@@ -171,12 +171,12 @@ export interface ExtismPluginOptions {
    * ```
    */
   functions?:
-  | {
-    [key: string]: {
-      [key: string]: (callContext: CallContext, ...args: any[]) => any;
-    };
-  }
-  | undefined;
+    | {
+        [key: string]: {
+          [key: string]: (callContext: CallContext, ...args: any[]) => any;
+        };
+      }
+    | undefined;
   allowedPaths?: { [key: string]: string } | undefined;
 
   /**
@@ -208,9 +208,9 @@ export interface ExtismPluginOptions {
   fetch?: typeof fetch;
   sharedArrayBufferSize?: number;
 
-  /** 
+  /**
    * Determines whether or not HTTP response headers should be exposed to plugins,
-   * when set to `true`, `extism:host/env::http_headers` will return the response 
+   * when set to `true`, `extism:host/env::http_headers` will return the response
    *  headers for HTTP requests made using `extism:host/env::http_request`
    */
   allowHttpResponseHeaders?: boolean;
@@ -242,7 +242,7 @@ type SnakeCase<T extends Record<string, any>> = {
 };
 
 export interface NativeManifestOptions
-  extends Pick<ExtismPluginOptions, 'allowedPaths' | 'allowedHosts' | 'memory' | 'config' | 'timeoutMs'> { }
+  extends Pick<ExtismPluginOptions, 'allowedPaths' | 'allowedHosts' | 'memory' | 'config' | 'timeoutMs'> {}
 /**
  * The subset of {@link ExtismPluginOptions} attributes available for configuration via
  * a {@link Manifest}. If an attribute is specified at both the {@link ExtismPluginOptions} and
@@ -391,7 +391,6 @@ export interface Capabilities {
    * - ❌ webkit
    */
   supportsJSPromiseInterface: boolean;
-
 
   /**
    * Whether or not the environment allows SharedArrayBuffers to be passed to `TextDecoder.decode` and `TextEncoder.encodeInto` directly
