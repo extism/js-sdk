@@ -152,6 +152,7 @@ build_worker_node out='worker/node' args='[]':
         "platform": "node",
         "polyfills": {
           "./src/polyfills/deno-capabilities.ts": "./src/polyfills/node-capabilities.ts",
+          "./src/polyfills/deno-minimatch.ts": "./src/polyfills/node-minimatch.ts",
           "./src/polyfills/node-fs.ts": "node:fs/promises",
           "./src/polyfills/deno-wasi.ts": "./src/polyfills/node-wasi.ts",
         }
@@ -170,6 +171,7 @@ build_worker_browser out='worker/browser' args='[]':
         },
         "polyfills": {
           "./src/polyfills/deno-capabilities.ts": "./src/polyfills/browser-capabilities.ts",
+          "./src/polyfills/deno-minimatch.ts": "./src/polyfills/node-minimatch.ts",
           "./src/polyfills/node-fs.ts": "./src/polyfills/browser-fs.ts",
           "./src/polyfills/deno-wasi.ts": "./src/polyfills/browser-wasi.ts",
         }

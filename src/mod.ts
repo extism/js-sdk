@@ -101,9 +101,11 @@ export async function createPlugin(
   opts.timeoutMs = opts.timeoutMs || manifestOpts.timeoutMs || null;
 
   if (opts.allowedHosts.length && !opts.runInWorker) {
-    throw new TypeError(
-      '"allowedHosts" requires "runInWorker: true". HTTP functions are only available to plugins running in a worker.',
-    );
+    if (!(WebAssembly as any).Suspending) {
+      throw new TypeError(
+        '"allowedHosts" requires "runInWorker: true". HTTP functions are only available to plugins running in a worker.',
+      );
+    }
   }
 
   if (opts.timeoutMs && !opts.runInWorker) {
