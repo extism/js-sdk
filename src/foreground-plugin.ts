@@ -2,16 +2,17 @@ import { BEGIN, CallContext, END, ENV, GET_BLOCK, RESET, SET_HOST_CONTEXT, STORE
 import { type InternalConfig, InternalWasi, PluginOutput } from './interfaces.ts';
 import { CAPABILITIES } from './polyfills/deno-capabilities.ts';
 import { loadWasi } from './polyfills/deno-wasi.ts';
+import { HttpContext } from './http-context.ts';
 
 export const EXTISM_ENV = 'extism:host/env';
 
 type InstantiatedModule = [WebAssembly.Module, WebAssembly.Instance];
 
 interface SuspendingCtor {
-  new (fn: CallableFunction): any;
+  new(fn: CallableFunction): any;
 }
 
-const AsyncFunction = (async () => {}).constructor;
+const AsyncFunction = (async () => { }).constructor;
 const Suspending: SuspendingCtor | undefined = (WebAssembly as any).Suspending;
 const promising: CallableFunction | undefined = (WebAssembly as any).promising;
 
@@ -140,7 +141,7 @@ export async function createForegroundPlugin(
       const isAsync = func.constructor === AsyncFunction;
       suspendsOnInvoke ||= isAsync;
       const wrapped = func.bind(null, context);
-      imports[namespace][name] = isAsync ? new (WebAssembly as any).Suspending(wrapped) : wrapped;
+      imports[namespace][name] = isAsync ? new Suspending!(wrapped) : wrapped;
     }
   }
 
@@ -158,12 +159,14 @@ export async function createForegroundPlugin(
   const seen: Map<WebAssembly.Module, WebAssembly.Instance> = new Map();
   const wasiList: InternalWasi[] = [];
 
-  const instance = await instantiateModule(['main'], modules[mainIndex], imports, opts, wasiList, names, modules, seen);
+  const mutableFlags = { suspendsOnInvoke }
+  const instance = await instantiateModule(context, ['main'], modules[mainIndex], imports, opts, wasiList, names, modules, seen, mutableFlags);
 
-  return new ForegroundPlugin(opts, context, [modules[mainIndex], instance], wasiList, suspendsOnInvoke);
+  return new ForegroundPlugin(opts, context, [modules[mainIndex], instance], wasiList, mutableFlags.suspendsOnInvoke);
 }
 
 async function instantiateModule(
+  context: CallContext,
   current: string[],
   module: WebAssembly.Module,
   imports: Record<string, Record<string, any>>,
@@ -172,6 +175,7 @@ async function instantiateModule(
   names: string[],
   modules: WebAssembly.Module[],
   linked: Map<WebAssembly.Module, WebAssembly.Instance | null>,
+  mutableFlags: { suspendsOnInvoke: boolean }
 ) {
   linked.set(module, null);
 
@@ -216,6 +220,45 @@ async function instantiateModule(
         );
       }
 
+      // XXX(chrisdickinson): This is a bit of a hack, admittedly. So what's going on here?
+      //
+      // JSPI is going on here. Let me explain: at the time of writing, the js-sdk supports
+      // JSPI by detecting AsyncFunction use in the `functions` parameter. When we detect an
+      // async function in imports we _must_ mark all exported Wasm functions as "promising" --
+      // that is, they might call a host function that suspends the stack.
+      //
+      // If we were to mark extism's http_request as async, we would _always_ set exports as
+      // "promising". This adds unnecessary overhead for folks who aren't using `http_request`.
+      // Instead, we detect if any of the manifest items *import* `http_request`. If they
+      // haven't overridden the default CallContext implementation, we provide an HttpContext
+      // on-demand.
+      //
+      // Unfortuantely this duplicates a little bit of logic-- in particular, we have to bind
+      // CallContext to each of the HttpContext contributions (See "REBIND" below.)
+      if (
+        module === EXTISM_ENV &&
+        name === 'http_request' &&
+        promising &&
+        imports[module][name] === context[ENV].http_request
+      ) {
+        const httpContext = new HttpContext(
+          opts.fetch,
+          opts.allowedHosts,
+          opts.memory,
+          opts.allowHttpResponseHeaders
+        );
+
+        mutableFlags.suspendsOnInvoke = true
+
+        const contributions = {} as any
+        httpContext.contribute(contributions)
+        for (const [key, entry] of Object.entries(contributions[EXTISM_ENV] as { [k: string]: CallableFunction })) {
+          // REBIND:
+          imports[module][key] = (entry as any).bind(null, context)
+        }
+        imports[module][name] = new Suspending!(imports[module][name])
+      }
+
       switch (kind) {
         case `function`: {
           instantiationImports[module] ??= {};
@@ -246,11 +289,11 @@ async function instantiateModule(
 
       // If the dependency provides "_start", treat it as a WASI Command module; instantiate it (and its subtree) directly.
       const instance = providerExports.find((xs) => xs.name === '_start')
-        ? await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, new Map())
+        ? await instantiateModule(context, [...current, module], provider, imports, opts, wasiList, names, modules, new Map(), mutableFlags)
         : !linked.has(provider)
-        ? (await instantiateModule([...current, module], provider, imports, opts, wasiList, names, modules, linked),
-          linked.get(provider))
-        : linked.get(provider);
+          ? (await instantiateModule(context, [...current, module], provider, imports, opts, wasiList, names, modules, linked, mutableFlags),
+            linked.get(provider))
+          : linked.get(provider);
 
       if (!instance) {
         // circular import, either make a trampoline or bail
@@ -291,10 +334,10 @@ async function instantiateModule(
   const guestType = instance.exports.hs_init
     ? 'haskell'
     : instance.exports._initialize
-    ? 'reactor'
-    : instance.exports._start
-    ? 'command'
-    : 'none';
+      ? 'reactor'
+      : instance.exports._start
+        ? 'command'
+        : 'none';
 
   if (wasi) {
     await wasi?.initialize(instance);
