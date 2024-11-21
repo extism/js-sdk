@@ -193,7 +193,7 @@ async function instantiateModule(
         }
 
         if (!opts.wasiEnabled) {
-          throw new Error('WASI is not enabled; see the "wasiEnabled" plugin option');
+          throw new Error('WASI is not enabled; see the "useWasi" plugin option');
         }
 
         if (wasi === null) {
