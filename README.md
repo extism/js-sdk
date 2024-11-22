@@ -61,7 +61,7 @@ Plug-in code can come from a file on disk, object storage or any number of place
 
 ```js
 const plugin = await createPlugin(
-    'https://github.com/extism/plugins/releases/latest/download/count_vowels.wasm',
+    'https://cdn.modsurfer.dylibso.com/api/v1/module/be716369b7332148771e3cd6376d688dfe7ee7dd503cbc43d2550d76cb45a01d.wasm',
     { useWasi: true }
 );
 ```
