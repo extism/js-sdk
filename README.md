@@ -77,8 +77,9 @@ it exposes one "export" function: `count_vowels`. We can call exports using
 `Plugin.call`:
 
 ```js
+const input = "Hello World";
 let out = await plugin.call("count_vowels", input);
-console.log(out.text())
+console.log(out.text());
 
 // => {"count": 3, "total": 3, "vowels": "aeiouAEIOU"}
 ```
@@ -96,12 +97,12 @@ making subsequent calls to the export:
 
 ```js
 let out = await plugin.call("count_vowels", "Hello, World!");
-console.log(out.text())
-// => {"count": 3, "total": 9, "vowels": "aeiouAEIOU"}
+console.log(out.text());
+// => {"count": 3, "total": 3, "vowels": "aeiouAEIOU"}
 
 out = await plugin.call("count_vowels", "Hello, World!");
-console.log(out.json())
-// => {"count": 3, "total": 9, "vowels": "aeiouAEIOU"}
+console.log(out.json());
+// => {"count": 3, "total": 6, "vowels": "aeiouAEIOU"}
 ```
 
 These variables will persist until you call `await plugin.reset()`. Variables
@@ -118,21 +119,21 @@ const wasm = {
     url: 'https://github.com/extism/plugins/releases/latest/download/count_vowels.wasm'
 }
 
-let plugin = await createPlugin(wasm, {
+let plugin = await createPlugin(wasm.url, {
     useWasi: true,
 });
 
 let out = await plugin.call("count_vowels", "Yellow, World!");
-console.log(out.text())
+console.log(out.text());
 // => {"count": 3, "total": 3, "vowels": "aeiouAEIOU"}
 
-plugin = await createPlugin(wasm, {
+plugin = await createPlugin(wasm.url, {
     useWasi: true,
     config: { "vowels": "aeiouyAEIOUY" }
 });
 
 out = await plugin.call("count_vowels", "Yellow, World!");
-console.log(out.text())
+console.log(out.text());
 // => {"count": 4, "total": 4, "vowels": "aeiouAEIOUY"}
 ```
 
@@ -142,7 +143,7 @@ Let's extend our count-vowels example a little bit: Instead of storing the
 `total` in an ephemeral plug-in var, let's store it in a persistent key-value
 store!
 
-Wasm can't use our KV store on it's own. This is where [Host
+Wasm can't use our KV store on its own. This is where [Host
 Functions](https://extism.org/docs/concepts/host-functions) come in.
 
 [Host functions](https://extism.org/docs/concepts/host-functions) allow us to
@@ -161,7 +162,7 @@ const wasm = {
 
 > *Note*: The source code for this is [here](https://github.com/extism/plugins/blob/main/count_vowels_kvstore/src/lib.rs) and is written in Rust, but it could be written in any of our PDK languages.
 
-Unlike our previous plug-in, this plug-in expects you to provide host functions that satisfy our its import interface for a KV store.
+Unlike our previous plug-in, this plug-in expects you to provide host functions that satisfy its import interface for a KV store.
 
 We want to expose two functions to our plugin, `kv_write(key: string, value: Uint8Array)` which writes a bytes value to a key and `kv_read(key: string): Uint8Array` which reads the bytes at the given `key`.
 ```js
@@ -186,7 +187,7 @@ const options = {
                 // with the `text()` and `json()` methods we've seen, we also
                 // get DataView methods, such as `getUint32`.
                 const value = cp.read(vOffs);
-                console.log(`Writing value=${new value.getUint32(0, true)} from key=${key}`);
+                console.log(`Writing value=${value.getUint32(0, true)} from key=${key}`);
 
                 kvStore.set(key, value.bytes());
             }
@@ -202,20 +203,20 @@ We need to pass these imports to the plug-in to create them. All imports of a
 plug-in must be satisfied for it to be initialized:
 
 ```js
-const plugin = await createPlugin(wasm, options);
+const plugin = await createPlugin(wasm.url, options);
 ```
 
 Now we can invoke the event:
 
 ```js
 let out = await plugin.call("count_vowels", "Hello World!");
-console.log(out.text())
+console.log(out.text());
 // => Read from key=count-vowels"
 // => Writing value=3 from key=count-vowels"
 // => {"count": 3, "total": 3, "vowels": "aeiouAEIOU"}
 
 out = await plugin.call("count_vowels", "Hello World!");
-console.log(out.text())
+console.log(out.text());
 // => Read from key=count-vowels"
 // => Writing value=6 from key=count-vowels"
 // => {"count": 3, "total": 6, "vowels": "aeiouAEIOU"}
