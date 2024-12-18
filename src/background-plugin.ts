@@ -9,17 +9,12 @@ import {
   SET_HOST_CONTEXT,
   STORE,
 } from './call-context.ts';
-import {
-  type InternalConfig,
-  PluginOutput,
-  SAB_BASE_OFFSET,
-  SharedArrayBufferSection,
-} from './interfaces.ts';
+import { type InternalConfig, PluginOutput, SAB_BASE_OFFSET, SharedArrayBufferSection } from './interfaces.ts';
 import { WORKER_URL } from './worker-url.ts';
 import { Worker } from 'node:worker_threads';
 import { CAPABILITIES } from './polyfills/deno-capabilities.ts';
 import { EXTISM_ENV } from './foreground-plugin.ts';
-import { HttpContext } from './http-context.ts'
+import { HttpContext } from './http-context.ts';
 
 // Firefox has not yet implemented Atomics.waitAsync, but we can polyfill
 // it using a worker as a one-off.
@@ -37,7 +32,7 @@ const AtomicsWaitAsync =
 
     const blob = new (Blob as any)([src], { type: 'text/javascript' });
     const url = URL.createObjectURL(blob);
-    const w = new Worker(url);
+    const w = new Worker(url, { execArgv: [] });
     return (ia: any, index, value) => {
       const promise = new Promise((resolve) => {
         w.once('message', (data) => {
@@ -85,7 +80,7 @@ class BackgroundPlugin {
   async #handleTimeout() {
     // block new requests from coming in & the current request from settling
     const request = this.#request;
-    this.#request = [() => { }, () => { }];
+    this.#request = [() => {}, () => {}];
 
     const timedOut = {};
     const failed = {};
@@ -208,7 +203,7 @@ class BackgroundPlugin {
           await this.#handleTimeout();
         }
       },
-      () => { },
+      () => {},
     );
 
     this.worker.postMessage({
@@ -298,7 +293,7 @@ class BackgroundPlugin {
     //
     // - https://github.com/nodejs/node/pull/44409
     // - https://github.com/denoland/deno/issues/14786
-    const timer = setInterval(() => { }, 0);
+    const timer = setInterval(() => {}, 0);
     try {
       if (!func) {
         throw Error(`Plugin error: host function "${ev.namespace}" "${ev.func}" does not exist`);
@@ -423,7 +418,7 @@ class RingBufferWriter {
 
   signal() {
     const old = Atomics.load(this.flag, 0);
-    while (Atomics.compareExchange(this.flag, 0, old, this.outputOffset) === old) { }
+    while (Atomics.compareExchange(this.flag, 0, old, this.outputOffset) === old) {}
     Atomics.notify(this.flag, 0, 1);
   }
 
@@ -546,9 +541,9 @@ async function createWorker(
   names: string[],
   modules: WebAssembly.Module[],
   sharedData: SharedArrayBuffer,
-  onworker: (_w: Worker) => void = (_w: Worker) => { },
+  onworker: (_w: Worker) => void = (_w: Worker) => {},
 ): Promise<Worker> {
-  const worker = new Worker(WORKER_URL);
+  const worker = new Worker(WORKER_URL, opts.nodeWorkerArgs);
   onworker(worker);
 
   await new Promise((resolve, reject) => {
@@ -595,7 +590,7 @@ function timeout(ms: number | null, sentinel: any) {
 
 async function terminateWorker(w: Worker) {
   if (typeof (globalThis as any).Bun !== 'undefined') {
-    const timer = setTimeout(() => { }, 10);
+    const timer = setTimeout(() => {}, 10);
     await w.terminate();
     clearTimeout(timer);
   } else {
