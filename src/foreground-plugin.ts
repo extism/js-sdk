@@ -9,10 +9,10 @@ export const EXTISM_ENV = 'extism:host/env';
 type InstantiatedModule = [WebAssembly.Module, WebAssembly.Instance];
 
 interface SuspendingCtor {
-  new(fn: CallableFunction): any;
+  new (fn: CallableFunction): any;
 }
 
-const AsyncFunction = (async () => { }).constructor;
+const AsyncFunction = (async () => {}).constructor;
 const Suspending: SuspendingCtor | undefined = (WebAssembly as any).Suspending;
 const promising: CallableFunction | undefined = (WebAssembly as any).promising;
 
@@ -159,8 +159,19 @@ export async function createForegroundPlugin(
   const seen: Map<WebAssembly.Module, WebAssembly.Instance> = new Map();
   const wasiList: InternalWasi[] = [];
 
-  const mutableFlags = { suspendsOnInvoke }
-  const instance = await instantiateModule(context, ['main'], modules[mainIndex], imports, opts, wasiList, names, modules, seen, mutableFlags);
+  const mutableFlags = { suspendsOnInvoke };
+  const instance = await instantiateModule(
+    context,
+    ['main'],
+    modules[mainIndex],
+    imports,
+    opts,
+    wasiList,
+    names,
+    modules,
+    seen,
+    mutableFlags,
+  );
 
   return new ForegroundPlugin(opts, context, [modules[mainIndex], instance], wasiList, mutableFlags.suspendsOnInvoke);
 }
@@ -175,7 +186,7 @@ async function instantiateModule(
   names: string[],
   modules: WebAssembly.Module[],
   linked: Map<WebAssembly.Module, WebAssembly.Instance | null>,
-  mutableFlags: { suspendsOnInvoke: boolean }
+  mutableFlags: { suspendsOnInvoke: boolean },
 ) {
   linked.set(module, null);
 
@@ -241,22 +252,17 @@ async function instantiateModule(
         promising &&
         imports[module][name] === context[ENV].http_request
       ) {
-        const httpContext = new HttpContext(
-          opts.fetch,
-          opts.allowedHosts,
-          opts.memory,
-          opts.allowHttpResponseHeaders
-        );
+        const httpContext = new HttpContext(opts.fetch, opts.allowedHosts, opts.memory, opts.allowHttpResponseHeaders);
 
-        mutableFlags.suspendsOnInvoke = true
+        mutableFlags.suspendsOnInvoke = true;
 
-        const contributions = {} as any
-        httpContext.contribute(contributions)
+        const contributions = {} as any;
+        httpContext.contribute(contributions);
         for (const [key, entry] of Object.entries(contributions[EXTISM_ENV] as { [k: string]: CallableFunction })) {
           // REBIND:
-          imports[module][key] = (entry as any).bind(null, context)
+          imports[module][key] = (entry as any).bind(null, context);
         }
-        imports[module][name] = new Suspending!(imports[module][name])
+        imports[module][name] = new Suspending!(imports[module][name]);
       }
 
       switch (kind) {
@@ -289,11 +295,33 @@ async function instantiateModule(
 
       // If the dependency provides "_start", treat it as a WASI Command module; instantiate it (and its subtree) directly.
       const instance = providerExports.find((xs) => xs.name === '_start')
-        ? await instantiateModule(context, [...current, module], provider, imports, opts, wasiList, names, modules, new Map(), mutableFlags)
+        ? await instantiateModule(
+            context,
+            [...current, module],
+            provider,
+            imports,
+            opts,
+            wasiList,
+            names,
+            modules,
+            new Map(),
+            mutableFlags,
+          )
         : !linked.has(provider)
-          ? (await instantiateModule(context, [...current, module], provider, imports, opts, wasiList, names, modules, linked, mutableFlags),
-            linked.get(provider))
-          : linked.get(provider);
+        ? (await instantiateModule(
+            context,
+            [...current, module],
+            provider,
+            imports,
+            opts,
+            wasiList,
+            names,
+            modules,
+            linked,
+            mutableFlags,
+          ),
+          linked.get(provider))
+        : linked.get(provider);
 
       if (!instance) {
         // circular import, either make a trampoline or bail
@@ -334,10 +362,10 @@ async function instantiateModule(
   const guestType = instance.exports.hs_init
     ? 'haskell'
     : instance.exports._initialize
-      ? 'reactor'
-      : instance.exports._start
-        ? 'command'
-        : 'none';
+    ? 'reactor'
+    : instance.exports._start
+    ? 'command'
+    : 'none';
 
   if (wasi) {
     await wasi?.initialize(instance);

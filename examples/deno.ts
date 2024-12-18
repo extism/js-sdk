@@ -16,7 +16,7 @@ const plugin = await createPlugin(filename, {
 
 console.log('calling', { filename, funcname, input });
 const res = await plugin.call(funcname, new TextEncoder().encode(input));
-console.log(res)
+console.log(res);
 // const s = new TextDecoder().decode(res.buffer);
 // console.log(s);
 

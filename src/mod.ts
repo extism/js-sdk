@@ -99,6 +99,13 @@ export async function createPlugin(
   opts.config = opts.config || manifestOpts.config || {};
   opts.memory = opts.memory || manifestOpts.memory || {};
   opts.timeoutMs = opts.timeoutMs || manifestOpts.timeoutMs || null;
+  opts.nodeWorkerArgs = Object.assign(
+    {
+      name: 'extism plugin',
+      execArgv: ['--disable-warning=ExperimentalWarning'],
+    },
+    opts.nodeWorkerArgs || {},
+  );
 
   if (opts.allowedHosts.length && !opts.runInWorker) {
     if (!(WebAssembly as any).Suspending) {
@@ -142,6 +149,7 @@ export async function createPlugin(
     timeoutMs: opts.timeoutMs,
     memory: opts.memory,
     allowHttpResponseHeaders: !!opts.allowHttpResponseHeaders,
+    nodeWorkerArgs: opts.nodeWorkerArgs || {},
   };
 
   return (opts.runInWorker ? _createBackgroundPlugin : _createForegroundPlugin)(ic, names, moduleData);
