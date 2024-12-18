@@ -86,10 +86,10 @@ function parseManifestFromJson(json: string): Manifest {
     config: parsed.config,
     ...(parsed.memory
       ? {
-        maxHttpResponseBytes: parsed.memory.maxHttpResponseBytes ?? parsed.memory.max_http_response_bytes,
-        maxPages: parsed.memory.maxPages ?? parsed.memory.max_pages,
-        maxVarBytes: parsed.memory.maxVarBytes ?? parsed.memory.max_var_bytes,
-      }
+          maxHttpResponseBytes: parsed.memory.maxHttpResponseBytes ?? parsed.memory.max_http_response_bytes,
+          maxPages: parsed.memory.maxPages ?? parsed.memory.max_pages,
+          maxVarBytes: parsed.memory.maxVarBytes ?? parsed.memory.max_var_bytes,
+        }
       : {}),
   };
 }

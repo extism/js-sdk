@@ -125,6 +125,23 @@ export interface Plugin {
 }
 
 /**
+ * Arguments to be passed to `node:worker_threads.Worker` when `runInWorker: true`.
+ */
+export interface NodeWorkerArgs {
+  name?: string;
+  execArgv?: string[];
+  argv?: string[];
+  env?: Record<string, string>;
+  resourceLimits?: {
+    maxOldGenerationSizeMb?: number;
+    maxYoungGenerationSizeMb?: number;
+    codeRangeSizeMb?: number;
+    stackSizeMb?: number;
+  };
+  [k: string]: any;
+}
+
+/**
  * Options for initializing an Extism plugin.
  */
 export interface ExtismPluginOptions {
@@ -214,6 +231,16 @@ export interface ExtismPluginOptions {
    *  headers for HTTP requests made using `extism:host/env::http_request`
    */
   allowHttpResponseHeaders?: boolean;
+
+  /**
+   * Arguments to pass to the `node:worker_threads.Worker` instance when `runInWorker: true`.
+   *
+   * This is particularly useful for changing `process.execArgv`, which controls certain startup
+   * behaviors in node (`--import`, `--require`, warnings.)
+   *
+   * If not set, defaults to removing the current `execArgv` and disabling node warnings.
+   */
+  nodeWorkerArgs?: NodeWorkerArgs;
 }
 
 export type MemoryOptions = {
@@ -259,6 +286,7 @@ export interface InternalConfig extends Required<NativeManifestOptions> {
   wasiEnabled: boolean;
   sharedArrayBufferSize: number;
   allowHttpResponseHeaders: boolean;
+  nodeWorkerArgs: NodeWorkerArgs;
 }
 
 export interface InternalWasi {

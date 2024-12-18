@@ -1,10 +1,5 @@
-import {
-  CallContext,
-  ENV,
-} from './call-context.ts';
-import {
-  MemoryOptions,
-} from './interfaces.ts';
+import { CallContext, ENV } from './call-context.ts';
+import { MemoryOptions } from './interfaces.ts';
 import { EXTISM_ENV } from './foreground-plugin.ts';
 import { matches } from './polyfills/deno-minimatch.ts';
 
