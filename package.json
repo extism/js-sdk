@@ -44,7 +44,7 @@
   "license": "BSD-3-Clause",
   "devDependencies": {
     "@bjorn3/browser_wasi_shim": "^0.2.17",
-    "@playwright/test": "^1.39.0",
+    "@playwright/test": "^1.49.1",
     "@types/node": "^20.8.7",
     "@typescript-eslint/eslint-plugin": "^6.8.0",
     "@typescript-eslint/parser": "^6.8.0",
@@ -52,7 +52,7 @@
     "esbuild-node-builtin": "^0.1.1",
     "eslint": "^8.51.0",
     "minimatch": "^9.0.3",
-    "playwright": "^1.39.0",
+    "playwright": "^1.49.1",
     "prettier": "^2.7.1",
     "tape": "^5.7.1",
     "typedoc": "^0.25.3",
