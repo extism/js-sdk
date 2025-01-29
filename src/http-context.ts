@@ -48,7 +48,7 @@ export class HttpContext {
     }
 
     const { headers, header, url: rawUrl, method: m } = req.json();
-    const method = m ?? 'GET';
+    const method = m?.toUpperCase() ?? 'GET';
     const url = new URL(rawUrl);
 
     const isAllowed = this.allowedHosts.some((allowedHost) => {
