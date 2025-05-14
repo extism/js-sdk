@@ -244,13 +244,17 @@ async function instantiateModule(
       // haven't overridden the default CallContext implementation, we provide an HttpContext
       // on-demand.
       //
-      // Unfortuantely this duplicates a little bit of logic-- in particular, we have to bind
+      // Unfortunately this duplicates a little bit of logic-- in particular, we have to bind
       // CallContext to each of the HttpContext contributions (See "REBIND" below.)
+      //
+      // Notably, if we're calling this from a background thread, skip all of the patching:
+      // we want to dispatch to the main thread.
       if (
         module === EXTISM_ENV &&
         name === 'http_request' &&
         promising &&
-        imports[module][name] === context[ENV].http_request
+        imports[module][name] === context[ENV].http_request &&
+        !opts.executingInWorker
       ) {
         const httpContext = new HttpContext(opts.fetch, opts.allowedHosts, opts.memory, opts.allowHttpResponseHeaders);
 

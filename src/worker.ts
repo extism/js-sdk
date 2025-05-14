@@ -155,7 +155,7 @@ class Reactor {
 
     // TODO: replace our internal fetch and logger
     this.plugin = await _createForegroundPlugin(
-      { ...opts, functions, fetch, logger } as InternalConfig,
+      { ...opts, functions, fetch, logger, executingInWorker: true } as InternalConfig,
       ev.names,
       modules,
       this.context,

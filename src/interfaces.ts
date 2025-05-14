@@ -287,6 +287,7 @@ export interface InternalConfig extends Required<NativeManifestOptions> {
   sharedArrayBufferSize: number;
   allowHttpResponseHeaders: boolean;
   nodeWorkerArgs: NodeWorkerArgs;
+  executingInWorker: boolean;
 }
 
 export interface InternalWasi {

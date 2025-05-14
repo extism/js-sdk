@@ -136,6 +136,7 @@ export async function createPlugin(
   }
 
   const ic: InternalConfig = {
+    executingInWorker: false,
     allowedHosts: opts.allowedHosts as [],
     allowedPaths: opts.allowedPaths,
     functions: opts.functions,
